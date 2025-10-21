@@ -4,7 +4,7 @@
 #include "high_level/high_level_energy.h"
 #include "input_gen/create_input.h"
 #include "job_management/job_checker.h"
-#include "thermo/thermo_interface.h"
+#include "thermo/thermo.h"
 #include <algorithm>
 #include <atomic>
 #include <csignal>

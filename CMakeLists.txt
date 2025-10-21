@@ -50,7 +50,7 @@ set(SOURCES
     src/ui/interactive_mode.cpp
     src/input_gen/create_input.cpp
     src/ui/help_utils.cpp
-    src/thermo/thermo_interface.cpp
+    src/thermo/thermo.cpp
     src/thermo/calc.cpp
     src/utilities/loadfile.cpp
     src/thermo/util.cpp
@@ -84,7 +84,7 @@ set(HEADERS
     src/ui/interactive_mode.h
     src/input_gen/create_input.h
     src/ui/help_utils.h
-    src/thermo/thermo_interface.h
+    src/thermo/thermo.h
     src/thermo/calc.h
     src/utilities/loadfile.h
     src/thermo/util.h

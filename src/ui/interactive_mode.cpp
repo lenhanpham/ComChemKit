@@ -15,7 +15,7 @@
 #include "utilities/config_manager.h"
 #include "utilities/utils.h"
 #include "utilities/version.h"
-#include "thermo/thermo_interface.h"
+#include "thermo/thermo.h"
 #include <atomic>
 #include <cstring>
 #include <iostream>

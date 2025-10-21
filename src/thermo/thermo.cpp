@@ -1,11 +1,11 @@
 /**
- * @file thermo_interface.cpp
+ * @file thermo.cpp
  * @brief Implementation of thermo interface layer
  * @author Le Nhan Pham
  * @date 2025
  */
 
-#include "thermo_interface.h"
+#include "thermo.h"
 #include "chemsys.h"
 #include "util.h"
 #include "utilities/loadfile.h"
