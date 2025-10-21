@@ -16,7 +16,7 @@ ComChemKit User Manual
 Overview
 --------
 
-Gaussian Extractor provides a comprehensive suite of tools for computational chemistry workflows:
+ComChemKit provides a comprehensive suite of tools for computational chemistry workflows:
 
 * **Parallel Processing**: Efficiently processes multiple Gaussian output files simultaneously
 * **Job Management**: Check and organize completed, failed, and problematic calculations
@@ -50,7 +50,7 @@ Key Features
 Getting Started
 ---------------
 
-New to Gaussian Extractor? Start here:
+New to ComChemKit? Start here:
 
 1. :doc:`installation` - Install the software on your system
 2. :doc:`usage` - Learn how to use all features with examples
@@ -62,14 +62,14 @@ Quick Start
 .. code-block:: bash
 
    # Basic usage - extract data from all .log files
-   gaussian_extractor.x
+   cck
 
    # Check job status and organize files
-   gaussian_extractor.x done     # Move completed jobs
-   gaussian_extractor.x errors   # Move failed jobs
+   cck done     # Move completed jobs
+   cck errors   # Move failed jobs
 
    # Generate input files from XYZ coordinates
-   gaussian_extractor.x ci --calc-type opt_freq
+   cck ci --calc-type opt_freq
 
 Contents
 --------
@@ -100,14 +100,14 @@ Support & Contributing
 
 For bug reports, feature requests, or safety concerns:
 
-- - **Issues**: `GitHub Issues <https://github.com/lenhanpham/gaussian-extractor/issues>`_
+- - **Issues**: `GitHub Issues <https://github.com/lenhanpham/ComChemKit/issues>`_
 - **Documentation**: This user manual
-- **Help**: Use ``gaussian_extractor.x --help`` for command-line help
+- **Help**: Use ``cck --help`` for command-line help
 
 License
 =======
 
-Gaussian Extractor is released under the MIT License. See the LICENSE file for details.
+ComChemKit is released under the MIT License. See the LICENSE file for details.
 
 Version Information
 ===================

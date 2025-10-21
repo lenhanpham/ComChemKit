@@ -1,7 +1,7 @@
 Installation Guide
 ==================
 
-This guide covers the installation of Gaussian Extractor on various platforms including Linux, Windows, and cluster environments.
+This guide covers the installation of ComChemKit on various platforms including Linux, Windows, and cluster environments.
 
 System Requirements
 -------------------
@@ -23,7 +23,7 @@ System Requirements
 Supported Compilers
 -------------------
 
-Gaussian Extractor supports multiple C++20 compilers:
+ComChemKit supports multiple C++20 compilers:
 
 - **GCC**: 10.0+ (recommended for Linux)
 - **Intel oneAPI**: icpx/icpc (recommended for clusters)
@@ -49,9 +49,9 @@ Pre-compiled Binary (Easiest)
 
    .. code-block:: batch
 
-      gaussian_extractor.x --version
+      cck --version
 
-      double-click gaussian_extractor.x to run interactive mode
+      double-click cck to run interactive mode
 
 **Linux/macOS Users:**
 
@@ -98,13 +98,13 @@ Automatic Build (Recommended)
 .. code-block:: bash
 
    # Clone the repository
-   git clone https://github.com/lenhanpham/gaussian-extractor.git
-   cd gaussian-extractor
+   git clone https://github.com/lenhanpham/ComChemKit.git
+   cd ComChemKit
 
    # Build with auto-detected compiler
    make -j $(nproc)
 
-   # The binary will be created as gaussian_extractor.x
+   # The binary will be created as cck
 
 **Build Variants:**
 
@@ -162,7 +162,7 @@ CMake Build (Cross-platform)
    cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_DEBUG=ON ..
 
    # Custom installation directory
-   cmake -DCMAKE_INSTALL_PREFIX=/opt/gaussian_extractor ..
+   cmake -DCMAKE_INSTALL_PREFIX=/opt/cck ..
 
 Cluster Installation
 -------------------------------
@@ -216,9 +216,9 @@ Create a default configuration file:
 .. code-block:: bash
 
    # Generate default configuration
-   gaussian_extractor.x --create-config
+   cck --create-config
 
-   # This creates ~/.gaussian_extractor.conf
+   # This creates ~/.cck.conf
    # Edit this file to set your preferred defaults
 
 Environment Setup
@@ -229,20 +229,20 @@ Environment Setup
 .. code-block:: bash
 
    # Add to PATH (add to ~/.bashrc or ~/.zshrc)
-   export PATH=$PATH:/path/to/gaussian_extractor
+   export PATH=$PATH:/path/to/cck
 
    # Optional: Create alias
-   alias gx='gaussian_extractor.x'
+   alias gx='cck'
 
 **Windows:**
 
 1. Open System Properties → Advanced → Environment Variables
-2. Add the Gaussian Extractor directory to PATH
+2. Add the ComChemKit directory to PATH
 3. Open new Command Prompt and test:
 
    .. code-block:: batch
 
-      gaussian_extractor.x --version
+      cck --version
 
 Verification
 ------------
@@ -252,16 +252,16 @@ Test your installation:
 .. code-block:: bash
 
    # Check version
-   gaussian_extractor.x --version
+   cck --version
 
    # Show help
-   gaussian_extractor.x --help
+   cck --help
 
    # Show system resource information
-   gaussian_extractor.x --resource-info
+   cck --resource-info
 
    # Test with sample data (if available)
-   gaussian_extractor.x
+   cck
 
 Troubleshooting
 ===============
@@ -306,7 +306,7 @@ Common Build Issues
 .. code-block:: bash
 
    # Fix permissions
-   chmod +x gaussian_extractor.x
+   chmod +x cck
 
    # Install to user directory if system install fails
    make install-user
@@ -319,10 +319,10 @@ Runtime Issues
 .. code-block:: bash
 
    # Reduce thread count
-   gaussian_extractor.x -nt 2
+   cck -nt 2
 
    # Set explicit memory limit
-   gaussian_extractor.x --memory-limit 4096
+   cck --memory-limit 4096
 
 **File Permission Issues:**
 
@@ -398,10 +398,10 @@ Performance Optimization
 .. code-block:: bash
 
    # Use optimal thread count
-   gaussian_extractor.x -nt half
+   cck -nt half
 
    # For large files, increase memory limit
-   gaussian_extractor.x --max-file-size 500
+   cck --max-file-size 500
 
 Uninstallation
 ==============
@@ -411,10 +411,10 @@ Uninstallation
 .. code-block:: bash
 
    # Remove binary
-   rm /usr/local/bin/gaussian_extractor.x
+   rm /usr/local/bin/cck
 
    # Remove configuration
-   rm ~/.gaussian_extractor.conf
+   rm ~/.cck.conf
 
 **Source Installation:**
 
@@ -424,8 +424,8 @@ Uninstallation
    make uninstall
 
    # Or manually remove files
-   rm -rf /usr/local/bin/gaussian_extractor.x
-   rm -rf /usr/local/share/gaussian_extractor
+   rm -rf /usr/local/bin/cck
+   rm -rf /usr/local/share/cck
 
 Getting Help
 ============
@@ -433,14 +433,14 @@ Getting Help
 If you encounter issues:
 
 1. Check the :doc:`usage` guide for proper usage
-2. Use ``gaussian_extractor.x --help`` for command-line help
+2. Use ``cck --help`` for command-line help
 3. Check system requirements and compiler compatibility
 4. Report issues on GitHub with system information
 
 .. code-block:: bash
 
    # Get detailed system information
-   gaussian_extractor.x --resource-info
+   cck --resource-info
 
    # Check compiler information
    make compiler-info

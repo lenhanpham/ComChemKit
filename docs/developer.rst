@@ -1,7 +1,7 @@
 Developer Guide
 ===============
 
-This guide is for developers who want to contribute to the Gaussian Extractor project. It covers the codebase structure, development setup, coding standards, and contribution guidelines.
+This guide is for developers who want to contribute to the ComChemKit project. It covers the codebase structure, development setup, coding standards, and contribution guidelines.
 
 Project Overview
 ================
@@ -9,7 +9,7 @@ Project Overview
 Architecture
 ------------
 
-Gaussian Extractor is a C++20 application designed for high-performance processing of Gaussian computational chemistry log files. The codebase follows a modular architecture with clear separation of concerns:
+ComChemKit is a C++20 application designed for high-performance processing of computational chemistry log files. The codebase follows a modular architecture with clear separation of concerns:
 
 .. code-block::
 ├── src/
@@ -146,8 +146,8 @@ Getting the Source Code
 .. code-block:: bash
 
    # Clone the repository
-   git clone https://github.com/lenhanpham/gaussian-extractor.git
-   cd gaussian-extractor
+   git clone https://github.com/lenhanpham/ComChemKit.git
+   cd ComChemKit
 
    # Create a development branch
    git checkout -b feature/your-feature-name
@@ -286,7 +286,7 @@ Code Style
 
    // Constants
    const int DEFAULT_THREAD_COUNT = 4;
-   const std::string CONFIG_FILE_NAME = ".gaussian_extractor.conf";
+   const std::string CONFIG_FILE_NAME = ".ComChemKit.conf";
 
    // Member variables (with m_ prefix)
    class MyClass {
@@ -460,7 +460,7 @@ Development Workflow
 .. code-block:: bash
 
    # Check available issues
-   # Visit: https://github.com/lenhanpham/gaussian-extractor
+   # Visit: https://github.com/lenhanpham/ComChemKit
 
 **2. Create a Branch:**
 
@@ -595,7 +595,7 @@ Unit Testing
 
    TEST_F(CommandParserTest, ParseExtractCommand) {
        // Test extract command parsing
-       char* argv[] = {"gaussian_extractor.x", "extract", "-t", "300"};
+       char* argv[] = {"cck", "extract", "-t", "300"};
        CommandContext context = CommandParser::parse(4, argv);
 
        EXPECT_EQ(context.command, CommandType::EXTRACT);
@@ -626,7 +626,7 @@ Integration Testing
    ./test_integration.sh
 
    # Test with sample data
-   ./gaussian_extractor.x -f test_data/ --output test_results/
+   ./cck -f test_data/ --output test_results/
 
 Performance Testing
 -------------------
@@ -639,10 +639,10 @@ Performance Testing
    make benchmark
 
    # Profile application
-   valgrind --tool=callgrind ./gaussian_extractor.x [args]
+   valgrind --tool=callgrind ./cck [args]
 
    # Memory profiling
-   valgrind --tool=massif ./gaussian_extractor.x [args]
+   valgrind --tool=massif ./cck [args]
 
 Continuous Integration
 ======================
@@ -744,4 +744,4 @@ Support and Communication
 - Follow the code of conduct
 - Acknowledge contributions from others
 
-This developer guide provides comprehensive information for contributing to the Gaussian Extractor project. Following these guidelines ensures high-quality, maintainable code that benefits the entire community.
+This developer guide provides comprehensive information for contributing to the ComChemKit project. Following these guidelines ensures high-quality, maintainable code that benefits the entire community.

@@ -12,11 +12,11 @@ sys.path.insert(0, os.path.abspath('../src'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Gaussian Extractor'
+project = 'ComChemKit'
 copyright = '2025, Le Nhan Pham'
 author = 'Le Nhan Pham'
-release = '0.5.0'
-version = '0.5.0'
+release = '0.000.1'
+version = '0.000.1'
 
 # -- General configuration ---------------------------------------------------
 
@@ -42,11 +42,11 @@ extensions = [
 exhale_args = {
     "containmentFolder": "./api",
     "rootFileName": "api.rst",
-    "rootFileTitle": "Gaussian Extractor API",
+    "rootFileTitle": "ComChemKit API",
     "doxygenStripFromPath": os.path.abspath("../src"),
     "exhaleExecutesDoxygen": True,
     "exhaleDoxygenStdin": """
-        PROJECT_NAME = "Gaussian Extractor"
+        PROJECT_NAME = "ComChemKit"
         INPUT = ../src
         FILE_PATTERNS = *.cpp *.hpp *.h *.cxx *.cc
         RECURSIVE = YES
@@ -85,16 +85,16 @@ exhale_args = {
         EXCLUDE_PATTERNS = */src/*.cpp
     """,
     "createTreeView": True,
-    "afterTitleDescription": "Comprehensive API documentation for the Gaussian Extractor.",
+    "afterTitleDescription": "Comprehensive API documentation for the ComChemKit.",
     "verboseBuild": False,
 }
 
 
 
 breathe_projects = {
-    'GaussianExtractor': 'docs/xml/'  # Path to Doxygen XML output
+    'ComChemKit': 'docs/xml/'  # Path to Doxygen XML output
 }
-breathe_default_project = 'GaussianExtractor'
+breathe_default_project = 'ComChemKit'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -130,22 +130,22 @@ latex_elements = {
 
 # Grouping the document tree into LaTeX files.
 latex_documents = [
-    (master_doc, 'GaussianExtractor.tex', 'Gaussian Extractor Documentation',
+    (master_doc, 'ComChemKit.tex', 'ComChemKit Documentation',
      'Le Nhan Pham', 'manual'),
 ]
 
 # -- Options for manual page output ------------------------------------------
 
 man_pages = [
-    (master_doc, 'gaussianextractor', 'Gaussian Extractor Documentation',
+    (master_doc, 'ComChemKit', 'ComChemKit Documentation',
      [author], 1)
 ]
 
 # -- Options for Texinfo output ----------------------------------------------
 
 texinfo_documents = [
-    (master_doc, 'GaussianExtractor', 'Gaussian Extractor Documentation',
-     author, 'GaussianExtractor', 'High-performance Gaussian log file processor.',
+    (master_doc, 'ComChemKit', 'ComChemKit Documentation',
+     author, 'ComChemKit', 'High-performance Computational Kit.',
      'Miscellaneous'),
 ]
 
@@ -188,7 +188,7 @@ keep_warnings = False
 html_context = {
     'display_github': True,
     'github_user': 'lenhanpham',
-    'github_repo': 'gaussian-extractor',
+    'github_repo': 'ComChemKit',
     'github_version': 'main',
     'conf_py_path': '/docs/',
 }
@@ -196,14 +196,14 @@ html_context = {
 # -- PDF output configuration -----------------------------------------------
 
 pdf_documents = [
-    (master_doc, 'GaussianExtractor', 'Gaussian Extractor Documentation',
+    (master_doc, 'ComChemKit', 'ComChemKit Documentation',
      author, 'manual'),
 ]
 
 # -- Linkcheck configuration ------------------------------------------------
 
 linkcheck_ignore = [
-    r'https://github.com/lenhanpham/gaussian-extractor/.*',
+    r'https://github.com/lenhanpham/ComChemKit/.*',
     r'https://docs.python.org/.*',
     r'https://en.cppreference.com/.*',
 ]

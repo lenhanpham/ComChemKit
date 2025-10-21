@@ -1,7 +1,7 @@
 Usage Guide
 ===========
 
-This comprehensive guide covers all features and commands of Gaussian Extractor with detailed examples and explanations.
+This comprehensive guide covers all features and commands of ComChemKit with detailed examples and explanations.
 
 Quick Start
 -----------
@@ -11,18 +11,18 @@ Quick Start
 .. code-block:: bash
 
    # Extract data from all .log files in current directory
-   gaussian_extractor.x
+   cck
 
    # Process with custom settings
-   gaussian_extractor.x -t 300 -c 2 -f csv -q
+   cck -t 300 -c 2 -f csv -q
 
    # Get help
-   gaussian_extractor.x --help
+   cck --help
 
 Command Overview
 ----------------
 
-Gaussian Extractor supports the following commands:
+ComChemKit supports the following commands:
 
 +------------------+--------------------------------------------------+
 | Command          | Description                                      |
@@ -63,10 +63,10 @@ Core Commands
 .. code-block:: bash
 
    # Process all .log files in current directory
-   gaussian_extractor.x
+   cck
 
    # Process .out files instead
-   gaussian_extractor.x -e out
+   cck -e out
 
 **Output Formats:**
 
@@ -74,13 +74,13 @@ Core Commands
 
 .. code-block:: bash
 
-   gaussian_extractor.x
+   cck
 
 **CSV Format:**
 
 .. code-block:: bash
 
-   gaussian_extractor.x -f csv
+   cck -f csv
 
 **Sample Output:**
 
@@ -126,32 +126,32 @@ Core Commands
 .. code-block:: bash
 
    # Custom temperature and concentration
-   gaussian_extractor.x -t 310.15 -c 5
+   cck -t 310.15 -c 5
 
    # Sort by different column (2=ETG kJ/mol, 3=Low FC, 6=SCFE)
-   gaussian_extractor.x -col 6
+   cck -col 6
 
    # Quiet mode (minimal output)
-   gaussian_extractor.x -q
+   cck -q
 
    # Use specific number of threads
-   gaussian_extractor.x -nt 8
+   cck -nt 8
 
    # Process files larger than default 100MB limit
-   gaussian_extractor.x --max-file-size 500
+   cck --max-file-size 500
 
 **Temperature and Phase Correction:**
 
 .. code-block:: bash
 
    # Use temperature from input files (default)
-   gaussian_extractor.x
+   cck
 
    # Override with custom temperature
-   gaussian_extractor.x -t 298.15
+   cck -t 298.15
 
    # Custom concentration for phase correction
-   gaussian_extractor.x -c 2  # 2M concentration
+   cck -c 2  # 2M concentration
 
 **Understanding Phase Correction:**
 
@@ -171,44 +171,44 @@ Phase correction converts gas-phase energies to solution-phase:
 .. code-block:: bash
 
    # Move completed jobs to {dirname}-done/
-   gaussian_extractor.x done
+   cck done
 
    # Custom directory suffix
-   gaussian_extractor.x done --dir-suffix completed
+   cck done --dir-suffix completed
 
 **Check Failed Jobs:**
 
 .. code-block:: bash
 
    # Move failed jobs to errorJobs/
-   gaussian_extractor.x errors
+   cck errors
 
    # Show detailed error messages
-   gaussian_extractor.x errors --show-details
+   cck errors --show-details
 
    # Custom target directory
-   gaussian_extractor.x errors --target-dir failed_calculations
+   cck errors --target-dir failed_calculations
 
 **Check PCM Failures:**
 
 .. code-block:: bash
 
    # Move PCM convergence failures to PCMMkU/
-   gaussian_extractor.x pcm
+   cck pcm
 
 **Check Imaginary Frequencies:**
 
 .. code-block:: bash
 
    # Move jobs with imaginary frequencies to imaginary_freqs/
-   gaussian_extractor.x imode
+   cck imode
 
 **Run All Checks:**
 
 .. code-block:: bash
 
    # Execute all job checks in sequence
-   gaussian_extractor.x check
+   cck check
 
 **Workflow Example:**
 
@@ -218,16 +218,16 @@ Phase correction converts gas-phase energies to solution-phase:
    # (submit your Gaussian jobs)
 
    # 2. Check completion status
-   gaussian_extractor.x done
+   cck done
 
    # 3. Check for failures
-   gaussian_extractor.x errors
+   cck errors
 
    # 4. Check PCM issues
-   gaussian_extractor.x pcm
+   cck pcm
 
    # 5. Check vibrational analysis
-   gaussian_extractor.x imode
+   cck imode
 
 3. High-Level Energy Calculations
 ----------------------------------
@@ -254,10 +254,10 @@ Phase correction converts gas-phase energies to solution-phase:
    cd high_level
 
    # Calculate energies in kJ/mol
-   gaussian_extractor.x high-kj
+   cck high-kj
 
    # Calculate detailed energies in atomic units
-   gaussian_extractor.x high-au
+   cck high-au
 
 **Energy Combination Process:**
 
@@ -287,16 +287,16 @@ Phase correction converts gas-phase energies to solution-phase:
 .. code-block:: bash
 
    # Custom temperature
-   gaussian_extractor.x high-kj -t 310.15
+   cck high-kj -t 310.15
 
    # Custom concentration
-   gaussian_extractor.x high-kj -c 2
+   cck high-kj -c 2
 
    # Sort by different column
-   gaussian_extractor.x high-kj -col 4
+   cck high-kj -col 4
 
    # CSV output
-   gaussian_extractor.x high-kj -f csv
+   cck high-kj -f csv
 
 4. Coordinate Extraction
 -------------------------
@@ -308,10 +308,10 @@ Phase correction converts gas-phase energies to solution-phase:
 .. code-block:: bash
 
    # Extract coordinates from all log files
-   gaussian_extractor.x xyz
+   cck xyz
 
    # Extract from specific files
-   gaussian_extractor.x xyz -f molecule1.log molecule2.log
+   cck xyz -f molecule1.log molecule2.log
 
 **Output Organization:**
 
@@ -345,13 +345,13 @@ Phase correction converts gas-phase energies to solution-phase:
 .. code-block:: bash
 
    # Process .out files
-   gaussian_extractor.x xyz -e out
+   cck xyz -e out
 
    # Use multiple threads
-   gaussian_extractor.x xyz -nt 8
+   cck xyz -nt 8
 
    # Quiet mode
-   gaussian_extractor.x xyz -q
+   cck xyz -q
 
 5. Create Input Files (ci)
 ---------------------------
@@ -389,45 +389,45 @@ Phase correction converts gas-phase energies to solution-phase:
 .. code-block:: bash
 
    # Single point energy calculation (default)
-   gaussian_extractor.x ci
+   cck ci
 
    # Geometry optimization + frequency
-   gaussian_extractor.x ci --calc-type opt_freq
+   cck ci --calc-type opt_freq
 
    # Transition state search
-   gaussian_extractor.x ci --calc-type ts_freq
+   cck ci --calc-type ts_freq
 
 **Advanced Examples:**
 
 .. code-block:: bash
 
    # Transition state with frozen bond
-   gaussian_extractor.x ci --calc-type modre_ts_freq --freeze-atoms 1 2
+   cck ci --calc-type modre_ts_freq --freeze-atoms 1 2
 
    # High-level single point with custom functional
-   gaussian_extractor.x ci --calc-type high_sp --functional B3LYP --basis 6-311+G**
+   cck ci --calc-type high_sp --functional B3LYP --basis 6-311+G**
 
    # Solvent calculation
-   gaussian_extractor.x ci --calc-type opt_freq --solvent water --solvent-model smd
+   cck ci --calc-type opt_freq --solvent water --solvent-model smd
 
    # IRC from transition state
-   gaussian_extractor.x ci --calc-type irc --tschk-path ../ts_checkpoints
+   cck ci --calc-type irc --tschk-path ../ts_checkpoints
 
    # Custom settings
-   gaussian_extractor.x ci --calc-type opt_freq --charge 1 --mult 2
+   cck ci --calc-type opt_freq --charge 1 --mult 2
 
 **Multiple XYZ Files:**
 
 .. code-block:: bash
 
    # Process multiple files (comma-separated)
-   gaussian_extractor.x ci file1.xyz,file2.xyz,file3.xyz
+   cck ci file1.xyz,file2.xyz,file3.xyz
 
    # Mixed separators (space and comma)
-   gaussian_extractor.x ci file1.xyz file2.xyz,file3.xyz
+   cck ci file1.xyz file2.xyz,file3.xyz
 
    # With calculation type
-   gaussian_extractor.x ci --calc-type opt_freq file1.xyz,file2.xyz
+   cck ci --calc-type opt_freq file1.xyz,file2.xyz
 
 **Template System:**
 
@@ -436,23 +436,23 @@ Phase correction converts gas-phase energies to solution-phase:
 .. code-block:: bash
 
    # Generate template for specific calculation type
-   gaussian_extractor.x ci --genci-params opt_freq
+   cck ci --genci-params opt_freq
 
    # Generate all available templates
-   gaussian_extractor.x ci --genci-all-params
+   cck ci --genci-all-params
 
    # Generate in specific directory
-   gaussian_extractor.x ci --genci-params opt_freq ./my_templates
+   cck ci --genci-params opt_freq ./my_templates
 
 **Use Templates:**
 
 .. code-block:: bash
 
    # Use specific parameter file
-   gaussian_extractor.x ci --param-file opt_freq.params
+   cck ci --param-file opt_freq.params
 
    # Use default parameter file
-   gaussian_extractor.x ci --param-file
+   cck ci --param-file
 
 **Template Workflow:**
 
@@ -460,7 +460,7 @@ Phase correction converts gas-phase energies to solution-phase:
 
    .. code-block:: bash
 
-      gaussian_extractor.x ci --genci-params opt_freq
+      cck ci --genci-params opt_freq
 
 2. **Edit Template (opt_freq.params):**
 
@@ -478,7 +478,7 @@ Phase correction converts gas-phase energies to solution-phase:
 
    .. code-block:: bash
 
-      gaussian_extractor.x ci --param-file opt_freq.params
+      cck ci --param-file opt_freq.params
 
 **Generated Input File Example:**
 
@@ -504,12 +504,12 @@ Configuration File
 
 .. code-block:: bash
 
-   gaussian_extractor.x --create-config
+   cck --create-config
 
 **Configuration File Location:**
 
-- **Linux/macOS:** ``~/.gaussian_extractor.conf``
-- **Windows:** ``%USERPROFILE%\.gaussian_extractor.conf``
+- **Linux/macOS:** ``~/.cck.conf``
+- **Windows:** ``%USERPROFILE%\.cck.conf``
 
 **Sample Configuration:**
 
@@ -566,23 +566,23 @@ Thread Management
 .. code-block:: bash
 
    # Use half of available cores (recommended)
-   gaussian_extractor.x -nt half
+   cck -nt half
 
    # Use all available cores
-   gaussian_extractor.x -nt max
+   cck -nt max
 
    # Use specific number
-   gaussian_extractor.x -nt 8
+   cck -nt 8
 
 **Cluster Safety:**
 
 .. code-block:: bash
 
    # Conservative settings for head nodes
-   gaussian_extractor.x -nt 2 -q
+   cck -nt 2 -q
 
    # Optimal for compute nodes
-   gaussian_extractor.x -nt half
+   cck -nt half
 
 Memory Management
 -----------------
@@ -592,10 +592,10 @@ Memory Management
 .. code-block:: bash
 
    # Check current resource usage
-   gaussian_extractor.x --resource-info
+   cck --resource-info
 
    # Set custom memory limit
-   gaussian_extractor.x --memory-limit 8192
+   cck --memory-limit 8192
 
 **Memory Allocation Strategy:**
 
@@ -612,10 +612,10 @@ File Size Handling
 .. code-block:: bash
 
    # Increase file size limit (default: 100MB)
-   gaussian_extractor.x --max-file-size 500
+   cck --max-file-size 500
 
    # Process very large files
-   gaussian_extractor.x --max-file-size 1000
+   cck --max-file-size 1000
 
 Batch Processing
 ----------------
@@ -625,10 +625,10 @@ Batch Processing
 .. code-block:: bash
 
    # Enable batch processing
-   gaussian_extractor.x --batch-size 50
+   cck --batch-size 50
 
    # Auto batch size (default)
-   gaussian_extractor.x --batch-size 0
+   cck --batch-size 0
 
 Safety Features
 ===============
@@ -636,7 +636,7 @@ Safety Features
 Cluster Environment Detection
 ------------------------------
 
-Gaussian Extractor automatically detects cluster environments:
+ComChemKit automatically detects cluster environments:
 
 - **SLURM:** ``sbatch``, ``srun`` detection
 - **PBS/Torque:** ``qsub``, ``qstat`` detection
@@ -681,13 +681,13 @@ Error Handling
 .. code-block:: bash
 
    # Handle large files
-   gaussian_extractor.x --max-file-size 500
+   cck --max-file-size 500
 
    # Reduce memory usage
-   gaussian_extractor.x --memory-limit 4096 -nt 2
+   cck --memory-limit 4096 -nt 2
 
    # Check system resources
-   gaussian_extractor.x --resource-info
+   cck --resource-info
 
 Advanced Workflows
 ==================
@@ -700,7 +700,7 @@ Complete Computational Chemistry Workflow
 .. code-block:: bash
 
    # Create optimization inputs
-   gaussian_extractor.x ci --calc-type opt_freq
+   cck ci --calc-type opt_freq
 
    # Submit jobs to queue
    # (use your cluster's job submission system)
@@ -710,23 +710,23 @@ Complete Computational Chemistry Workflow
 .. code-block:: bash
 
    # Check completed jobs
-   gaussian_extractor.x done
+   cck done
 
    # Check for failures
-   gaussian_extractor.x errors
+   cck errors
 
    # Check vibrational analysis
-   gaussian_extractor.x imode
+   cck imode
 
 **Step 3: Extract Results**
 
 .. code-block:: bash
 
    # Extract thermodynamic data
-   gaussian_extractor.x -t 298.15 -c 1
+   cck -t 298.15 -c 1
 
    # Extract coordinates for next step
-   gaussian_extractor.x xyz
+   cck xyz
 
 **Step 4: High-Level Calculations**
 
@@ -736,7 +736,7 @@ Complete Computational Chemistry Workflow
    cd high_level
 
    # Calculate refined energies
-   gaussian_extractor.x high-kj
+   cck high-kj
 
 High-Throughput Processing
 ---------------------------
@@ -746,13 +746,13 @@ High-Throughput Processing
 .. code-block:: bash
 
    # Process large datasets
-   gaussian_extractor.x -nt 16 --max-file-size 500 --memory-limit 16384
+   cck -nt 16 --max-file-size 500 --memory-limit 16384
 
    # Quiet mode for scripts
-   gaussian_extractor.x -q -f csv
+   cck -q -f csv
 
    # Resource monitoring
-   gaussian_extractor.x --resource-info
+   cck --resource-info
 
 **Script Integration:**
 
@@ -763,7 +763,7 @@ High-Throughput Processing
 
    for dir in dataset1 dataset2 dataset3; do
        cd $dir
-       gaussian_extractor.x -q -f csv
+       cck -q -f csv
        cd ..
    done
 
@@ -775,7 +775,7 @@ Template-Based Automation
 .. code-block:: bash
 
    # Generate comprehensive template library
-   gaussian_extractor.x ci --generate-all-templates ./templates
+   cck ci --generate-all-templates ./templates
 
    # Customize templates for different methods
    # Edit template files with your preferred settings
@@ -785,9 +785,9 @@ Template-Based Automation
 .. code-block:: bash
 
    # Process different molecule types
-   gaussian_extractor.x ci --param-file ./templates/opt_freq.params molecule1.xyz
-   gaussian_extractor.x ci --param-file ./templates/ts_freq.params molecule2.xyz
-   gaussian_extractor.x ci --param-file ./templates/high_sp.params molecule3.xyz
+   cck ci --param-file ./templates/opt_freq.params molecule1.xyz
+   cck ci --param-file ./templates/ts_freq.params molecule2.xyz
+   cck ci --param-file ./templates/high_sp.params molecule3.xyz
 
 Troubleshooting
 ===============
@@ -800,23 +800,23 @@ Common Issues and Solutions
 .. code-block:: bash
 
    # Reduce thread count
-   gaussian_extractor.x -nt 2
+   cck -nt 2
 
    # Set memory limit
-   gaussian_extractor.x --memory-limit 4096
+   cck --memory-limit 4096
 
    # Check system resources
-   gaussian_extractor.x --resource-info
+   cck --resource-info
 
 **File Processing Issues:**
 
 .. code-block:: bash
 
    # Handle large files
-   gaussian_extractor.x --max-file-size 500
+   cck --max-file-size 500
 
    # Process different file types
-   gaussian_extractor.x -e out
+   cck -e out
 
    # Check file permissions
    ls -la *.log
@@ -826,26 +826,26 @@ Common Issues and Solutions
 .. code-block:: bash
 
    # Optimize thread usage
-   gaussian_extractor.x -nt half
+   cck -nt half
 
    # Use batch processing
-   gaussian_extractor.x --batch-size 25
+   cck --batch-size 25
 
    # Monitor progress
-   gaussian_extractor.x  # (remove -q for progress display)
+   cck  # (remove -q for progress display)
 
 **Configuration Issues:**
 
 .. code-block:: bash
 
    # Reset configuration
-   gaussian_extractor.x --create-config
+   cck --create-config
 
    # Check configuration
-   gaussian_extractor.x --show-config
+   cck --show-config
 
    # Validate setup
-   gaussian_extractor.x --resource-info
+   cck --resource-info
 
 Best Practices
 ==============
@@ -855,33 +855,33 @@ Best Practices
 .. code-block:: bash
 
    # Start with resource check
-   gaussian_extractor.x --resource-info
+   cck --resource-info
 
    # Use conservative settings
-   gaussian_extractor.x -nt 4 -q
+   cck -nt 4 -q
 
    # Monitor progress
-   gaussian_extractor.x
+   cck
 
 **For Batch Processing:**
 
 .. code-block:: bash
 
    # Optimize for throughput
-   gaussian_extractor.x -nt half --max-file-size 500 -q -f csv
+   cck -nt half --max-file-size 500 -q -f csv
 
    # Use templates for consistency
-   gaussian_extractor.x ci --param-file template.params
+   cck ci --param-file template.params
 
 **For Cluster Environments:**
 
 .. code-block:: bash
 
    # Head node safety
-   gaussian_extractor.x -nt 2 -q
+   cck -nt 2 -q
 
    # Compute node optimization
-   gaussian_extractor.x -nt max --memory-limit 16384
+   cck -nt max --memory-limit 16384
 
 **Data Management:**
 
@@ -977,29 +977,29 @@ Getting Help
 .. code-block:: bash
 
    # General help
-   gaussian_extractor.x --help
+   cck --help
 
    # Command-specific help
-   gaussian_extractor.x extract --help
-   gaussian_extractor.x ci --help
+   cck extract --help
+   cck ci --help
 
    # Configuration help
-   gaussian_extractor.x --config-help
+   cck --config-help
 
 **Resource Information:**
 
 .. code-block:: bash
 
    # System resource check
-   gaussian_extractor.x --resource-info
+   cck --resource-info
 
    # Configuration status
-   gaussian_extractor.x --show-config
+   cck --show-config
 
 **Version Information:**
 
 .. code-block:: bash
 
-   gaussian_extractor.x --version
+   cck --version
 
-This guide covers all major features and usage patterns of Gaussian Extractor. For the most up-to-date information, always refer to the built-in help system.
+This guide covers all major features and usage patterns of ComChemKit. For the most up-to-date information, always refer to the built-in help system.
