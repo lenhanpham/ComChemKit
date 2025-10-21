@@ -65,7 +65,7 @@ SOURCES = $(SRC_DIR)/main.cpp \
           $(SRC_DIR)/ui/interactive_mode.cpp \
           $(SRC_DIR)/input_gen/create_input.cpp \
           $(SRC_DIR)/ui/help_utils.cpp \
-          $(SRC_DIR)/thermo/thermo_interface.cpp \
+          $(SRC_DIR)/thermo/thermo.cpp \
           $(SRC_DIR)/thermo/calc.cpp \
           $(SRC_DIR)/thermo/loadfile.cpp \
           $(SRC_DIR)/thermo/util.cpp \
@@ -88,7 +88,7 @@ HEADERS = $(SRC_DIR)/utilities/module_executor.h \
           $(SRC_DIR)/ui/interactive_mode.h \
           $(SRC_DIR)/input_gen/create_input.h \
           $(SRC_DIR)/ui/help_utils.h \
-          $(SRC_DIR)/thermo/thermo_interface.h \
+          $(SRC_DIR)/thermo/thermo.h \
           $(SRC_DIR)/thermo/calc.h \
           $(SRC_DIR)/thermo/loadfile.h \
           $(SRC_DIR)/thermo/util.h \
