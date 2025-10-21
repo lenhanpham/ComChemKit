@@ -1,4 +1,4 @@
-name: CI/CD for Gaussian Extractor
+name: CI/CD for ComChemKit
 run-name: ${{ github.actor }}'s CI/CD Run on Commit "${{ github.event.head_commit.message }}"
 
 on:
@@ -71,14 +71,14 @@ jobs:
         id: run_tests
         run: |
           # Try both possible binary locations
-          if [ -f "./build/bin/gaussian_extractor.x" ]; then
-            BINARY="./build/bin/gaussian_extractor.x"
-          elif [ -f "./build/gaussian_extractor.x" ]; then
-            BINARY="./build/gaussian_extractor.x"
-          elif [ -f "./gaussian_extractor.x" ]; then
-            BINARY="./gaussian_extractor.x"
+          if [ -f "./build/bin/cck" ]; then
+            BINARY="./build/bin/cck"
+          elif [ -f "./build/cck" ]; then
+            BINARY="./build/cck"
+          elif [ -f "./cck" ]; then
+            BINARY="./cck"
           else
-            echo "Test failed: gaussian_extractor.x binary not found."
+            echo "Test failed: cck binary not found."
             exit 1
           fi
 
