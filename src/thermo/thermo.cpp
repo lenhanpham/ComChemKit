@@ -8,7 +8,7 @@
 #include "thermo.h"
 #include "chemsys.h"
 #include "util.h"
-#include "loadfile.h"
+#include "utilities/loadfile.h"
 #include "calc.h"
 #include "atommass.h"
 #include "symmetry.h"

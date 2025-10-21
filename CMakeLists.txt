@@ -52,7 +52,7 @@ set(SOURCES
     src/ui/help_utils.cpp
     src/thermo/thermo.cpp
     src/thermo/calc.cpp
-    src/thermo/loadfile.cpp
+    src/utilities/loadfile.cpp
     src/thermo/util.cpp
     src/thermo/atommass.cpp
     src/thermo/symmetry.cpp
@@ -86,7 +86,7 @@ set(HEADERS
     src/ui/help_utils.h
     src/thermo/thermo.h
     src/thermo/calc.h
-    src/thermo/loadfile.h
+    src/utilities/loadfile.h
     src/thermo/util.h
     src/thermo/atommass.h
     src/thermo/symmetry.h
