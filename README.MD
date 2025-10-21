@@ -1,60 +1,127 @@
-# **Comchemkit v0.1**.0
+<p align="center">
+  <a href="https://github.com/lenhanpham/ComChemKit">
+    <picture>
+      <img src="resources/cck-logo.svg" alt="ComChemKit">
+    </picture>
+  </a>
+</p>
+<p align="center">
+  <a href="https://en.cppreference.com/w/cpp/17">
+    <img src="https://img.shields.io/badge/C%2B%2B-17-blue.svg" alt="C++17">
+  </a>
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
+  </a>
+  <img src="https://img.shields.io/badge/Build-Passing-brightgreen.svg" alt="Build Status">
+</p>
 
-**ComChemKit** is a high-performance, cluster-safe program designed to extract energies from computational chemistry outputs (ORCA, NWCHEM, Molpro, Molcas, VASP, CP2K, Qchem, QE, and so on) and some other electronic structure analysis features. For energy extraction, Comchekit processes multiple log files in parallel with comprehensive safety features to prevent system overload and ensure stable operation in shared computing environments. The current version only implements extraction and Gibbs free energy calculation functions for Gaussian. Other features will be implemented in future versions.
+**ComChemKit** is a high-performance, cluster-safe program designed to enable reseachers to interact with computational chemistry programs easily and efficiently. Users can create inputs, analyze data, organize computational tasks (jobs), and calculate further properties with ComChemKit. ComChemKit runs in parallel with comprehensive safety features to prevent system overload and ensure stable operation in shared computing environments.
 
-All features are in the experimental stage. Errors may occur.
-
-![results](./docs/results.png)
 
 ## Key Features
 
-* **Parallel Processing**: Efficiently processes multiple Gaussian output files simultaneously
-* **Energy Extraction**: Extracts Gibbs free energies with phase correction (gas phase 1 atm → 1M solution)
-* **Gibbs Free Energy Extractionn**: Calculates Gibbs free energies from output files with improved elecgtronic energy (single point) from higher levels of theory
+* **Extract data in Parallel**: Efficiently processes multiple Gaussian output files simultaneously
+* **Check status of gaussian jobs**: Status of gaussian outputs can be checked and isolated to correspoonding directories
+* **Thermochemical property Calculation**: Calculates thermochemical properties from outputs
 * **Automatic Sorting**: Results sorted by energy values for easy analysis
-* **Cluster Safety**: Intelligent resource management prevents head node overload
-* **Dynamic Memory Management**: Intelligent memory limits based on system RAM and thread count
-* **Error Recovery**: Robust error handling with graceful degradation
-* **Multi-Platform**: Supports Linux, macOS, and Windows with multiple compilers
+* **Extract coodinates**: Coordinates of gaussian outputs can be extracted
+* **Create Input Files**: Generate Gaussian input files from XYZ coordinate files with customizable calculation parameters
+* **Parameter Templates**: Generate and reuse parameter templates for different calculation types
+* **Windows interactive mode**: Windows users can use all features plus popular linux commands in the interactive mode 
+* **Important note**: **Large files (>100MB) automatically skipped by default**. Users need to set flag --max-file-size xxxxx to increase the size limit
+
+## Full features and User Manual:
+
+**Visit**: [ComChemKit documentation](https://lenhanpham.github.io/ComChemKit/)
 
 ## Installation and Compilation
 
-### Prerequisites
+### Windows
+
+- **A binary package is included in the release**. Just download this package and extract it to use the program. Users should add the program to PATH system variable and then interact with ComChemKit through Windows terminal
+
+- Windows users can use GX in interactive mode directly: double click and type commands
+
+- Use windows terminal (powershell) to run ComChemKit.exe in a folder where your quantum chemical log files are available.
+
+### Linux
+
+#### Prerequisites
 
 **Compiler Requirements:**
-* **C++17 or newer**: GCC 10+, Clang 10+, or MSVC 2019+
+
+* **C++17 or newer**: GCC 10+, Intel oneAPI, Intel Classic, Clang 10+, or MSVC 2019+
 * **Threading Support**: pthread library (Linux/macOS) or Windows threading
 * **Filesystem Support**: std::filesystem (included in modern compilers)
 
-### Compilation Options
+#### Compilation Options
 
-### Note that I do not use Windows and MacOS computers or servers to test the program; I am not sure if it is going to work properly on these OSs. Only linux was tested well.
+**Note that I do not use MacOS computers or servers to test the program; I am not sure if it is going to work properly on MacOS. Only linux and Windows were tested well.**
 
-#### Option 1: Automatic Build (Recommended)
+##### Option 1: Automatic Build (Recommended)
 
-**Linux/macOS:**
+**Basic Build (Auto-detects Compiler):**
+
 ```bash
-module load gcc
-make                   # Safe default build
-make cluster           # Cluster-optimized build
-make debug             # Debug build with safety checks
-make release           # High-performance release
+# Load your preferred compiler module if on a cluster
+module load intel-compiler-llvm         # For Intel compilers
+module load intel-tbb                   # For intel Threading Building Blocks
+# OR
+module load gcc                         # For GCC
+
+# Build with auto-detected compiler (priority: icpx > icpc > icc > g++)
+make -j 10                  # Automatically selects best available compiler
 ```
 
-**Windows:**
-```cmd
-build.bat              # Automatic compiler detection and build
+If ComChemKit is complied with intel compilers (icpx for example), Threading Building Blocks (tbb) library should be loaded. Users might need to export this library to their LD_LIBRARY_PATH:
+
+```
+echo 'export LD_LIBRARY_PATH=/path/to/tbb/lib:$LD_LIBRARY_PATH' >> ~/.bashrc
+source ~/.bashrc
 ```
 
-#### Option 2: CMake (Cross-platform)
+**Build Variants:**
+
 ```bash
-module load gcc
+make cluster -j 8           # Cluster-optimized build
+make debug                  # Debug build with safety checks
+make release                # High-performance release
+```
+
+**Force Specific Compiler:**
+
+```bash
+# Intel oneAPI compiler
+CXX=icpx make -j 8
+
+# Intel Classic compiler
+CXX=icpc make -j 8
+
+# GNU compiler
+CXX=g++ make -j 8
+```
+
+##### Option 2: CMake (Cross-platform)
+
+**Basic CMake Build (Auto-detects Compiler):**
+
+```bash
+# Load your preferred compiler module if on a cluster
+module load intel-compiler-llvm         # For Intel compilers
+module load intel-tbb                   # For intel Threading Building Blocks
+# OR
+module load gcc                         # For GCC
+
+# Create build directory
 mkdir build && cd build
+
+# Configure with auto-detected compiler (priority: icpx > icpc > icc > g++)
 cmake ..
-cmake --build .
+
+# Build with parallel jobs
+cmake --build . -j 10
 ```
 
-### Installation
 ```bash
 # System-wide installation (requires sudo)
 make install
@@ -63,63 +130,13 @@ make install
 make install-user
 
 # Or add to PATH manually
-export PATH=$PATH:/path/to/cck
+export PATH=$PATH:/path/to/ComChemKit
 
-# Or copy cck.x to your ~/bin/ . Note that if your ~/bin/ does not exist, you need to mkdir ~/bin
+# Or copy cck to your ~/bin/ . Note that if your ~/bin/ does not exist, you need to mkdir ~/bin
 cp cck ~/bin/
 ```
 
-## Configuration
-
-ComChemKit supports flexible configuration through configuration files. This allows you to set default values for common parameters and specify which quantum chemistry program to use.
-
-### Configuration File Locations
-
-Configuration files are searched in the following order:
-1. `./.cck.conf` (current working directory)
-2. `~/.cck.conf` (user home directory)
-3. If no file is found, built-in defaults are used
-
-### Default Program Selection
-
-The most important configuration setting is `default_program`, which determines which quantum chemistry program module is used for all commands:
-
-```conf
-# Default quantum chemistry program to use
-default_program = gaussian
-```
-
-Currently supported programs:
-- **gaussian**: For Gaussian 09/16 log files (default)
-- More programs (ORCA, Q-Chem, MOLPRO, etc.) coming in future versions
-
-### Sample Configuration File
-
-Create a configuration file `.cck.conf` in your home directory or working directory:
-
-```conf
-# ComChemKit Configuration File
-default_program = gaussian
-temperature = 298.15
-concentration = 1.0
-quiet_mode = false
-decimal_precision = 6
-default_threads = half
-max_file_size_mb = 100
-```
-
-### Configuration Benefits
-
-- **Program Flexibility**: Switch between different quantum chemistry programs by changing one setting
-- **Default Values**: Set commonly used parameters once instead of specifying them each time
-- **Consistency**: Ensure consistent behavior across different sessions and directories
-- **Future-Proof**: Easy to add support for new programs without changing command syntax
-
-For a complete sample configuration file with all available options, see `sample_config.conf` in the project directory.
-
-## Usage
-
-### Quick Start
+## Quick Start
 
 Suppose that you have cck in a dir where you have exported it to your PATH
 
@@ -127,18 +144,356 @@ Suppose that you have cck in a dir where you have exported it to your PATH
 cd to_the_dir_where_your_outputs_are_located
 ```
 
-**Basic execution** (processes all .log files in current directory):
+**Basic extraction** (processes all .log files in current directory):
 
 ```bash
 cck
 ```
 
 **Default behavior:**
+
 * **Temperature**: Read from files (default: 298.15 K if not found)
 * **Concentration**: 1 M for phase correction
 * **Threads**: Half of available CPU cores (cluster-safe)
 * **Output**: Sorted by Gibbs free energy (kJ/mol)
 * **Format**: A table of text
+
+###### Output Formats
+
+**Text Format (Default):**
+
+```bash
+cck                  # A table of text
+```
+
+**CSV Format:**
+
+```bash
+cck -f csv          # CSV
+cck -f csv -q       # CSV with minimal console output on your terminal
+```
+
+**Output Files:**
+
+- **Text**: `base_directory_name.results`
+- **CSV**: `base_directory_name.csv`
+
+**Sample Console Output:**
+
+```
+Found 150 .log files
+Using 4 threads (requested: half)
+Processed 75/150 files (50%)
+Processed 150/150 files (100%)
+
+Results written to project_directory.results
+Total execution time: 12.347 seconds
+Memory usage: 256.7 MB / 4.0 GB
+```
+
+<img src="./docs/results.png" title="" alt="results" data-align="center">
+
+***Output explanation:***
+
+* 1st column (*Output name*): the name of gaussian output files
+* 2nd column (*ETG Kj/mol*): the Gibbs free energy with all correction (entropy at corresponding temperature and phase correction from gas phase 1 atm to 1 M)
+* 3rd column (*Low FC*): the lowest vibrational frequency. This value is useful when you want to see if a gaussian output has imaginary modes or not (geometrical optimization and transition sate search). *Note that the program just prints out the lowest frequency mode. If your outputs have more than two imaginary modes, the program won't let you know. You have to check this yourself for example TS search.* I will implement this  function soon.
+* 4th column (*ETG a.u*): the same as the 2nd one but the unit is hartree or atomic units.
+* 5th column (*Nuclear E  au*): Repulsive nuclear energy. This is useful because nuclear energy is very sensitive to coordinates of molecular systems. Two different coordinate systems will have different nuclear energy.
+* 6th column (*SCFE*): SCF energy in hartree
+* 7th column (*ZPE*): Zero-point energy
+* 8th column (*Status*): current status of a gaussian output: DONE or UNDONE (not finished)
+* 9th column (*PCorr*): Whether phase correction (gas phase 1atm to 1M in solution) is corrected or not. This value will be YES if your calcualtions were done in solvent (scrf=solvent), and NO if your calculations were done in gas phase.
+* 10th column (*Round*): numbers of gaussian rounds in a gaussian outputs. If your inputs have 1 --link1--, this value will be 2 indicating 2 sections of run in your outputs.
+
+## Command-Line Options
+
+### Options to extract data from output files (.log or .out)
+
+| Option            | Description        | Values            | Default         |
+| ----------------- | ------------------ | ----------------- | --------------- |
+| `-t, --temp`      | Temperature (K)    | Positive number   | 298.15          |
+| `-c, --cm`        | Concentration (M)  | Positive value    | 1               |
+| `-col, --column`  | Sort column        | 2-10              | 2 (ETG kJ/mol)  |
+| `-e, --ext`       | File extension     | log, out          | log             |
+| `-f, --format`    | Output format      | text, csv         | text            |
+| `-nt, --threads`  | Thread count       | number, half, max | half            |
+| `-q, --quiet`     | Quiet mode         | -                 | false           |
+| `--max-file-size` | Max file size (MB) | Positive integer  | 100             |
+| `--memory-limit`  | Memory limit (MB)  | Positive integer  | Auto-calculated |
+| `--batch-size`    | Batch size         | Positive integer  | false           |
+| `--resource-info` | Show resources     | -                 | false           |
+| `-h, --help`      | Show help          | -                 | false           |
+
+#### Important Notes
+
+**Temperature Setting (`-t, --temp`):**
+
+- **Consistency Critical**: When specified, applies to ALL files for consistent phase correction
+- **Entropy Warning**: Ensure Gaussian inputs use same temperature for proper entropy corrections
+- **File Override**: Without `-t`, program reads temperature from each file individually
+
+**Column Sorting (`-col, --column`):**
+
+- **2**: ETG kJ/mol (Gibbs free energy) - **Default**
+- **3**: Lowest frequency (for transition state analysis)
+- **4**: ETG a.u (Gibbs free energy in atomic units)
+- **5**: Nuclear repulsion energy
+- **6**: SCF energy
+- **7**: Zero-point energy
+- **10**: Round count (number of Gaussian calculation rounds)
+
+### Options to create inputs (ci)
+
+| Option               | Description                   | Values                      | Default   |
+| -------------------- | ----------------------------- | --------------------------- | --------- |
+| `--calc-type`        | Calculation type              | sp, opt_freq, ts_freq, etc. | sp        |
+| `--functional`       | DFT functional                | UWB97XD, B3LYP, etc.        | UWB97XD   |
+| `--basis`            | Basis set                     | def2-SVPP, 6-31G*, etc.     | def2-SVPP |
+| `--large-basis`      | Large basis for TS/high-level | def2-TZVPP, etc.            | -         |
+| `--solvent`          | Solvent name                  | water, ethanol, etc.        | gas phase |
+| `--solvent-model`    | Solvent model                 | smd, cpcm, iefpcm           | smd       |
+| `--charge`           | Molecular charge              | integer                     | 0         |
+| `--mult`             | Multiplicity                  | integer                     | 1         |
+| `--freeze-atoms`     | Freeze bond for TS            | atom1 atom2                 | -         |
+| `--print-level`      | Route modifier                | N, P, T                     | -         |
+| `--extra-keywords`   | Additional keywords           | any Gaussian keywords       | -         |
+| `--extension`        | Output extension              | .gau, .com, etc.            | .gau      |
+| `--tschk-path`       | TS checkpoint path            | directory path              | -         |
+| `----genci-params`   | Generate parameter template   | calculation type            | -         |
+| `--genci-all-params` | Generate all templates        | directory path              | -         |
+| `--param-file`       | Load parameters from file     | file path                   | -         |
+
+## Usage Examples of all features
+
+### Extract data from outputs
+
+```bash
+# Simple processing with defaults
+cck
+
+# Process with specific temperature (not fully implemented)
+cck -t 300
+
+# Sort by SCF energy with 2M concentration
+cck -c 2 -col 6
+
+# Generate CSV output quietly
+cck -f csv -q
+```
+
+### Create Gaussian inputs
+
+#### File Requirements
+
+- **Input**: XYZ coordinate files in current directory
+- **Output**: Gaussian input files (.gau by default)
+- **Naming**: Input files named after corresponding XYZ files
+- **Format**: Standard XYZ format with atom count, comment, coordinates
+
+#### Supported Calculation Types
+
+- **sp**: Single point energy calculation
+- **opt_freq**: Geometry optimization + frequency analysis
+- **ts_freq**: Transition state search + frequency analysis
+- **oss_ts_freq**: Openshell singlet TS search + frequency analysis
+- **modre_ts_freq**: Modredundant TS search + frequency analysis
+- **oss_check_sp**: Openshell singlet stability check
+- **high_sp**: High-level single point with larger basis set
+- **irc_forward**: IRC calculation in forward direction
+- **irc_reverse**: IRC calculation in reverse direction
+- **irc**: IRC calculation in both directions
+
+#### Commands to create gaussian inputs
+
+The `ci` module generates Gaussian input files from XYZ coordinate files by combining the ci command with several options
+
+##### Basic examples
+
+```bash
+# Generate single point energy inputs (default)
+cck ci
+
+# Generate optimization + frequency inputs
+cck ci --calc-type opt_freq
+
+# Generate transition state search inputs
+cck ci --calc-type ts_freq
+
+# Generate parameter template
+cck ci --genci-params opt_freq
+
+# Use parameter file
+cck ci --param-file opt_freq.params
+```
+
+##### Advanced Examples
+
+```bash
+# Transition state search with frozen bond
+cck ci --calc-type modre_ts_freq --freeze-atoms 1 2
+
+# High-level single point with custom functional and basis
+cck ci --calc-type high_sp --functional B3LYP --basis 6-311+G** --large-basis def2-TZVPP
+
+# Solvent calculation
+cck ci --calc-type opt_freq --solvent water --solvent-model smd
+
+# IRC calculation from transition state
+cck ci --calc-type irc --tschk-path ../ts_checkpoints
+
+# Custom keywords and settings
+cck ci --calc-type opt_freq --extra-keywords "Int=UltraFine SCF=Conver=8" --pound-sign P
+```
+
+#### Generate parameter files for creation of inputs
+
+The `ci` module generates template parameter files for different types of calculations or a universial parameter files for all supported types. 
+
+##### Parameter Templates
+
+The program can generate reusable parameter templates for different calculation types:
+
+```bash
+# Generate a template for optimization + frequency
+cck ci --genci-params opt_freq
+
+# Generate a universial parameter template
+cck ci --genci-params opt_freq
+
+# Generate templates for all calculation types
+cck ci --genci-all-params ./my_templates
+
+# Use a saved parameter file
+cck ci --param-file opt_freq.params
+```
+
+##### Input creation workflow with parameter template
+
+1. **Generate Template**:
+   
+   ```bash
+   cck ci --genci-params opt_freq
+   # Creates opt_freq.params
+   ```
+
+2. **Edit Template** (opt_freq.params):
+   
+   ```bash
+   # Modify parameters as needed
+   calc_type = opt_freq
+   functional = B3LYP
+   basis = 6-31G*
+   solvent = chloroform
+   charge = 1
+   mult = 2
+   ```
+
+3. **Use Template**:
+   
+   ```bash
+   cck ci --param-file opt_freq.params
+   ```
+
+#### Integration with Other Features
+
+The create_input module works seamlessly with other ComChemKit features:
+
+```bash
+# Generate inputs, then check job status
+cck ci --calc-type opt_freq
+cck done
+
+# Generate inputs for failed jobs
+cck errors
+# Then create new inputs for the error jobs
+cck ci --calc-type opt_freq
+```
+
+#### Tips
+
+- Use `--genci-params` to create templates for common calculation types
+- Templates can be shared and reused across projects
+- The program automatically detects required parameters for each calculation type
+- Multi-threading is supported for batch processing of many XYZ files
+- Check the generated input files before submitting to Gaussian
+
+### Check and seprate outputs to a directory
+
+ComChemKit can check and move error, done, solvent-failed log files to their corresponding directories. Jobs (log, chk, input) will be moved to a directory dependending on their log file status too""
+
+```bash
+cck done      # completed jobs will be moved to base_name_dir-done
+cck errors    # all general errors causing jobs killed will be moved to errorJobs
+cck pcm       # errors related to pcm convergence will be moved to PCMMkU
+cck imode     # outputs with imaginary modes will be moved to imaginary_freqs
+```
+
+### Calculate Gibbs free energy using high-level electronic energy
+
+Single point calculations are done at a higher level of theory and electronic energy is used to improve the accuracy of the final Gibbs free energy.
+
+**Directory Structure:**
+
+- Current directory: Geometrical optimizations and frequency calculations (Opt Freq)
+- Subdirectory (e.g., `higher_level`): Single point calculations at higher theory level
+- Log files must have the same names in both directories
+
+<img src="./docs/tree_dir.png" title="" alt="dirs" data-align="center">
+
+**Basic Usage:**
+
+```bash
+cd higher_level
+cck high-kj    # Improved Gibbs free energy in kJ/mol
+cck high-au    # Improved Gibbs free energy in hartree
+```
+
+### Extract coordinates
+
+```
+cck xyz                          # extract coordinates of all output files
+cck xyz -f file1.log file2.log    # extract coordinates from specific files
+```
+
+### Some more examples
+
+#### Production Examples of data extraction
+
+```bash
+# Cluster-safe processing
+cck -nt 4 -q -f csv -t 298.15
+
+# High-throughput processing
+cck -nt 8 -c 5 -col 4 -f csv
+
+# Conservative head node usage
+cck -nt 2 -q --resource-info
+
+# Process larger files (increase 100MB default limit)
+cck --max-file-size 500
+
+# Set specific memory limit for high-memory systems
+cck --memory-limit 8192 -nt 16
+```
+
+#### Advanced Examples of data extraction
+
+```bash
+# Complete parameter specification
+cck -t 310.15 -c 5 -col 4 -nt 6 -f csv -q
+
+# Process .out files instead of .log
+cck -e out -nt half
+
+# Handle large files (increase size limit)
+cck --max-file-size 200 -nt 4
+
+# High-performance setup for 32GB+ systems
+cck --memory-limit 16384 -nt 20 --max-file-size 500
+```
+
+## Safety and Performance Guidelines
 
 ### Safety-First Usage for Clusters head node
 
@@ -158,13 +513,14 @@ cck -nt 2 -q -f csv
 ### You can specify the number of threads
 
 **Thread Control:**
+
 ```bash
 cck -nt 4        # Use exactly 4 threads
 cck -nt half     # Use half cores (default, safest)
 cck -nt max      # Use all cores (with safety limits)
 ```
 
-** Cluster Safety Warning:**
+**Cluster Safety Warning:**
 
 - Program automatically detects cluster environments (SLURM, PBS, SGE, LSF)
 - In clusters: Maximum threads = min(requested, cores/4, 8)
@@ -178,202 +534,13 @@ cck --resource-info  # Show system resources before running
 ```
 
 **Quiet Mode (Recommended for Batch Jobs):**
+
 ```bash
 cck -q              # Minimal output, perfect for scripts
 ```
 
-
-
-### Output Formats
-
-**Text Format (Default):**
-```bash
-cck                  # A table of text
-```
-
-**CSV Format:**
-```bash
-cck -f csv          # CSV
-cck -f csv -q       # CSV with minimal console output on your terminal
-```
-
-**Output Files:**
-
-- **Text**: `base_directory_name.results`
-- **CSV**: `base_directory_name.csv`
-
-### How the program works
-
-The program automatically:
-1. **Scans** current directory for .log/.out files
-2. **Validates** file sizes (skips files >100MB for safety)
-3. **Processes** files in parallel with resource monitoring
-4. **Extracts** energies, frequencies, and thermodynamic data
-5. **Sorts** results by specified column (default: Gibbs free energy)
-6. **Generates** output file with comprehensive metadata
-7. **Reports** processing statistics and resource usage
-
-
-
-**Sample Console Output:**
-```
-Found 150 .log files
-Using 4 threads (requested: half)
-Processed 75/150 files (50%)
-Processed 150/150 files (100%)
-
-Results written to project_directory.results
-Total execution time: 12.347 seconds
-Memory usage: 256.7 MB / 4.0 GB
-```
-
-![results](./docs/results.png)
-
-***Output explanation:***
-
-* 1st column (*Output name*): the name of gaussian output files
-* 2nd column (*ETG Kj/mol*): the Gibbs free energy with all correction (entropy at corresponding temperature and phase correction from gas phase 1 atm to 1 M)
-* 3rd column (*Low FC*): the lowest vibrational frequency. This value is useful when you want to see if a gaussian output has imaginary modes or not (geometrical optimization and transition sate search). *Note that the program just prints out the lowest frequency mode. If your outputs have more than two imaginary modes, the program won't let you know. You have to check this yourself for example TS search.* I will implement this  function soon.
-* 4th column (*ETG a.u*): the same as the 2nd one but the unit is hartree or atomic units.
-* 5th column (*Nuclear E  au*): Repulsive nuclear energy. This is useful because nuclear energy is very sensitive to coordinates of molecular systems. Two different coordinate systems will have different nuclear energy.
-* 6th column (*SCFE*): SCF energy in hartree
-* 7th column (*ZPE*): Zero-point energy
-* 8th column (*Status*): current status of a gaussian output: DONE or UNDONE (not finished)
-* 9th column (*PCorr*): Whether phase correction (gas phase 1atm to 1M in solution) is corrected or not. This value will be YES if your calcualtions were done in solvent (scrf=solvent), and NO if your calculations were done in gas phase.
-* 10th column (*Round*): numbers of gaussian rounds in a gaussian outputs. If your inputs have 1 --link1--, this value will be 2 indicating 2 sections of run in your outputs.
-
-## Command-Line Options
-
-### Complete Options Reference
-
-| Option | Description | Values | Default |
-|--------|-------------|---------|---------|
-| `-t, --temp` | Temperature (K) | Positive number | 298.15 |
-| `-c, --cm` | Concentration (M) | Positive value | 1 |
-| `-col, --column` | Sort column | 2-10 | 2 (ETG kJ/mol) |
-| `-e, --ext` | File extension | log, out | log |
-| `-f, --format` | Output format | text, csv | text |
-| `-nt, --threads` | Thread count | number, half, max | half |
-| `-q, --quiet` | Quiet mode | - | false |
-| `--max-file-size` | Max file size (MB) | Positive integer | 100 |
-| `--memory-limit` | Memory limit (MB) | Positive integer | Auto-calculated |
-| `--resource-info` | Show resources | - | false |
-| `-h, --help` | Show help | - | false |
-
-### Important Notes
-
-**Temperature Setting (`-t, --temp`):**
-- **Consistency Critical**: When specified, applies to ALL files for consistent phase correction
-- **Entropy Warning**: Ensure Gaussian inputs use same temperature for proper entropy corrections
-- **File Override**: Without `-t`, program reads temperature from each file individually
-
-**Column Sorting (`-col, --column`):**
-- **2**: ETG kJ/mol (Gibbs free energy) - **Default**
-- **3**: Lowest frequency (for transition state analysis)
-- **4**: ETG a.u (Gibbs free energy in atomic units)
-- **5**: Nuclear repulsion energy
-- **6**: SCF energy
-- **7**: Zero-point energy
-- **10**: Round count (number of Gaussian calculation rounds)
-
-### Usage Examples
-
-#### Basic Examples
-```bash
-# Simple processing with defaults
-cck
-
-# Process with specific temperature
-cck -t 300
-
-# Sort by SCF energy with 2M concentration
-cck -c 2 -col 6
-
-# Generate CSV output quietly
-cck -f csv -q
-```
-
-### Check if gaussian jobs are done and errors
-Jobs (log, chk, input) will be move to a directory dependending on their status
-```bash
-cck done      # completed jobs will be moved to base_name_dir-done
-cck errors    # all general errors causing jobs killed will be moved to errorJobs
-cck pcm       # errors related to pcm convergence will be moved to PCMMkU
-```
-
-### Calculate final energy and energy components if a single point calculation was done for electronic energy correction
-- Single point calculations are usually done at a higher level of theory and electronic energy is then used to improve the accuracy of the final Gibbs free energy.
-- Suppose the single point calculation was done in a dir called higher_level within a current dir where all geometrical optimizations and frequency calculations were done (Opt Freq).
-- Log files of the single point calculations should have the same names as the ones calculated at the lower level of theory.
-![dirs](./docs/tree_dir.png)
-```bash
-cd higher_level
-gaussian_extractor high-kj    # for improved Gibbs free energy in kJ/mol
-gaussian_extractor high-au    # for improved Gibbs free energy in hartree or atomic unit
-```
-
-
-### Some examples where you have massive number of outputs files
-#### Production Examples
-```bash
-# Cluster-safe processing
-cck -nt 4 -q -f csv -t 298.15
-
-# High-throughput processing
-cck -nt 8 -c 5 -col 4 -f csv
-
-# Conservative head node usage
-cck -nt 2 -q --resource-info
-
-# Process larger files (increase 100MB default limit)
-cck --max-file-size 500
-
-# Set specific memory limit for high-memory systems
-cck --memory-limit 8192 -nt 16
-```
-
-#### Advanced Examples
-```bash
-# Complete parameter specification
-cck -t 310.15 -c 5 -col 4 -nt 6 -f csv -q
-
-# Process .out files instead of .log
-cck -e out -nt half
-
-# Handle large files (increase size limit)
-cck --max-file-size 200 -nt 4
-
-# High-performance setup for 32GB+ systems
-cck --memory-limit 16384 -nt 20 --max-file-size 500
-```
-
-
-
-## Safety and Performance Guidelines
-
-### Dynamic Memory Management
-
-The program now **automatically calculates optimal memory limits** based on:
-- **System RAM**: Detects total available memory
-- **Thread Count**: More threads = higher memory allocation
-- **Environment**: Conservative limits in cluster environments
-
-**Memory Allocation Strategy:**
-- **1-4 threads**: 30% of system RAM
-- **5-8 threads**: 40% of system RAM
-- **9-16 threads**: 50% of system RAM
-- **17+ threads**: 60% of system RAM
-- **Cluster environments**: 70% of calculated amount
-
-**Example on 32GB system:**
-```bash
-cck -nt 4   # Uses ~9.6GB (30% of 32GB)
-cck -nt 8   # Uses ~12.8GB (40% of 32GB)
-cck -nt 16  # Uses ~16GB (50% of 32GB)
-cck -nt 40  # Uses ~19.2GB (60% of 32GB)
-```
-
 ### For Cluster Head Nodes
+
 ```bash
 # RECOMMENDED: Conservative settings
 cck -nt 2 -q -f csv
@@ -386,6 +553,7 @@ cck -nt max  # DON'T USE ON HEAD NODES
 ```
 
 ### For Compute Nodes
+
 ```bash
 # Optimal performance settings
 cck -nt half    # Usually optimal
@@ -396,29 +564,34 @@ cck -nt 20 --memory-limit 16384  # 16GB limit, 20 threads
 cck -nt 32 --memory-limit 24576  # 24GB limit, 32 threads
 ```
 
-### Error Handling and Recovery
-- **Automatic**: Continues processing if individual files fail
-- **Reporting**: Comprehensive error and warning collection
-- **Graceful Shutdown**: Responds properly to Ctrl+C and job termination signals
-- **Memory Safety**: Automatically limits memory usage to prevent crashes
-
 ## Troubleshooting
 
 ### Common Issues
 
 **Build Errors:**
+
 ```bash
 # Check compiler version
-g++ --version  # Need GCC 10+ for C++17
+g++ --version                # Need GCC 10+ for C++17
+icpx --version               # Intel oneAPI compiler
+icpc --version               # Intel Classic compiler
 
 # Install dependencies (Ubuntu/Debian)
 sudo apt install build-essential
 
+# Check compiler information
+make compiler-info           # Shows detected compiler and flags
+
 # Try alternative build
-make debug  # Often reveals compilation issues
+make debug                   # Often reveals compilation issues
+
+# Force specific compiler
+CXX=g++ make                 # Force GCC compiler
+CXX=icpx make                # Force Intel oneAPI compiler
 ```
 
 **Performance Issues:**
+
 ```bash
 # Reduce thread count
 cck -nt 2
@@ -430,32 +603,77 @@ ls -lh *.log  # Files >100MB are automatically skipped
 cck --resource-info
 ```
 
-**Memory Issues:**
+**Note:**
+
 - Default limit: Auto-calculated based on system RAM and thread count
-- Large files (>100MB) automatically skipped by default
+- **Large files (>100MB) automatically skipped by default**
 - Use `--max-file-size 200` to process larger files
 - Use `--memory-limit 8192` to set specific memory limits
 - Check system memory with `--resource-info`
 - Reduce threads if memory pressure occurs
 
-### Getting Help
+## Getting Help
+
 ```bash
-cck --help        # Complete help
+cck --help           # Complete help
 cck --resource-info  # System information
+cck --help command   # Help for specific commands
 ```
+
+## Extra information
+
+### Dynamic Memory Management
+
+The program now **automatically calculates optimal memory limits** based on:
+
+- **System RAM**: Detects total available memory
+- **Thread Count**: More threads = higher memory allocation
+- **Environment**: Conservative limits in cluster environments
+
+**Memory Allocation Strategy:**
+
+- **1-4 threads**: 30% of system RAM
+- **5-8 threads**: 40% of system RAM
+- **9-16 threads**: 50% of system RAM
+- **17+ threads**: 60% of system RAM
+- **Cluster environments**: 70% of calculated amount
+
+**Example on 32GB system:**
+
+```bash
+cck -nt 4   # Uses ~9.6GB (30% of 32GB)
+cck -nt 8   # Uses ~12.8GB (40% of 32GB)
+cck -nt 16  # Uses ~16GB (50% of 32GB)
+cck -nt 40  # Uses ~19.2GB (60% of 32GB)
+```
+
+### **Performance Benefits:**
+
+- **4 threads**: ~3-4x speedup over sequential processing
+- **8 threads**: ~6-7x speedup for typical workloads
+- **16+ threads**: Up to 13x speedup for large datasets
+- **Memory efficiency**: ~50MB overhead per thread
+- **Automatic optimization**: Adapts to system resources and workload
+
+**Safety Features:**
+
+- Automatic memory limit detection and enforcement
+- File size validation (500MB limit per file)
+- Graceful degradation under resource constraints
+- Thread-safe error handling and reporting
+- Resource cleanup on completion or interruption
 
 ## Version History
 
-- **v0.1** (Initial): Only extraction and Gibbs free energy calculation functions for Gaussian are implemented.
+- **v0.000.1** Experimental version
 
 ## Contributing and Issues
 
 For bug reports, feature requests, or safety concerns, please create an issue at the project repository. When reporting issues, include:
+
 - System specifications (OS, compiler, cluster environment)
 - Command used and error messages
 - Sample files (if possible)
 - Resource usage information (`--resource-info` output)
 
 ---
-
-**⚠️ Important**: This enhanced version prioritizes system stability and cluster safety. Always test in your environment before production use, especially on shared systems.

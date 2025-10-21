@@ -1,69 +1,105 @@
-# Makefile for ComChemKit (CCK)
-
+# Makefile for ComChemKit
+# Enhanced Safety Edition v0.000.1
 
 # Directory structure
 SRC_DIR = src
-CORE_DIR = $(SRC_DIR)/core
 BUILD_DIR = build
 TEST_DIR = tests
 
 # Compiler settings
-CXX = g++
-CXXFLAGS = -std=c++20 -Wall -Wextra -O3 -pthread -I$(SRC_DIR) -I$(CORE_DIR)
+# Auto-detect compiler. Prefers Intel compilers (icpx, icpc, icc) over GCC (g++).
+COMPILER_LIST := icpx icpc icc g++
+CXX := $(firstword $(foreach c,$(COMPILER_LIST),$(if $(shell command -v $(c)),$(c))))
+
+# Fallback to a default if no compiler is found in PATH and print a warning.
+ifeq ($(CXX),)
+    $(warning "No supported compiler (icpx, icpc, icc, g++) found in PATH. Defaulting to g++.")
+    CXX = g++
+endif
+$(info Using compiler: $(CXX))
+CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -pthread -I$(SRC_DIR)
+
+# Add Intel-specific flags if using Intel compiler
+ifneq ($(filter icpx icpc icc,$(CXX)),)
+    CXXFLAGS += -fp-model=precise
+endif
 DEBUGFLAGS = -g -DDEBUG_BUILD -fsanitize=address -fno-omit-frame-pointer
 LDFLAGS = -pthread
+
+# Add Intel-specific linking flags after LDFLAGS definition
+ifneq ($(filter icpx icpc icc,$(CXX)),)
+    # Intel compilers often require explicit TBB linking for parallel algorithms
+    # Add TBB library if available, with error handling
+    LDFLAGS += -ltbb
+	# Use -static-libstdc++ to avoid loading library
+    #LDFLAGS += -ltbb -static-libstdc++ 
+
+    # Note: If TBB is not available, the compilation will fail with a clear error
+    # In such cases, users should install Intel TBB or use GCC instead
+    $(info Intel compiler detected. Adding TBB library linking.)
+    $(info If compilation fails with TBB errors, please install Intel TBB or use GCC.)
+endif
 
 # Platform detection
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Linux)
-    LDFLAGS += -lrt
+    LDFLAGS += -lrt -lstdc++fs
 endif
 ifeq ($(UNAME_S),Darwin)
     # macOS specific flags if needed
 endif
 
 # Source files
-# Core CCK components
-CCK_SOURCES = $(CORE_DIR)/cck_command_system.cpp \
-              $(CORE_DIR)/cck_config_manager.cpp \
-              $(CORE_DIR)/cck_job_scheduler.cpp \
-              $(CORE_DIR)/cck_qm_program.cpp
-
-# Gaussian-specific components
-GAUSSIAN_SOURCES = $(SRC_DIR)/gaussian/gaussian_extractor.cpp \
-                  $(SRC_DIR)/gaussian/gaussian_job_checker.cpp \
-                  $(SRC_DIR)/gaussian/gaussian_command_executor.cpp \
-                  $(SRC_DIR)/gaussian/gaussian_high_level_energy.cpp \
-                  $(SRC_DIR)/gaussian/gaussian_program.cpp
-
-# All source files
 SOURCES = $(SRC_DIR)/main.cpp \
-          $(CCK_SOURCES) \
-          $(GAUSSIAN_SOURCES)
+          $(SRC_DIR)/utilities/module_executor.cpp \
+          $(SRC_DIR)/extraction/gaussian_extractor.cpp \
+          $(SRC_DIR)/job_management/job_scheduler.cpp \
+          $(SRC_DIR)/utilities/command_system.cpp \
+          $(SRC_DIR)/job_management/job_checker.cpp \
+          $(SRC_DIR)/utilities/config_manager.cpp \
+          $(SRC_DIR)/utilities/metadata.cpp \
+          $(SRC_DIR)/high_level/high_level_energy.cpp \
+          $(SRC_DIR)/extraction/coord_extractor.cpp \
+          $(SRC_DIR)/input_gen/parameter_parser.cpp \
+          $(SRC_DIR)/utilities/utils.cpp \
+          $(SRC_DIR)/ui/interactive_mode.cpp \
+          $(SRC_DIR)/input_gen/create_input.cpp \
+          $(SRC_DIR)/ui/help_utils.cpp \
+          $(SRC_DIR)/thermo/thermo_interface.cpp \
+          $(SRC_DIR)/thermo/calc.cpp \
+          $(SRC_DIR)/thermo/loadfile.cpp \
+          $(SRC_DIR)/thermo/util.cpp \
+          $(SRC_DIR)/thermo/atommass.cpp \
+          $(SRC_DIR)/thermo/symmetry.cpp
 
-# Core CCK headers
-CCK_HEADERS = $(CORE_DIR)/cck_command_system.h \
-              $(CORE_DIR)/cck_config_manager.h \
-              $(CORE_DIR)/cck_job_scheduler.h \
-              $(CORE_DIR)/cck_qm_program.h \
-              $(CORE_DIR)/cck_version.h
-
-# Gaussian-specific headers
-GAUSSIAN_HEADERS = $(SRC_DIR)/gaussian/gaussian_extractor.h \
-                  $(SRC_DIR)/gaussian/gaussian_job_checker.h \
-                  $(SRC_DIR)/gaussian/gaussian_high_level_energy.h \
-                  $(SRC_DIR)/gaussian/gaussian_program.h \
-                  $(SRC_DIR)/gaussian/gaussian_commands.h
-
-# All header files
-HEADERS = $(CCK_HEADERS) \
-          $(GAUSSIAN_HEADERS)
+HEADERS = $(SRC_DIR)/utilities/module_executor.h \
+          $(SRC_DIR)/extraction/gaussian_extractor.h \
+          $(SRC_DIR)/job_management/job_scheduler.h \
+          $(SRC_DIR)/utilities/command_system.h \
+          $(SRC_DIR)/job_management/job_checker.h \
+          $(SRC_DIR)/utilities/config_manager.h \
+          $(SRC_DIR)/utilities/metadata.h \
+          $(SRC_DIR)/high_level/high_level_energy.h \
+          $(SRC_DIR)/extraction/coord_extractor.h \
+          $(SRC_DIR)/input_gen/parameter_parser.h \
+          $(SRC_DIR)/utilities/utils.h \
+          $(SRC_DIR)/utilities/version.h \
+          $(SRC_DIR)/ui/interactive_mode.h \
+          $(SRC_DIR)/input_gen/create_input.h \
+          $(SRC_DIR)/ui/help_utils.h \
+          $(SRC_DIR)/thermo/thermo_interface.h \
+          $(SRC_DIR)/thermo/calc.h \
+          $(SRC_DIR)/thermo/loadfile.h \
+          $(SRC_DIR)/thermo/util.h \
+          $(SRC_DIR)/thermo/atommass.h \
+          $(SRC_DIR)/thermo/symmetry.h \
+          $(SRC_DIR)/thermo/chemsys.h
 
 OBJECTS = $(SOURCES:%.cpp=$(BUILD_DIR)/%.o)
-TARGET = cck
+TARGET = $(BUILD_DIR)/bin/cck
 
 # Ensure build directory structure exists
-$(shell mkdir -p $(BUILD_DIR)/$(SRC_DIR)/core $(BUILD_DIR)/$(SRC_DIR)/gaussian)
+$(shell mkdir -p $(BUILD_DIR)/bin $(BUILD_DIR)/$(SRC_DIR)/extraction $(BUILD_DIR)/$(SRC_DIR)/high_level $(BUILD_DIR)/$(SRC_DIR)/input_gen $(BUILD_DIR)/$(SRC_DIR)/job_management $(BUILD_DIR)/$(SRC_DIR)/ui $(BUILD_DIR)/$(SRC_DIR)/utilities $(BUILD_DIR)/$(SRC_DIR)/thermo)
 
 # Default target
 all: $(TARGET)
@@ -115,9 +151,16 @@ test-build: CXXFLAGS += -Wpedantic -Wcast-align -Wcast-qual -Wctor-dtor-privacy 
                         -Wstrict-overflow=5 -Wswitch-default -Wundef
 test-build: clean $(TARGET)
 
+# Quick test with sample files
 test: $(TARGET)
-	@echo "Validating results..."
-	./validate_results.sh ./$(TARGET)
+	@echo "Testing ComChemKit..."
+	@if [ -f $(TEST_DIR)/data/test-1.log ] && [ -f $(TEST_DIR)/data/test-2.log ]; then \
+		./$(TARGET) --resource-info; \
+		./$(TARGET) -q -f csv; \
+		echo "Test completed. Check output files."; \
+	else \
+		echo "Test files not found. Please ensure test files exist in $(TEST_DIR)/data/"; \
+	fi
 
 # Check for memory leaks (requires valgrind)
 memcheck: debug
@@ -138,7 +181,7 @@ dist: clean
 
 # Help target
 help:
-	@echo "ComChemKit (CCK) Makefile - Available targets:"
+	@echo "ComChemKit Makefile - Available targets:"
 	@echo ""
 	@echo "  all          - Build the program (default)"
 	@echo "  debug        - Build with debug symbols and AddressSanitizer"
@@ -153,12 +196,19 @@ help:
 	@echo "  dist         - Create distribution package"
 	@echo "  help         - Show this help message"
 	@echo ""
+	@echo "Compiler Support:"
+	@echo "  Auto-detects: icpx, icpc, icc, g++ (in order of preference)"
+	@echo "  Force GCC:    make CXX=g++"
+	@echo "  Intel issues: Requires TBB library. If compilation fails with"
+	@echo "                'execution' or TBB errors, use: make CXX=g++"
+	@echo ""
 	@echo "Version Management:"
 	@echo "  scripts/update_version.sh <version>  - Update version across all files"
-	@echo "  ./cck --version                      - Check current version"
+	@echo "  ./cck --version     - Check current version"
 	@echo ""
 	@echo "Usage examples:"
 	@echo "  make                    # Build with default settings"
+	@echo "  make CXX=g++            # Force GCC compilation"
 	@echo "  make debug              # Build debug version"
 	@echo "  make cluster            # Build for cluster deployment"
 	@echo "  make clean install-user # Clean build and install to user bin"

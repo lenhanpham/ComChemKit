@@ -1,15 +1,15 @@
 /**
  * @file main.cpp
- * @brief Main entry point for the Gaussian Extractor application
+ * @brief Main entry point for the ComChemKit application
  * @author Le Nhan Pham
  * @date 2025
  *
- * This file contains the main function and signal handling for the Gaussian Extractor,
+ * This file contains the main function and signal handling for the ComChemKit,
  * a high-performance tool for processing Gaussian computational chemistry log files.
  * The application supports various commands including extraction, job checking, and
  * high-level energy calculations.
  *
- * @section Features
+ * @section Safety, resouce management, and features
  * - Multi-threaded file processing with resource management
  * - Job scheduler integration (SLURM, PBS, SGE, LSF)
  * - Comprehensive error detection and job status checking
@@ -18,19 +18,16 @@
  * - Graceful shutdown handling for long-running operations
  */
 
-#include "core/cck_command_system.h"
-#include "core/cck_config_manager.h"
-#include "gaussian/gaussian_commands.h"
-#include <iostream>
-#include <cstdlib>
-#include <unordered_map>
-#include <functional>
-#include <thread>
+#include "extraction/gaussian_extractor.h"
+#include "ui/interactive_mode.h"
+#include "utilities/command_system.h"
+#include "utilities/config_manager.h"
+#include "utilities/module_executor.h"
+#include "utilities/version.h"
 #include <atomic>
 #include <csignal>
-#include <string>
-#include <vector>
-#include <exception>
+#include <iostream>
+
 
 /**
  * @brief Global flag to indicate when a shutdown has been requested
@@ -53,13 +50,15 @@ std::atomic<bool> g_shutdown_requested{false};
  * @note This function is signal-safe and only performs async-signal-safe operations
  * @see g_shutdown_requested
  */
-void signalHandler(int signal) {
+void signalHandler(int signal)
+{
     std::cerr << "\nReceived signal " << signal << ". Initiating graceful shutdown..." << std::endl;
     g_shutdown_requested.store(true);
 }
 
+
 /**
- * @brief Main entry point for the Gaussian Extractor application
+ * @brief Main entry point for the ComChemKit application
  *
  * The main function handles the complete application lifecycle:
  * 1. Sets up signal handlers for graceful shutdown
@@ -100,86 +99,162 @@ void signalHandler(int signal) {
  * @note This function coordinates the entire application flow and ensures
  *       proper resource cleanup even in error conditions
  */
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
     // Install signal handlers for graceful shutdown
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
 
-    // Create program command dispatch table
-    std::unordered_map<std::string, std::unordered_map<cck::core::CommandType, std::function<int(const cck::core::CommandContext&)>>> program_dispatch = {
-        {
-            "gaussian", {
-                {cck::core::CommandType::EXTRACT, cck::gaussian::execute_extract_command},
-                {cck::core::CommandType::CHECK_DONE, cck::gaussian::execute_check_done_command},
-                {cck::core::CommandType::CHECK_ERRORS, cck::gaussian::execute_check_errors_command},
-                {cck::core::CommandType::CHECK_PCM, cck::gaussian::execute_check_pcm_command},
-                {cck::core::CommandType::CHECK_ALL, cck::gaussian::execute_check_all_command},
-                {cck::core::CommandType::HIGH_LEVEL_KJ, cck::gaussian::execute_high_level_kj_command},
-                {cck::core::CommandType::HIGH_LEVEL_AU, cck::gaussian::execute_high_level_au_command}
-            }
-        }
-        // Future programs can be added here:
-        // {"orca", { ... }},
-        // {"qchem", { ... }}
-    };
-
-    try {
+    try
+    {
         // Initialize configuration system - load from file and apply defaults
-        if (!g_config_manager.load_config()) {
+        if (!g_config_manager.load_config())
+        {
             // Configuration loaded with warnings/errors - continue with defaults
             auto errors = g_config_manager.get_load_errors();
-            if (!errors.empty()) {
+            if (!errors.empty())
+            {
                 std::cerr << "Configuration warnings:" << std::endl;
-                for (const auto& error : errors) {
+                for (const auto& error : errors)
+                {
                     std::cerr << "  " << error << std::endl;
                 }
                 std::cerr << std::endl;
             }
         }
 
-        // Parse command and context (will use configuration defaults)
-        cck::core::CommandContext context = cck::core::CommandParser::parse(argc, argv);
+        // Check if running without arguments
+        bool no_arguments = (argc == 1);
 
-        // Show warnings if any and not in quiet mode
-        if (!context.warnings.empty() && !context.quiet) {
-            for (const auto& warning : context.warnings) {
-                std::cerr << warning << std::endl;
-            }
-            std::cerr << std::endl;
-        }
 
-        // Get the default program from configuration
-        std::string default_program = cck::core::get_default_program();
-        
-        // Show program information if not in quiet mode
-        if (!context.quiet) {
-            std::cout << "Using quantum chemistry program: " << default_program << std::endl;
-            std::string config_path = g_config_manager.get_config_file_path();
-            std::cout << "Configuration loaded from: " << (config_path.empty() ? "built-in defaults" : config_path) << std::endl;
+        if (no_arguments)
+        {
+#ifdef _WIN32
+            // On Windows, no arguments means double-clicked - show intro and enter interactive mode
             std::cout << std::endl;
-        }
-        
-        // Execute based on command type and configured program
-        auto program_it = program_dispatch.find(default_program);
-        if (program_it == program_dispatch.end()) {
-            std::cerr << "Error: Unknown or unsupported program '" << default_program << "'. Available programs: gaussian" << std::endl;
-            std::cerr << "Please check your configuration file setting for 'default_program'" << std::endl;
-            return 1;
-        }
-        
-        auto command_it = program_it->second.find(context.command);
-        if (command_it == program_it->second.end()) {
-            std::cerr << "Error: Command not supported by program '" << default_program << "'" << std::endl;
-            return 1;
-        }
-        
-        // Execute the command using the configured program's handler
-        return command_it->second(context);
+            std::cout << "==================================================" << std::endl;
+            std::cout << ComChemKit::get_version_info() << std::endl;
+            std::cout << "==================================================" << std::endl;
+            std::cout << std::endl;
 
-    } catch (const std::exception& e) {
+            std::cout << "Welcome to CCK interactive mode!" << std::endl;
+            std::cout << std::endl;
+            std::cout << "This tool helps you play with computational chemistry using Gaussian:" << std::endl;
+            std::cout << "> High-performance multi-threaded extraction of thermodynamic data and energy components"
+                      << std::endl;
+            std::cout << "> Job status checking and error detection" << std::endl;
+            std::cout << "> High-level theoryGibbs free energy calculations with thermal corrections " << std::endl;
+            std::cout << "> Coordinate extraction and Gaussian input file generation" << std::endl;
+            std::cout << std::endl;
+            std::cout << "For help and available commands, type 'help' in interactive mode." << std::endl;
+            std::cout << "Type 'help <command>' for command-specific help, e.g. 'help ci' for input creation."
+                      << std::endl;
+            std::cout << "To exit, type 'exit' or 'quit'." << std::endl;
+            std::cout << std::endl;
+
+            // Enter interactive mode for Windows users
+            return run_interactive_loop();
+#else
+            // On Linux/macOS, no arguments means run default extract command and exit
+            std::cout << "Running default EXTRACT command..." << std::endl;
+            CommandContext extract_context = CommandParser::parse(1, argv);
+
+            // Show warnings if any
+            if (!extract_context.warnings.empty() && !extract_context.quiet)
+            {
+                for (const auto& warning : extract_context.warnings)
+                {
+                    std::cerr << warning << std::endl;
+                }
+                std::cerr << std::endl;
+            }
+
+            // Execute EXTRACT and exit
+            int extract_result = execute_extract_command(extract_context);
+
+            // On Linux, exit immediately after command execution
+            return extract_result;
+#endif
+        }
+        else
+        {
+            // Parse command and context (will use configuration defaults)
+            CommandContext context = CommandParser::parse(argc, argv);
+
+            // Show warnings if any and not in quiet mode
+            if (!context.warnings.empty() && !context.quiet)
+            {
+                for (const auto& warning : context.warnings)
+                {
+                    std::cerr << warning << std::endl;
+                }
+                std::cerr << std::endl;
+            }
+
+            // Execute based on command type - dispatch to appropriate handler
+            int command_result;
+            switch (context.command)
+            {
+                case CommandType::EXTRACT:
+                    command_result = execute_extract_command(context);
+                    break;
+
+                case CommandType::CHECK_DONE:
+                    command_result = execute_check_done_command(context);
+                    break;
+
+                case CommandType::CHECK_ERRORS:
+                    command_result = execute_check_errors_command(context);
+                    break;
+
+                case CommandType::CHECK_PCM:
+                    command_result = execute_check_pcm_command(context);
+                    break;
+
+                case CommandType::CHECK_IMAGINARY:
+                    command_result = execute_check_imaginary_command(context);
+                    break;
+
+                case CommandType::CHECK_ALL:
+                    command_result = execute_check_all_command(context);
+                    break;
+
+                case CommandType::HIGH_LEVEL_KJ:
+                    command_result = execute_high_level_kj_command(context);
+                    break;
+
+                case CommandType::HIGH_LEVEL_AU:
+                    command_result = execute_high_level_au_command(context);
+                    break;
+
+                case CommandType::EXTRACT_COORDS:
+                    command_result = execute_extract_coords_command(context);
+                    break;
+
+                case CommandType::CREATE_INPUT:
+                    command_result = execute_create_input_command(context);
+                    break;
+
+                case CommandType::THERMO:
+                    command_result = execute_thermo_command(context);
+                    break;
+
+                default:
+                    std::cerr << "Error: Unknown command type" << std::endl;
+                    command_result = 1;
+                    break;
+            }
+
+            return command_result;
+        }
+    }
+    catch (const std::exception& e)
+    {
         std::cerr << "Fatal error: " << e.what() << std::endl;
         return 1;
-    } catch (...) {
+    }
+    catch (...)
+    {
         std::cerr << "Fatal error: Unknown exception occurred" << std::endl;
         return 1;
     }

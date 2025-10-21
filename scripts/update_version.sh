@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Version Update Script for ComChemKit (CCK)
+# Version Update Script for Gaussian Extractor
 # This script updates version information across all relevant files
 # Usage: ./scripts/update_version.sh <new_version>
-# Example: ./scripts/update_version.sh v1.0.0
+# Example: ./scripts/update_version.sh v0.5.0
 
 set -e
 
@@ -49,28 +49,28 @@ print_info "Updating version to: $NEW_VERSION"
 print_info "Major: $MAJOR, Minor: $MINOR, Patch: $PATCH"
 
 # Check if we're in the right directory
-if [ ! -f "CMakeLists.txt" ] || [ ! -f "src/core/cck_version.h" ]; then
-    print_error "Please run this script from the root directory of the ComChemKit project"
+if [ ! -f "CMakeLists.txt" ] || [ ! -f "src/core/version.h" ]; then
+    print_error "Please run this script from the root directory of the Gaussian Extractor project"
     exit 1
 fi
 
 # Backup files before modification
 print_info "Creating backups..."
 cp CMakeLists.txt CMakeLists.txt.backup
-cp src/core/cck_version.h src/core/cck_version.h.backup
+cp src/core/version.h src/core/version.h.backup
 
 # Update CMakeLists.txt
 print_info "Updating CMakeLists.txt..."
 sed -i.tmp "s/VERSION v[0-9]\+\.[0-9]\+\.[0-9]\+/VERSION $NEW_VERSION/g" CMakeLists.txt
 rm -f CMakeLists.txt.tmp
 
-# Update cck_version.h
-print_info "Updating src/core/cck_version.h..."
-sed -i.tmp "s/#define CCK_VERSION_MAJOR [0-9]\+/#define CCK_VERSION_MAJOR $MAJOR/g" src/core/cck_version.h
-sed -i.tmp "s/#define CCK_VERSION_MINOR [0-9]\+/#define CCK_VERSION_MINOR $MINOR/g" src/core/cck_version.h
-sed -i.tmp "s/#define CCK_VERSION_PATCH [0-9]\+/#define CCK_VERSION_PATCH $PATCH/g" src/core/cck_version.h
-sed -i.tmp "s/#define CCK_VERSION_STRING \"v[0-9]\+\.[0-9]\+\.[0-9]\+\"/#define CCK_VERSION_STRING \"$NEW_VERSION\"/g" src/core/cck_version.h
-rm -f src/core/cck_version.h.tmp
+# Update version.h
+print_info "Updating src/core/version.h..."
+sed -i.tmp "s/#define GAUSSIAN_EXTRACTOR_VERSION_MAJOR [0-9]\+/#define GAUSSIAN_EXTRACTOR_VERSION_MAJOR $MAJOR/g" src/core/version.h
+sed -i.tmp "s/#define GAUSSIAN_EXTRACTOR_VERSION_MINOR [0-9]\+/#define GAUSSIAN_EXTRACTOR_VERSION_MINOR $MINOR/g" src/core/version.h
+sed -i.tmp "s/#define GAUSSIAN_EXTRACTOR_VERSION_PATCH [0-9]\+/#define GAUSSIAN_EXTRACTOR_VERSION_PATCH $PATCH/g" src/core/version.h
+sed -i.tmp "s/#define GAUSSIAN_EXTRACTOR_VERSION_STRING \"v[0-9]\+\.[0-9]\+\.[0-9]\+\"/#define GAUSSIAN_EXTRACTOR_VERSION_STRING \"$NEW_VERSION\"/g" src/core/version.h
+rm -f src/core/version.h.tmp
 
 # Update README.MD if it contains version information
 if [ -f "README.MD" ] && grep -q "v[0-9]\+\.[0-9]\+\.[0-9]\+" README.MD; then
@@ -90,28 +90,28 @@ if [ "$CMAKE_VERSION" != "$NEW_VERSION" ]; then
 fi
 
 # Check version.h
-VERSION_H_STRING=$(grep "CCK_VERSION_STRING" src/core/cck_version.h | sed 's/.*"\(v[0-9]\+\.[0-9]\+\.[0-9]\+\)".*/\1/')
+VERSION_H_STRING=$(grep "GAUSSIAN_EXTRACTOR_VERSION_STRING" src/core/version.h | sed 's/.*"\(v[0-9]\+\.[0-9]\+\.[0-9]\+\)".*/\1/')
 if [ "$VERSION_H_STRING" != "$NEW_VERSION" ]; then
-    print_error "Failed to update cck_version.h correctly"
+    print_error "Failed to update version.h correctly"
     exit 1
 fi
 
 print_info "Version update completed successfully!"
 print_info "Updated files:"
 print_info "  - CMakeLists.txt: $CMAKE_VERSION"
-print_info "  - src/core/cck_version.h: $VERSION_H_STRING"
+print_info "  - src/core/version.h: $VERSION_H_STRING"
 
 # Suggest next steps
 print_info ""
 print_info "Next steps:"
 print_info "1. Review the changes: git diff"
 print_info "2. Test compilation: make clean && make"
-print_info "3. Test version output: ./cck --version"
+print_info "3. Test version output: ./gaussian_extractor.x --version"
 print_info "4. Update changelog/release notes if needed"
 print_info "5. Commit changes: git add -A && git commit -m 'Update version to $NEW_VERSION'"
 
 # Clean up backups if everything went well
 print_info "Cleaning up backup files..."
-rm -f CMakeLists.txt.backup src/core/cck_version.h.backup
+rm -f CMakeLists.txt.backup src/core/version.h.backup
 
 print_info "Version update script completed!"

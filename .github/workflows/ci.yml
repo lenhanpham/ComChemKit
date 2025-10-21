@@ -1,0 +1,258 @@
+name: CI/CD for Gaussian Extractor
+run-name: ${{ github.actor }}'s CI/CD Run on Commit "${{ github.event.head_commit.message }}"
+
+on:
+  push:
+    branches: [main, develop, dev]
+  pull_request:
+    branches: [main, develop, dev]
+  workflow_dispatch:
+
+# Add permissions for GitHub Pages
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Configure Git BEFORE checkout to prevent any default identity usage
+      - name: Configure Git identity (global)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global init.defaultBranch main
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Verify Git configuration immediately after checkout
+      - name: Verify Git configuration
+        run: |
+          echo "=== Git Configuration Debug ==="
+          echo "Git user name: '$(git config user.name)'"
+          echo "Git user email: '$(git config user.email)'"
+          echo "Global Git user name: '$(git config --global user.name)'"
+          echo "Global Git user email: '$(git config --global user.email)'"
+          
+          # Check if there are any local repo configs overriding global
+          echo "Local repo Git config:"
+          git config --local --list | grep -E '^user\.' || echo "No local user config found"
+          
+          echo "Git status:"
+          git status --porcelain || echo "Git status failed"
+          echo "==============================="
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ make cmake clang-tidy
+
+      - name: Configure CMake
+        run: |
+          cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Static Analysis
+        run: clang-tidy -p build src/main.cpp src/extraction/gaussian_extractor.cpp src/job_management/job_scheduler.cpp
+
+      - name: Build the project
+        run: cmake --build build
+
+      - name: Prepare test data
+        run: |
+          cp tests/data/*.log .
+          cp tests/extract-xyz/*.log tests/extract-xyz/*.LOG tests/extract-xyz/*.Log tests/extract-xyz/*.out tests/extract-xyz/*.OUT .
+          cp tests/create-input/*.xyz .
+
+      - name: Run Tests
+        id: run_tests
+        run: |
+          # Try both possible binary locations
+          if [ -f "./build/bin/gaussian_extractor.x" ]; then
+            BINARY="./build/bin/gaussian_extractor.x"
+          elif [ -f "./build/gaussian_extractor.x" ]; then
+            BINARY="./build/gaussian_extractor.x"
+          elif [ -f "./gaussian_extractor.x" ]; then
+            BINARY="./gaussian_extractor.x"
+          else
+            echo "Test failed: gaussian_extractor.x binary not found."
+            exit 1
+          fi
+
+          $BINARY -q -f csv
+
+          if ! ls *.csv >/dev/null 2>&1; then
+            echo "Test failed: No .csv file generated."
+            exit 1
+          fi
+
+          csv_file=$(ls *.csv | head -n 1)
+          if [ ! -s "$csv_file" ]; then
+            echo "Test failed: $csv_file is empty."
+            exit 1
+          fi
+
+          echo "Basic extraction tests passed."
+
+      - name: Test Coordinate Extraction (xyz)
+        run: |
+          echo "TODO: implement xyz test"
+
+      - name: Test Create Input (ci)
+        run: |
+          echo "TODO: implement ci test"
+
+      - name: Test Parameter Template Generation
+        run: |
+          echo "TODO: implement parameter template generation test"
+
+      - name: Test Parameter File Loading
+        run: |
+          echo "TODO: implement parameter file loading test"
+
+      - name: Process log and out files
+        if: ${{ success() || steps.run_tests.conclusion == 'success' }}
+        run: |
+          echo "TODO: implement log/out processing"
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gaussian-results
+          path: |
+            *.results
+            *.csv
+            *.xyz
+            *.gau
+            *.params
+            test_templates/
+            gaussian-extractor_*_coord/
+          if-no-files-found: warn
+
+      - name: Display results
+        if: always()
+        run: |
+          echo "TODO: display results"
+
+      - name: Cleanup test files
+        if: always()
+        run: |
+          rm -f *.log *.out *.LOG *.Log *.OUT *.xyz *.gau *.params *.results *.csv
+          rm -rf test_templates gaussian-extractor_*_coord
+
+  build-and-deploy-docs:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    # Only run on main branch pushes
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    # Use concurrency to cancel in-progress deployments
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      # Same fix for docs job
+      - name: Configure Git identity (global)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global init.defaultBranch main
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r docs/requirements.txt
+
+      - name: Install Doxygen and Graphviz
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+
+      - name: Generate Doxygen XML and HTML
+        run: |
+          doxygen Doxyfile
+          if [ ! -d "docs/xml" ]; then
+            echo "Error: Doxygen XML generation failed: docs/xml/ directory not found."
+            exit 1
+          fi
+          if [ ! -d "docs/html" ]; then
+            echo "Warning: Doxygen HTML directory (docs/html/) not found."
+          fi
+
+      - name: Verify Doxygen XML Output
+        run: |
+          if [ -z "$(ls -A docs/xml/)" ]; then
+            echo "Error: Doxygen XML directory (docs/xml/) is empty."
+            exit 1
+          fi
+          echo "Doxygen XML files generated successfully."
+
+      - name: Build Sphinx HTML
+        working-directory: docs
+        run: |
+          mkdir -p _static _templates
+          cp -r ../docs/html/*.svg _static/ && echo "SVGs copied to _static/" || echo "No SVGs found in docs/html/, continuing"
+          make html
+          if [ -s build_warnings.log ]; then
+            echo "Warnings during Sphinx HTML build:"
+            cat build_warnings.log
+          fi
+          if [ ! -d "_build/html" ]; then
+            echo "Error: HTML generation failed: _build/html/ directory not found."
+            exit 1
+          fi
+          if [ ! -f "_build/html/api/api.html" ]; then
+            echo "Error: API documentation (api.html) not generated."
+            exit 1
+          fi
+          echo "Sphinx HTML build completed successfully."
+
+      - name: Build Sphinx Markdown
+        working-directory: docs
+        run: |
+          sphinx-build -b markdown . _build/markdown -W --keep-going || echo "Markdown build failed, continuing"
+          if [ -d "_build/markdown" ] && [ -z "$(ls -A _build/markdown)" ]; then
+            rm -rf _build/markdown
+            echo "Markdown directory was empty and removed"
+          fi
+
+      - name: Upload Documentation Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: |
+            docs/_build/html/
+            docs/_build/markdown/
+            docs/html/
+
+      # Setup GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_build/html
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
