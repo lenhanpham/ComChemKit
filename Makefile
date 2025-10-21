@@ -67,7 +67,7 @@ SOURCES = $(SRC_DIR)/main.cpp \
           $(SRC_DIR)/ui/help_utils.cpp \
           $(SRC_DIR)/thermo/thermo_interface.cpp \
           $(SRC_DIR)/thermo/calc.cpp \
-          $(SRC_DIR)/thermo/loadfile.cpp \
+          $(SRC_DIR)/utilities/loadfile.cpp \
           $(SRC_DIR)/thermo/util.cpp \
           $(SRC_DIR)/thermo/atommass.cpp \
           $(SRC_DIR)/thermo/symmetry.cpp \
@@ -90,7 +90,7 @@ HEADERS = $(SRC_DIR)/utilities/module_executor.h \
           $(SRC_DIR)/ui/help_utils.h \
           $(SRC_DIR)/thermo/thermo_interface.h \
           $(SRC_DIR)/thermo/calc.h \
-          $(SRC_DIR)/thermo/loadfile.h \
+          $(SRC_DIR)/utilities/loadfile.h \
           $(SRC_DIR)/thermo/util.h \
           $(SRC_DIR)/thermo/atommass.h \
           $(SRC_DIR)/thermo/symmetry.h \

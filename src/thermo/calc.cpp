@@ -12,7 +12,7 @@
 
 #include "calc.h"
 #include "chemsys.h"
-#include "loadfile.h"
+#include "../utilities/loadfile.h"
 #include "symmetry.h"
 #include "util.h"
 #include <algorithm>
