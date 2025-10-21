@@ -70,7 +70,8 @@ SOURCES = $(SRC_DIR)/main.cpp \
           $(SRC_DIR)/thermo/loadfile.cpp \
           $(SRC_DIR)/thermo/util.cpp \
           $(SRC_DIR)/thermo/atommass.cpp \
-          $(SRC_DIR)/thermo/symmetry.cpp
+          $(SRC_DIR)/thermo/symmetry.cpp \
+          $(SRC_DIR)/thermo/help_utils.cpp
 
 HEADERS = $(SRC_DIR)/utilities/module_executor.h \
           $(SRC_DIR)/extraction/gaussian_extractor.h \
@@ -93,7 +94,8 @@ HEADERS = $(SRC_DIR)/utilities/module_executor.h \
           $(SRC_DIR)/thermo/util.h \
           $(SRC_DIR)/thermo/atommass.h \
           $(SRC_DIR)/thermo/symmetry.h \
-          $(SRC_DIR)/thermo/chemsys.h
+          $(SRC_DIR)/thermo/chemsys.h \
+          $(SRC_DIR)/thermo/help_utils.h
 
 OBJECTS = $(SOURCES:%.cpp=$(BUILD_DIR)/%.o)
 TARGET = $(BUILD_DIR)/bin/cck
