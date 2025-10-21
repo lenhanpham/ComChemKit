@@ -12,7 +12,7 @@
 
 
 #include "loadfile.h"
-#include "../thermo/chemsys.h"
+#include "thermo/chemsys.h"
 #include <algorithm>
 #include <array>
 #include <cctype>

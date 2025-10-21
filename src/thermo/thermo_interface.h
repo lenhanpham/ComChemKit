@@ -14,7 +14,7 @@
 
 #include <string>
 #include <vector>
-#include "../utilities/command_system.h"
+#include "utilities/command_system.h"
 
 // Forward declarations
 struct SystemData;

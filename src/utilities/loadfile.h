@@ -14,7 +14,7 @@
 #define LOADFILE_H
 
 // #include <vector>
-#include "../thermo/chemsys.h"
+#include "thermo/chemsys.h"
 #include <string>
 
 
