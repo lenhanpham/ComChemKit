@@ -15,6 +15,7 @@
 #include "utilities/config_manager.h"
 #include "utilities/utils.h"
 #include "utilities/version.h"
+#include "thermo/thermo_interface.h"
 #include <atomic>
 #include <cstring>
 #include <iostream>
@@ -862,6 +863,7 @@ int run_interactive_loop()
             std::cout << "  high-au           Calculate high-level energies in atomic units" << std::endl;
             std::cout << "  xyz               Extract coordinates to XYZ format" << std::endl;
             std::cout << "  ci                Create Gaussian input files from XYZ files" << std::endl;
+            std::cout << "  thermo            Calculate thermochemical properties" << std::endl;
             std::cout << "  help              Show this help message" << std::endl;
             std::cout << "  --version         Show version information" << std::endl;
             std::cout << "  --config-help     Show configuration help" << std::endl;
@@ -1323,7 +1325,8 @@ int run_interactive_loop()
                                                                         "xyz",
                                                                         "--extract-coord",
                                                                         "ci",
-                                                                        "--create-input"};
+                                                                        "--create-input",
+                                                                        "thermo"};
 
                 bool is_valid_gaussian_command = false;
                 for (const auto& cmd : valid_commands)
@@ -1402,7 +1405,9 @@ int run_interactive_loop()
                                 case CommandType::CREATE_INPUT:
                                     result = execute_create_input_command(context);
                                     break;
-                                default:
+                                case CommandType::THERMO:
+                                    result = execute_thermo_command(context);
+                                    break;                                default:
                                     std::cerr << "Unknown command" << std::endl;
                                     result = 1;
                             }
