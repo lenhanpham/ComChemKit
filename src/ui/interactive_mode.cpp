@@ -19,6 +19,7 @@
 #include <cstring>
 #include <iostream>
 #include <map>
+#include <sstream>
 
 // Windows-specific includes for TAB completion
 #ifdef _WIN32
