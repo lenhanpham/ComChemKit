@@ -1,5 +1,5 @@
 /**
- * @file thermo_interface.h
+ * @file thermo.h
  * @brief Interface layer for integrating OpenThermo module with ComChemKit
  * @author Le Nhan Pham
  * @date 2025
@@ -9,8 +9,8 @@
  * quantum chemistry programs.
  */
 
-#ifndef THERMO_INTERFACE_H
-#define THERMO_INTERFACE_H
+#ifndef THERMO_H
+#define THERMO_H
 
 #include <string>
 #include <vector>
@@ -85,4 +85,4 @@ namespace ThermoInterface
     void display_molecular_info(const SystemData& sys, int nimag);
 }
 
-#endif // THERMO_INTERFACE_H
+#endif // THERMO_H
