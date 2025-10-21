@@ -40,7 +40,7 @@
 
 - **A binary package is included in the release**. Just download this package and extract it to use the program. Users should add the program to PATH system variable and then interact with ComChemKit through Windows terminal
 
-- Windows users can use GX in interactive mode directly: double click and type commands
+- Windows users can use ComChemKit (cck) in interactive mode directly: double click and type commands
 
 - Use windows terminal (powershell) to run ComChemKit.exe in a folder where your quantum chemical log files are available.
 
