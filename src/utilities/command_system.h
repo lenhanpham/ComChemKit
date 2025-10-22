@@ -162,8 +162,9 @@ struct CommandContext
     double      thermo_external_energy   = 0.0;         ///< External energy contribution
     bool        thermo_output_otm        = false;       ///< Output in OpenThermo format
     bool        thermo_no_settings       = false;       ///< Disable settings file loading
-    std::string thermo_point_group       = "?";
-    std::string thermo_help_topic;  ///< Point group symmetry
+    std::string              thermo_point_group = "?";  ///< Point group symmetry
+    std::string              thermo_help_topic;         ///< Help topic for thermo command
+    std::vector<std::string> thermo_cli_args;           ///< Raw CLI arguments to pass to thermo module
 
     /**
      * @brief Default constructor with built-in fallback values

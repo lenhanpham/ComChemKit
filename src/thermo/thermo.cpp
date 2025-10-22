@@ -88,7 +88,14 @@ namespace ThermoInterface
             if (!input_file.empty()) {
                 args.push_back(input_file);
             }
+            
+            // Append CLI arguments from context
+            if (!context.thermo_cli_args.empty()) {
+                args.insert(args.end(), context.thermo_cli_args.begin(), context.thermo_cli_args.end());
+            }
+            
             util::loadarguments(*sys, args.size(), args);
+
             
             // Check if input file is a list file (.list or .txt)
             bool is_list_file = (input_file.find(".list") != std::string::npos) ||
