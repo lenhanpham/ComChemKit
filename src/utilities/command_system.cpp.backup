@@ -1435,203 +1435,30 @@ void CommandParser::parse_thermo_options(CommandContext& context, int& i, int ar
 {
     std::string arg = argv[i];
 
-    // CLI arguments that override settings.ini - these get passed to util::loadarguments
-    if (arg == "-E" && i + 1 < argc)
-    {
-        context.thermo_external_energy = std::stod(argv[++i]);
-        context.thermo_cli_args.push_back("-E");
-        context.thermo_cli_args.push_back(argv[i]);
-    }
-    else if (arg == "-prtvib" && i + 1 < argc)
-    {
-        context.thermo_print_vib = std::stoi(argv[++i]);
-        context.thermo_cli_args.push_back("-prtvib");
-        context.thermo_cli_args.push_back(argv[i]);
-    }
-    else if (arg == "-T" && i + 1 < argc)
-    {
-        // Check if it's a scan (3 values) or single value
-        if (i + 3 < argc)
-        {
-            try
-            {
-                double low  = std::stod(argv[i + 1]);
-                double high = std::stod(argv[i + 2]);
-                double step = std::stod(argv[i + 3]);
-                // Valid scan
-                context.thermo_temp_low  = low;
-                context.thermo_temp_high = high;
-                context.thermo_temp_step = step;
-                context.thermo_cli_args.push_back("-T");
-                context.thermo_cli_args.push_back(argv[++i]);
-                context.thermo_cli_args.push_back(argv[++i]);
-                context.thermo_cli_args.push_back(argv[++i]);
-            }
-            catch (...)
-            {
-                // Single value
-                context.thermo_temperature = std::stod(argv[++i]);
-                context.thermo_cli_args.push_back("-T");
-                context.thermo_cli_args.push_back(argv[i]);
-            }
-        }
-        else
-        {
-            // Single value
-            context.thermo_temperature = std::stod(argv[++i]);
-            context.thermo_cli_args.push_back("-T");
-            context.thermo_cli_args.push_back(argv[i]);
-        }
-    }
-    else if (arg == "-P" && i + 1 < argc)
-    {
-        // Check if it's a scan (3 values) or single value
-        if (i + 3 < argc)
-        {
-            try
-            {
-                double low  = std::stod(argv[i + 1]);
-                double high = std::stod(argv[i + 2]);
-                double step = std::stod(argv[i + 3]);
-                // Valid scan
-                context.thermo_pressure_low  = low;
-                context.thermo_pressure_high = high;
-                context.thermo_pressure_step = step;
-                context.thermo_cli_args.push_back("-P");
-                context.thermo_cli_args.push_back(argv[++i]);
-                context.thermo_cli_args.push_back(argv[++i]);
-                context.thermo_cli_args.push_back(argv[++i]);
-            }
-            catch (...)
-            {
-                // Single value
-                context.thermo_pressure = std::stod(argv[++i]);
-                context.thermo_cli_args.push_back("-P");
-                context.thermo_cli_args.push_back(argv[i]);
-            }
-        }
-        else
-        {
-            // Single value
-            context.thermo_pressure = std::stod(argv[++i]);
-            context.thermo_cli_args.push_back("-P");
-            context.thermo_cli_args.push_back(argv[i]);
-        }
-    }
-    else if (arg == "-conc" && i + 1 < argc)
-    {
-        context.thermo_concentration = argv[++i];
-        context.thermo_cli_args.push_back("-conc");
-        context.thermo_cli_args.push_back(argv[i]);
-    }
-    else if (arg == "-sclZPE" && i + 1 < argc)
-    {
-        context.thermo_scale_zpe = std::stod(argv[++i]);
-        context.thermo_cli_args.push_back("-sclZPE");
-        context.thermo_cli_args.push_back(argv[i]);
-    }
-    else if (arg == "-sclheat" && i + 1 < argc)
-    {
-        context.thermo_scale_heat = std::stod(argv[++i]);
-        context.thermo_cli_args.push_back("-sclheat");
-        context.thermo_cli_args.push_back(argv[i]);
-    }
-    else if (arg == "-sclS" && i + 1 < argc)
-    {
-        context.thermo_scale_entropy = std::stod(argv[++i]);
-        context.thermo_cli_args.push_back("-sclS");
-        context.thermo_cli_args.push_back(argv[i]);
-    }
-    else if (arg == "-sclCV" && i + 1 < argc)
-    {
-        context.thermo_scale_cv = std::stod(argv[++i]);
-        context.thermo_cli_args.push_back("-sclCV");
-        context.thermo_cli_args.push_back(argv[i]);
-    }
-    else if (arg == "-lowvibmeth" && i + 1 < argc)
-    {
-        context.thermo_low_vib_treatment = argv[++i];
-        context.thermo_cli_args.push_back("-lowvibmeth");
-        context.thermo_cli_args.push_back(argv[i]);
-    }
-    else if (arg == "-ravib" && i + 1 < argc)
-    {
-        context.thermo_raise_vib = std::stod(argv[++i]);
-        context.thermo_cli_args.push_back("-ravib");
-        context.thermo_cli_args.push_back(argv[i]);
-    }
-    else if (arg == "-ipmode" && i + 1 < argc)
-    {
-        context.thermo_ip_mode = std::stoi(argv[++i]);
-        context.thermo_cli_args.push_back("-ipmode");
-        context.thermo_cli_args.push_back(argv[i]);
-    }
-    else if (arg == "-imagreal" && i + 1 < argc)
-    {
-        context.thermo_imag_real = std::stod(argv[++i]);
-        context.thermo_cli_args.push_back("-imagreal");
-        context.thermo_cli_args.push_back(argv[i]);
-    }
-    else if (arg == "-massmod" && i + 1 < argc)
-    {
-        context.thermo_mass_mode = std::stoi(argv[++i]);
-        context.thermo_cli_args.push_back("-massmod");
-        context.thermo_cli_args.push_back(argv[i]);
-    }
-    else if (arg == "-PGname" && i + 1 < argc)
-    {
-        context.thermo_point_group = argv[++i];
-        context.thermo_cli_args.push_back("-PGname");
-        context.thermo_cli_args.push_back(argv[i]);
-    }
-    else if (arg == "-noset")
-    {
-        context.thermo_no_settings = true;
-        context.thermo_cli_args.push_back("-noset");
-    }
-    else if (arg == "-outotm" && i + 1 < argc)
-    {
-        context.thermo_output_otm = (std::stoi(argv[++i]) != 0);
-        context.thermo_cli_args.push_back("-outotm");
-        context.thermo_cli_args.push_back(argv[i]);
-    }
-    // Long-form arguments (for user convenience)
-    else if (arg == "--temp-scan" && i + 3 < argc)
+    if (arg == "--temp-scan" && i + 3 < argc)
     {
         context.thermo_temp_low  = std::stod(argv[++i]);
         context.thermo_temp_high = std::stod(argv[++i]);
         context.thermo_temp_step = std::stod(argv[++i]);
-        context.thermo_cli_args.push_back("-T");
-        context.thermo_cli_args.push_back(std::to_string(context.thermo_temp_low));
-        context.thermo_cli_args.push_back(std::to_string(context.thermo_temp_high));
-        context.thermo_cli_args.push_back(std::to_string(context.thermo_temp_step));
     }
     else if (arg == "--pressure-scan" && i + 3 < argc)
     {
         context.thermo_pressure_low  = std::stod(argv[++i]);
         context.thermo_pressure_high = std::stod(argv[++i]);
         context.thermo_pressure_step = std::stod(argv[++i]);
-        context.thermo_cli_args.push_back("-P");
-        context.thermo_cli_args.push_back(std::to_string(context.thermo_pressure_low));
-        context.thermo_cli_args.push_back(std::to_string(context.thermo_pressure_high));
-        context.thermo_cli_args.push_back(std::to_string(context.thermo_pressure_step));
     }
-    else if (arg == "--temperature")
+    else if (arg == "--temperature" || arg == "-T")
     {
         if (++i < argc)
         {
             context.thermo_temperature = std::stod(argv[i]);
-            context.thermo_cli_args.push_back("-T");
-            context.thermo_cli_args.push_back(argv[i]);
         }
     }
-    else if (arg == "--pressure")
+    else if (arg == "--pressure" || arg == "-P")
     {
         if (++i < argc)
         {
             context.thermo_pressure = std::stod(argv[i]);
-            context.thermo_cli_args.push_back("-P");
-            context.thermo_cli_args.push_back(argv[i]);
         }
     }
     else if (arg == "--low-vib-treatment")
@@ -1639,8 +1466,6 @@ void CommandParser::parse_thermo_options(CommandContext& context, int& i, int ar
         if (++i < argc)
         {
             context.thermo_low_vib_treatment = argv[i];
-            context.thermo_cli_args.push_back("-lowvibmeth");
-            context.thermo_cli_args.push_back(argv[i]);
         }
     }
     else if (arg == "--scale-zpe")
@@ -1648,8 +1473,6 @@ void CommandParser::parse_thermo_options(CommandContext& context, int& i, int ar
         if (++i < argc)
         {
             context.thermo_scale_zpe = std::stod(argv[i]);
-            context.thermo_cli_args.push_back("-sclZPE");
-            context.thermo_cli_args.push_back(argv[i]);
         }
     }
     else if (arg == "--scale-heat")
@@ -1657,8 +1480,6 @@ void CommandParser::parse_thermo_options(CommandContext& context, int& i, int ar
         if (++i < argc)
         {
             context.thermo_scale_heat = std::stod(argv[i]);
-            context.thermo_cli_args.push_back("-sclheat");
-            context.thermo_cli_args.push_back(argv[i]);
         }
     }
     else if (arg == "--scale-entropy")
@@ -1666,23 +1487,17 @@ void CommandParser::parse_thermo_options(CommandContext& context, int& i, int ar
         if (++i < argc)
         {
             context.thermo_scale_entropy = std::stod(argv[i]);
-            context.thermo_cli_args.push_back("-sclS");
-            context.thermo_cli_args.push_back(argv[i]);
         }
     }
     else if (arg == "--output-otm")
     {
         context.thermo_output_otm = true;
-        context.thermo_cli_args.push_back("-outotm");
-        context.thermo_cli_args.push_back("1");
     }
     else if (arg == "--point-group")
     {
         if (++i < argc)
         {
             context.thermo_point_group = argv[i];
-            context.thermo_cli_args.push_back("-PGname");
-            context.thermo_cli_args.push_back(argv[i]);
         }
     }
     else if (arg == "--help-input")
@@ -1715,4 +1530,3 @@ void CommandParser::parse_thermo_options(CommandContext& context, int& i, int ar
         }
     }
 }
-
