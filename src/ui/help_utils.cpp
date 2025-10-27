@@ -226,30 +226,9 @@ namespace HelpUtils
                 }
                 else
                 {
-                    std::cout << "Description: Thermodynamic calculations using OpenThermo module\n\n";
-                    std::cout << "This command provides thermodynamic analysis capabilities for\n";
-                    std::cout << "multiple quantum chemistry programs beyond Gaussian.\n\n";
-
-                    std::cout << "Thermo-specific Options:\n";
-                    std::cout << "  --temp-scan <low> <high> <step>    Temperature scanning (K)\n";
-                    std::cout << "  --pressure-scan <low> <high> <step> Pressure scanning (atm)\n";
-                    std::cout << "  --temperature/-T <value>           Single temperature (K)\n";
-                    std::cout << "  --pressure/-P <value>              Single pressure (atm)\n";
-                    std::cout << "  --low-vib-treatment <method>       Vibration treatment "
-                                 "(harmonic/truhlar/grimme/minenkov)\n";
-                    std::cout << "  --scale-zpe <factor>               ZPE scaling factor\n";
-                    std::cout << "  --scale-heat <factor>              Heat capacity scaling\n";
-                    std::cout << "  --scale-entropy <factor>           Entropy scaling\n";
-                    std::cout << "  --output-otm                       Generate OpenThermo format (.otm) files\n";
-                    std::cout << "  --point-group <group>              Specify point group\n\n";
-
-                    std::cout << "Supported Programs:\n";
-                    std::cout << "  Gaussian, ORCA, GAMESS, NWChem, CP2K, VASP, xTB\n\n";
-
-                    std::cout << "Output Files:\n";
-                    std::cout << "  <basename>.UHG    Thermal corrections and energies (scanning mode)\n";
-                    std::cout << "  <basename>.SCq    Entropy, heat capacities, partition functions (scanning mode)\n";
-                    std::cout << "  <basename>.otm    OpenThermo format (with --output-otm)\n";
+                    // Call the full OpenThermo help instead of showing simplified version
+                    // This provides comprehensive documentation consistent with standalone OpenThermo
+                    ThermoHelpUtils::print_help(program_name);
                 }
                 break;
         }
