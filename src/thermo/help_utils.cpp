@@ -30,7 +30,7 @@ namespace ThermoHelpUtils
         std::cout << "Input Files:\n";
         std::cout << "  input_file    Path to input file (.otm format or quantum chemistry output)\n";
         std::cout << "                Supported formats: Gaussian, ORCA, GAMESS-US, NWChem, CP2K, VASP\n";
-        std::cout << "                If no file specified, program will prompt for input\n\n";
+        std::cout << "                If no file specified, program will look for input in the current directory\n\n";
         std::cout << "Options:\n";
         std::cout << "  -E <value>           Electronic energy in a.u. (overrides file value)\n";
         std::cout << "  -T <T>               Temperature in K (default: 298.15)\n";

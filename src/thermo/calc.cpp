@@ -15,13 +15,20 @@
 #include "utilities/loadfile.h"
 #include "symmetry.h"
 #include "util.h"
+#include "parallel_utils.h"
+#include "job_management/job_scheduler.h"
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
+#include <future>
 #include <iomanip>
 #include <iostream>
+#include <mutex>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace util;
@@ -102,147 +109,293 @@ namespace calc
                   std::vector<double>&            CVlist,
                   std::vector<double>&            CPlist,
                   std::vector<double>&            QVlist,
-                  std::vector<double>&            Qbotlist)
+                  std::vector<double>&            Qbotlist,
+                  unsigned int                    requested_threads,
+                  size_t                          memory_limit_mb)
     {
         int                 nfile = filelist.size();
         std::vector<double> wei(nfile);
-        for (int ifile = 0; ifile < nfile; ++ifile)
-        {
-            sys.inputfile = filelist[ifile];
-            if (!file_exists(sys.inputfile))
-            {
-                std::cerr << "Error: Unable to find " << sys.inputfile << "\n";
-                std::cerr << "Press ENTER button to exit program" << "\n";
-                std::cin.get();
-                std::exit(1);
+        
+        // Determine optimal thread count
+        unsigned int hardware_cores = std::thread::hardware_concurrency();
+        if (hardware_cores == 0) hardware_cores = 4;
+        
+        unsigned int num_threads;
+        if (requested_threads == 0) {
+            // Auto-detect: use half of available cores
+            num_threads = hardware_cores / 2;
+        } else {
+            // Use user-requested value
+            num_threads = requested_threads;
+        }
+        
+        // Cap at file count and ensure at least 1 thread
+        num_threads = std::min(static_cast<unsigned int>(nfile), num_threads);
+        num_threads = std::max(1u, num_threads);
+        
+        // Detect job scheduler and calculate safe memory limit
+        JobResources job_resources = JobSchedulerDetector::detect_job_resources();
+        size_t calculated_memory_limit = ThermoParallel::calculateSafeMemoryLimit(
+            memory_limit_mb, num_threads, job_resources);
+        
+        // Set up parallel processing infrastructure with calculated memory limit
+        auto memory_monitor = std::make_shared<ThermoParallel::MemoryMonitor>(
+            calculated_memory_limit);
+        auto file_manager = std::make_shared<ThermoParallel::FileHandleManager>(50);
+        auto error_collector = std::make_shared<ThermoParallel::ThreadSafeErrorCollector>();
+        
+        // Progress reporting
+        std::atomic<size_t> completed_files(0);
+        std::atomic<size_t> file_index(0);
+        std::mutex cout_mutex;  // For thread-safe console output
+        
+        // Display processing information
+        if (num_threads > 1) {
+            std::cout << "Processing " << nfile << " files using " << num_threads << " threads...\n";
+            std::cout << "Memory limit: " << calculated_memory_limit << " MB";
+            
+            // Show job allocation info if running in cluster
+            if (job_resources.has_memory_limit && job_resources.allocated_memory_mb > 0) {
+                std::cout << " (job allocation: " << job_resources.allocated_memory_mb << " MB)";
             }
+            std::cout << "\n";
+        }
+        
+        // Worker function for parallel file processing with memory tracking
+        auto worker_function = [&]() {
+            while (true) {
+                size_t ifile = file_index.fetch_add(1);
+                if (ifile >= static_cast<size_t>(nfile)) {
+                    break;
+                }
+                
+                try {
+                    // Estimate memory for this file
+                    size_t estimated_memory = 0;
+                    std::string filename = filelist[ifile];
+                    
+                    try {
+                        if (std::filesystem::exists(filename)) {
+                            auto file_size = std::filesystem::file_size(filename);
+                            // Rough estimate: 10% of file size for processing overhead
+                            estimated_memory = file_size / 10;
+                        } else {
+                            std::lock_guard<std::mutex> lock(cout_mutex);
+                            error_collector->add_error("Unable to find " + filename);
+                            completed_files.fetch_add(1);
+                            continue;
+                        }
+                    } catch (const std::filesystem::filesystem_error&) {
+                        // Default estimate if file size check fails
+                        estimated_memory = 102400; // 100KB default
+                    }
+                    
+                    // Ensure minimum estimate
+                    if (estimated_memory < 10240) {
+                        estimated_memory = 10240; // At least 10KB
+                    }
+                    
+                    // Check if we can allocate memory
+                    if (!memory_monitor->can_allocate(estimated_memory)) {
+                        std::lock_guard<std::mutex> lock(cout_mutex);
+                        error_collector->add_error(
+                            "Insufficient memory to process " + filename + 
+                            " (estimated: " + std::to_string(estimated_memory / 1024) + " KB)");
+                        completed_files.fetch_add(1);
+                        continue;
+                    }
+                    
+                    // Track memory usage
+                    memory_monitor->add_usage(estimated_memory);
+                    
+                    // RAII guard for automatic memory cleanup
+                    struct MemoryGuard {
+                        std::shared_ptr<ThermoParallel::MemoryMonitor> monitor;
+                        size_t bytes;
+                        
+                        MemoryGuard(std::shared_ptr<ThermoParallel::MemoryMonitor> m, size_t b) 
+                            : monitor(m), bytes(b) {}
+                        ~MemoryGuard() {
+                            if (monitor) monitor->remove_usage(bytes);
+                        }
+                    };
+                    MemoryGuard memory_guard(memory_monitor, estimated_memory);
+                    
+                    // Acquire file handle
+                    auto file_guard = file_manager->acquire();
+                    if (!file_guard.is_acquired()) {
+                        std::lock_guard<std::mutex> lock(cout_mutex);
+                        error_collector->add_error("Could not acquire file handle for " + filename);
+                        completed_files.fetch_add(1);
+                        continue;
+                    }
+                    
+                    // Create thread-local SystemData copy
+                    SystemData local_sys = sys;
+                    local_sys.inputfile = filename;
+                    
+                    if (!file_exists(local_sys.inputfile)) {
+                        std::lock_guard<std::mutex> lock(cout_mutex);
+                        error_collector->add_error("Unable to find " + local_sys.inputfile);
+                        completed_files.fetch_add(1);
+                        continue;
+                    }
+                    
+                    // Process output with thread-safe locking
+                    {
+                        std::lock_guard<std::mutex> lock(cout_mutex);
+                        std::cout << "Processing " << local_sys.inputfile << "... (" 
+                                  << (ifile + 1) << " of " << nfile << " )" << "\n";
+                    }
 
-            std::cout << "Processing " << sys.inputfile << "... (" << (ifile + 1) << " of " << nfile << " )" << "\n";
-
-            size_t otm_pos = sys.inputfile.find(".otm");
+            size_t otm_pos = local_sys.inputfile.find(".otm");
             if (otm_pos != std::string::npos)
             {
-                LoadFile::loadotm(sys);
+                LoadFile::loadotm(local_sys);
             }
             else
             {
-                auto pcprog = deterprog(sys);
+                auto pcprog = deterprog(local_sys);
                 if (pcprog == QuantumChemistryProgram::Unknown)
                 {
-                    throw std::runtime_error("Invalid program type for file " + sys.inputfile);
+                    throw std::runtime_error("Invalid program type for file " + local_sys.inputfile);
                 }
                 if (pcprog == QuantumChemistryProgram::Gaussian)
-                    LoadFile::loadgau(sys);
+                    LoadFile::loadgau(local_sys);
                 else if (pcprog == QuantumChemistryProgram::Orca)
-                    LoadFile::loadorca(sys);
+                    LoadFile::loadorca(local_sys);
                 else if (pcprog == QuantumChemistryProgram::Gamess)
-                    LoadFile::loadgms(sys);
+                    LoadFile::loadgms(local_sys);
                 else if (pcprog == QuantumChemistryProgram::Nwchem)
-                    LoadFile::loadnw(sys);
+                    LoadFile::loadnw(local_sys);
                 else if (pcprog == QuantumChemistryProgram::Cp2k)
-                    LoadFile::loadCP2K(sys);
+                    LoadFile::loadCP2K(local_sys);
                 else if (pcprog == QuantumChemistryProgram::Xtb)
-                    LoadFile::loadxtb(sys);
+                    LoadFile::loadxtb(local_sys);
                 else if (pcprog == QuantumChemistryProgram::Vasp)
-                    LoadFile::loadvasp(sys);
+                    LoadFile::loadvasp(local_sys);
 
-                modmass(sys);
-                sys.nelevel = 1;
-                sys.elevel  = {0.0};
-                int deg     = std::max(sys.spinmult, 1);
-                sys.edegen  = {deg};
-                if (sys.outotm == 1)
-                    outotmfile(sys);
+                modmass(local_sys);
+                local_sys.nelevel = 1;
+                local_sys.elevel  = {0.0};
+                int deg     = std::max(local_sys.spinmult, 1);
+                local_sys.edegen  = {deg};
+                if (local_sys.outotm == 1)
+                    outotmfile(local_sys);
             }
 
-            if (sys.Eexter != 0.0)
+            if (local_sys.Eexter != 0.0)
             {
-                sys.E = sys.Eexter;
-                std::cout << "Note: The electronic energy specified by Eexter will be used" << "\n";
+                local_sys.E = local_sys.Eexter;
             }
             else if (Elist[ifile] != 0.0)
             {
-                sys.E = Elist[ifile];
+                local_sys.E = Elist[ifile];
             }
             else
             {
-                Elist[ifile] = sys.E;
-                if (sys.E != 0.0)
-                {
-                    std::cout << "Note: The electronic energy extracted from file will be used" << "\n";
-                }
+                Elist[ifile] = local_sys.E;
             }
 
-            sys.totmass = 0.0;
-            for (const auto& atom : sys.a)
+            local_sys.totmass = 0.0;
+            for (const auto& atom : local_sys.a)
             {
-                sys.totmass += atom.mass;
+                local_sys.totmass += atom.mass;
             }
 
-            calcinertia(sys);
+            calcinertia(local_sys);
 
-            sys.ilinear = 0;
-            for (double in : sys.inert)
+            local_sys.ilinear = 0;
+            for (double in : local_sys.inert)
             {
                 if (in < 0.001)
                 {
-                    sys.ilinear = 1;
+                    local_sys.ilinear = 1;
                     break;
                 }
             }
 
             // Symmetry detection
             symmetry::SymmetryDetector symDetector;
-            symDetector.ncenter = sys.a.size();
-            symDetector.a       = sys.a;
-            symDetector.a_index.resize(sys.a.size());
-            for (size_t i = 0; i < sys.a.size(); ++i)
+            symDetector.ncenter = local_sys.a.size();
+            symDetector.a       = local_sys.a;
+            symDetector.a_index.resize(local_sys.a.size());
+            for (size_t i = 0; i < local_sys.a.size(); ++i)
             {
                 symDetector.a_index[i] = i;
             }
-            symDetector.detectPG(sys.prtvib ? 1 : 0);
-            sys.rotsym  = symDetector.rotsym;
-            sys.PGname = symDetector.PGname;
+            symDetector.detectPG(local_sys.prtvib ? 1 : 0);
+            local_sys.rotsym  = symDetector.rotsym;
+            local_sys.PGname = symDetector.PGname;
 
             // Handle imaginary frequencies
-            if (sys.imagreal != 0.0)
+            if (local_sys.imagreal != 0.0)
             {
-                for (int j = 0; j < sys.nfreq; ++j)
+                for (int j = 0; j < local_sys.nfreq; ++j)
                 {
-                    if (sys.wavenum[j] < 0 && std::abs(sys.wavenum[j]) < sys.imagreal)
+                    if (local_sys.wavenum[j] < 0 && std::abs(local_sys.wavenum[j]) < local_sys.imagreal)
                     {
-                        sys.wavenum[j] = std::abs(sys.wavenum[j]);
-                        std::cout << "Note: Imaginary frequency " << sys.wavenum[j] << " cm^-1 set to real frequency!"
-                                  << "\n";
+                        local_sys.wavenum[j] = std::abs(local_sys.wavenum[j]);
                     }
                 }
             }
 
-            std::vector<double> freq(sys.nfreq);
-            for (int j = 0; j < sys.nfreq; ++j)
+            std::vector<double> freq(local_sys.nfreq);
+            for (int j = 0; j < local_sys.nfreq; ++j)
             {
-                freq[j] = sys.wavenum[j] * wave2freq;
+                freq[j] = local_sys.wavenum[j] * wave2freq;
             }
-            sys.freq = freq;
+            local_sys.freq = freq;
 
             double thermU, thermH, thermG, CP_tot, QV, Qbot;
-            calcthermo(sys, sys.T, sys.P, thermU, thermH, thermG, Slist[ifile], CVlist[ifile], CP_tot, QV, Qbot);
-            sys.thermG = thermG;
+            calcthermo(local_sys, local_sys.T, local_sys.P, thermU, thermH, thermG, Slist[ifile], CVlist[ifile], CP_tot, QV, Qbot);
 
-            Glist[ifile] = thermG / au2kJ_mol + sys.E;
+            Glist[ifile] = thermG / au2kJ_mol + local_sys.E;
 
-            Ulist[ifile]    = thermU / au2kJ_mol + sys.E;
-            Hlist[ifile]    = thermH / au2kJ_mol + sys.E;
+            Ulist[ifile]    = thermU / au2kJ_mol + local_sys.E;
+            Hlist[ifile]    = thermH / au2kJ_mol + local_sys.E;
             CPlist[ifile]   = CP_tot / au2kJ_mol;
             QVlist[ifile]   = QV / NA;
             Qbotlist[ifile] = Qbot / NA;
 
-            // Deallocate
-            sys.a.clear();
-            sys.elevel.clear();
-            sys.edegen.clear();
-            sys.freq.clear();
-            sys.wavenum.clear();
+                    completed_files.fetch_add(1);
+                } catch (const std::exception& e) {
+                    error_collector->add_error("File " + filelist[ifile] + ": " + e.what());
+                    completed_files.fetch_add(1);
+                }
+            }
+        };
+        
+        // Launch worker threads
+        std::vector<std::future<void>> futures;
+        for (unsigned int t = 0; t < num_threads; ++t) {
+            futures.emplace_back(std::async(std::launch::async, worker_function));
+        }
+        
+        // Wait for all threads to complete
+        for (auto& future : futures) {
+            try {
+                future.get();
+            } catch (const std::exception& e) {
+                error_collector->add_error("Thread execution error: " + std::string(e.what()));
+            }
+        }
+        
+        // Display final memory statistics
+        if (num_threads > 1) {
+            std::cout << "\nProcessing complete!\n";
+            std::cout << "Peak memory usage: " 
+                      << (memory_monitor->get_peak_usage() / (1024 * 1024)) << " MB / "
+                      << calculated_memory_limit << " MB\n";
+        }
+        
+        // Report any errors
+        auto errors = error_collector->get_errors();
+        if (!errors.empty()) {
+            std::cout << "\nErrors encountered during processing:\n";
+            for (const auto& error : errors) {
+                std::cerr << "  " << error << "\n";
+            }
         }
 
         std::cout << "\n";
