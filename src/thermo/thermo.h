@@ -65,18 +65,13 @@ namespace ThermoInterface
      * @brief Cleanup thermo module resources
      */
     void cleanup_thermo_module();
+
     
     /**
      * @brief Print OpenThermo program header and citation information
      */
     void print_program_header();
-    
-    /**
-     * @brief Get input file path interactively from user
-     * @return Input file path
-     */
-    std::string get_interactive_input();
-    
+
     /**
      * @brief Display detailed molecular information
      * @param sys SystemData containing molecular information

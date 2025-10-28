@@ -50,11 +50,15 @@ auto file_exists(const std::string& filename) -> bool;
  * @param CPlist Vector to store constant pressure heat capacities for each file
  * @param QVlist Vector to store vibrational partition functions for each file
  * @param Qbotlist Vector to store bottom partition functions for each file
+ * @param requested_threads Number of threads to use (0 = auto-detect)
+ * @param memory_limit_mb Memory limit in MB (0 = auto-calculate based on system and threads)
  */
 void ensemble(SystemData& sys, const std::vector<std::string>& filelist, std::vector<double>& Elist,
               std::vector<double>& Ulist, std::vector<double>& Hlist, std::vector<double>& Glist,
               std::vector<double>& Slist, std::vector<double>& CVlist, std::vector<double>& CPlist,
-              std::vector<double>& QVlist, std::vector<double>& Qbotlist);
+              std::vector<double>& QVlist, std::vector<double>& Qbotlist, 
+              unsigned int requested_threads = 0,
+              size_t memory_limit_mb = 0);
 
 /**
  * @brief Calculate moments of inertia for the molecular system

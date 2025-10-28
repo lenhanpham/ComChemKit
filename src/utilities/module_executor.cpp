@@ -1447,7 +1447,7 @@ int execute_thermo_command(const CommandContext& context)
                     
                     // Check for supported quantum chemistry output files
                     if (ext == ".log" || ext == ".out" || ext == ".LOG" || ext == ".OUT" ||
-                        ext == ".output" || ext == ".xyz" || ext == ".mol") {
+                        ext == ".output") {
                         auto_files.push_back(filename);
                     }
                 }
@@ -1455,7 +1455,7 @@ int execute_thermo_command(const CommandContext& context)
             
             if (auto_files.empty()) {
                 std::cerr << "No suitable input files found in current directory." << std::endl;
-                std::cerr << "Supported extensions: .log, .out, .output, .xyz, .mol" << std::endl;
+                std::cerr << "Supported extensions: .log, .out" << std::endl;
                 return 1;
             }
             

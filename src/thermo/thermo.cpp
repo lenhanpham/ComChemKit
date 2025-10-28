@@ -8,6 +8,9 @@
 #include "thermo.h"
 #include "chemsys.h"
 #include "util.h"
+#include <filesystem>
+#include <algorithm>
+#include <cctype>
 #include "utilities/loadfile.h"
 #include "calc.h"
 #include "atommass.h"
@@ -44,12 +47,9 @@ namespace ThermoInterface
             } else if (!context.files.empty()) {
                 input_file = context.files[0];
             } else {
-                // Interactive input mode
-                input_file = get_interactive_input();
-                if (input_file.empty()) {
-                    result.error_message = "No input file specified for thermo analysis";
-                    return result;
-                }
+                // No input file specified - this should have been handled by the module executor
+                result.error_message = "No input file specified for thermo analysis";
+                return result;
             }
             
             // Check if file exists
@@ -498,13 +498,22 @@ namespace ThermoInterface
         return result;
     }
     
-    ThermoResult process_batch(const CommandContext& context, 
-                              const std::vector<std::string>& files) 
+    ThermoResult process_batch(const CommandContext& context,
+                              const std::vector<std::string>& files)
     {
         ThermoResult result;
         result.success = true;
-        
-        for (const auto& file : files) {
+
+        std::vector<std::string> files_to_process = files;
+
+        // If no files provided, return error (should have been handled by module executor)
+        if (files_to_process.empty()) {
+            result.success = false;
+            result.error_message = "No files specified for thermo analysis";
+            return result;
+        }
+
+        for (const auto& file : files_to_process) {
             CommandContext file_context = context;
             file_context.thermo_input_file = file;
             
@@ -600,27 +609,7 @@ namespace ThermoInterface
                   << "# " << "Thermochemical Properties\" 2025, http://dx.doi.org/10.13140/RG.2.2.22380.63363 " << "#\n"
                   << "# " << "-------------------------------------------------------------------------------" << "#\n";
     }
-    
-    std::string get_interactive_input() 
-    {
-        std::cout << "\nInput file path, e.g. D:\\your_dir\\your_calc.log\n"
-                  << " OpenThermo supports Gaussian, ORCA, GAMESS-US, NWChem, CP2K, and VASP "
-                     "\n";
-        std::string input_file;
-        while (true) {
-            std::getline(std::cin, input_file);
-            input_file.erase(std::remove(input_file.begin(), input_file.end(), '"'), input_file.end());
-            std::ifstream check(input_file);
-            bool file_exists = check.good();
-            check.close();
-            if (file_exists) {
-                break;
-            }
-            std::cout << "Cannot find the file, input again!\n";
-        }
-        return input_file;
-    }
-    
+
     void display_molecular_info(const SystemData& sys, int nimag) 
     {
         std::cout << "\n"
