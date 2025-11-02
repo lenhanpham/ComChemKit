@@ -12,7 +12,9 @@
   <a href="./LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
   </a>
-  <img src="https://img.shields.io/badge/Build-Passing-brightgreen.svg" alt="Build Status">
+  <a href="https://github.com/lenhanpham/ComChemKit/actions/workflows/build.yml">
+    <img src="https://github.com/lenhanpham/ComChemKit/actions/workflows/build.yml/badge.svg" alt="Build Status">
+  </a>
 </p>
 
 **ComChemKit** is a high-performance, cluster-safe program designed to enable researchers to interact with computational chemistry programs easily and efficiently. Users can create inputs, analyze data, organize computational tasks (jobs), and calculate further properties with ComChemKit. ComChemKit runs in parallel with comprehensive safety features to prevent system overload and ensure stable operation in shared computing environments.
