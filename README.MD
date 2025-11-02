@@ -1,7 +1,7 @@
 <p align="center">
   <a href="https://github.com/lenhanpham/ComChemKit">
     <picture>
-      <img src="resources/cck-logo.svg" alt="ComChemKit">
+      <img src="resources/cck-logo.svg" alt="ComChemKit"  style="width: 50%;>
     </picture>
   </a>
 </p>
