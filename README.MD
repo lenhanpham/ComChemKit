@@ -12,8 +12,8 @@
   <a href="./LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
   </a>
-  <a href="https://github.com/lenhanpham/ComChemKit/actions/workflows/build.yml">
-    <img src="https://github.com/lenhanpham/ComChemKit/actions/workflows/build.yml/badge.svg" alt="Build Status">
+  <a href="https://github.com/lenhanpham/ComChemKit/actions/workflows/ci.yml">
+    <img src="https://github.com/lenhanpham/ComChemKit/actions/workflows/ci.yml/badge.svg" alt="Build Status">
   </a>
 </p>
 
