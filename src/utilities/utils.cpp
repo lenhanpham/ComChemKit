@@ -164,7 +164,7 @@ namespace Utils
         std::string token;
         for (char ch : cleaned_str)
         {
-            if (ch == ' ' || ch == ',' || ch == ';')
+            if (ch == ' ' || ch == '|' || ch == ';')
             {
                 // Process the current token
                 if (!token.empty())
