@@ -37,6 +37,20 @@ enum class CalculationType
 };
 
 /**
+ * @brief Result of file creation operation
+ * Contains counts of actually created and skipped files
+ */
+struct FileCreationResult
+{
+    size_t      created_count;  ///< Number of files actually created
+    size_t      skipped_count;  ///< Number of files skipped (already existed)
+    std::string error_msg;      ///< Error message if operation failed
+    bool        success;        ///< True if operation completed without errors
+
+    FileCreationResult() : created_count(0), skipped_count(0), error_msg(""), success(true) {}
+};
+
+/**
  * @struct CreateSummary
  * @brief Statistical summary of input creation operations
  *
@@ -333,10 +347,9 @@ private:
     /**
      * @brief Create input file from single XYZ file
      * @param xyz_file Path to XYZ file
-     * @param error_msg Error message output
-     * @return true if successful, false otherwise
+     * @return FileCreationResult with counts of created and skipped files
      */
-    bool create_from_file(const std::string& xyz_file, std::string& error_msg);
+    FileCreationResult create_from_file(const std::string& xyz_file);
 
     /**
      * @brief Generate Gaussian input content

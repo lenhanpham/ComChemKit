@@ -21,7 +21,6 @@
 #include <thread>
 #include <vector>
 
-
 // External global for shutdown
 extern std::atomic<bool> g_shutdown_requested;
 
@@ -321,7 +320,6 @@ CreateSummary CreateInput::create_inputs(const std::vector<std::string>& xyz_fil
     }
 
     // Thread-safe containers
-    std::vector<std::string> successful_creations;  // input_file paths
     std::mutex               results_mutex;
     std::atomic<size_t>      file_index{0};
 
@@ -351,30 +349,23 @@ CreateSummary CreateInput::create_inputs(const std::vector<std::string>& xyz_fil
                     if (!file_guard.is_acquired())
                         continue;
 
-                    std::string error_msg;
-                    if (create_from_file(xyz_files[index], error_msg))
+                    FileCreationResult result = create_from_file(xyz_files[index]);
                     {
+                        std::lock_guard<std::mutex> lock(results_mutex);
+                        summary.processed_files++;
+                        
+                        if (result.success)
                         {
-                            std::lock_guard<std::mutex> lock(results_mutex);
-                            std::vector<std::string>    input_files = generate_input_filename(xyz_files[index]);
-                            for (const auto& input_file : input_files)
-                            {
-                                successful_creations.push_back(input_file);
-                            }
-                            summary.processed_files++;
-                            summary.created_files += input_files.size();
+                            summary.created_files += result.created_count;
+                            summary.skipped_files += result.skipped_count;
                         }
-                    }
-                    else
-                    {
+                        else
                         {
-                            std::lock_guard<std::mutex> lock(results_mutex);
-                            summary.processed_files++;
                             summary.failed_files++;
-                            if (!error_msg.empty())
+                            if (!result.error_msg.empty())
                             {
                                 summary.errors.push_back("Error creating input for " + xyz_files[index] + ": " +
-                                                         error_msg);
+                                                         result.error_msg);
                             }
                         }
                     }
@@ -388,6 +379,8 @@ CreateSummary CreateInput::create_inputs(const std::vector<std::string>& xyz_fil
                 catch (const std::exception& e)
                 {
                     std::lock_guard<std::mutex> lock(results_mutex);
+                    summary.processed_files++;
+                    summary.failed_files++;
                     summary.errors.push_back("Exception creating input for " + xyz_files[index] + ": " + e.what());
                 }
             }
@@ -412,8 +405,10 @@ CreateSummary CreateInput::create_inputs(const std::vector<std::string>& xyz_fil
     return summary;
 }
 
-bool CreateInput::create_from_file(const std::string& xyz_file, std::string& error_msg)
+FileCreationResult CreateInput::create_from_file(const std::string& xyz_file)
 {
+    FileCreationResult result;
+    
     try
     {
         // Extract isomer name from filename
@@ -427,8 +422,9 @@ bool CreateInput::create_from_file(const std::string& xyz_file, std::string& err
             coordinates = read_xyz_coordinates(xyz_file);
             if (coordinates.empty())
             {
-                error_msg = "Failed to read coordinates from XYZ file";
-                return false;
+                result.error_msg = "Failed to read coordinates from XYZ file";
+                result.success = false;
+                return result;
             }
         }
         else
@@ -451,16 +447,16 @@ bool CreateInput::create_from_file(const std::string& xyz_file, std::string& err
 
             if (!std::filesystem::exists(ts_chk_path))
             {
-                error_msg = "TS checkpoint file not found: " + ts_chk_path +
+                result.error_msg = "TS checkpoint file not found: " + ts_chk_path +
                             ". Please specify --tschk-path or ensure the TS checkpoint exists in the parent directory.";
-                return false;
+                result.success = false;
+                return result;
             }
         }
 
         // Generate output filename(s)
         std::vector<std::string> input_files = generate_input_filename(xyz_file);
 
-        bool all_success = true;
         for (size_t i = 0; i < input_files.size(); ++i)
         {
             const auto& input_file = input_files[i];
@@ -495,27 +491,34 @@ bool CreateInput::create_from_file(const std::string& xyz_file, std::string& err
                 {
                     std::cout << input_file << " exists and will not be overwritten." << std::endl;
                 }
+                result.skipped_count++;
                 continue;  // Skip this file
             }
 
             // Write input file
             if (!write_input_file(input_file, content))
             {
-                error_msg   = "Failed to write input file: " + input_file;
-                all_success = false;
+                result.error_msg = "Failed to write input file: " + input_file;
+                result.success = false;
+                return result;
             }
-            else if (!quiet_mode)
+            else
             {
-                std::cout << input_file << " was newly created." << std::endl;
+                if (!quiet_mode)
+                {
+                    std::cout << input_file << " was newly created." << std::endl;
+                }
+                result.created_count++;
             }
         }
 
-        return all_success;
+        return result;
     }
     catch (const std::exception& e)
     {
-        error_msg = e.what();
-        return false;
+        result.error_msg = e.what();
+        result.success = false;
+        return result;
     }
 }
 
