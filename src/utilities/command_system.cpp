@@ -1322,6 +1322,7 @@ void CommandParser::parse_create_input_options(CommandContext& context, int& i, 
             // Load custom cycle and optimization parameters (always loaded)
             context.ci_scf_maxcycle  = parser.getInt("scf_maxcycle", context.ci_scf_maxcycle);
             context.ci_opt_maxcycles = parser.getInt("opt_maxcycles", context.ci_opt_maxcycles);
+            context.ci_opt_maxstep   = parser.getInt("opt_maxstep", context.ci_opt_maxstep);
             context.ci_irc_maxpoints = parser.getInt("irc_maxpoints", context.ci_irc_maxpoints);
             context.ci_irc_recalc    = parser.getInt("irc_recalc", context.ci_irc_recalc);
             context.ci_irc_maxcycle  = parser.getInt("irc_maxcycle", context.ci_irc_maxcycle);
@@ -1715,4 +1716,3 @@ void CommandParser::parse_thermo_options(CommandContext& context, int& i, int ar
         }
     }
 }
-

@@ -1,0 +1,10 @@
+%chk=test.chk
+# opt(maxcycles=300) freq scf(maxcycle=300,xqc) UWB97XD/DEF2SVPP
+
+Title: Geometrical optimization and frequency calculation
+
+0 1
+C 0.000000 0.000000 0.000000
+H 1.089000 0.000000 0.000000
+H -0.544500 0.942000 0.000000
+
