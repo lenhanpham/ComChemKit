@@ -161,7 +161,7 @@ public:
     // * @param solvent_read The generic solvent and read strings
     // * @return true if valid, false otherwise
     // */
-    //bool is_solvent_read(const std::string& solvent_read) const;
+    // bool is_solvent_read(const std::string& solvent_read) const;
 
     /**
      * @brief Validates requirements for MODRE_TS_FREQ and OSS_TS_FREQ calculations
@@ -284,6 +284,13 @@ public:
     void set_opt_maxcycles(int maxcycles);
 
     /**
+     * @brief Set OPT maxstep override
+     * @param maxstep OPT maxstep value (-1 for default, >0 = custom
+     * value, TS_FREQ_FROM_CHK defaults to 5)
+     */
+    void set_opt_maxstep(int maxstep);
+
+    /**
      * @brief Set IRC maxpoints override
      * @param maxpoints IRC maxpoints value (-1 for default)
      */
@@ -343,6 +350,7 @@ private:
     int irc_recalc_;     ///< Override for IRC Recalc
     int irc_maxcycle_;   ///< Override for IRC MaxCycle
     int irc_stepsize_;   ///< Override for IRC StepSize
+    int opt_maxstep_;    ///< Override for OPT MaxStep (-1 = default: none for most types, 5 for TS_FREQ_FROM_CHK)
 
     /**
      * @brief Create input file from single XYZ file

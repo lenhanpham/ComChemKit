@@ -1,9 +1,9 @@
 %chk=ethane.chk
-# scf(maxcycle=500,xqc) UwB97XD/Def2SVPP
+# opt(maxcycles=300,MaxStep=10) freq scf(maxcycle=300,xqc) UWB97XD/DEF2SVPP scrf(smd,solvent=Heptane) Temperature=300
 
-Title: Normal single point calculation
+Title: Geometrical optimization and frequency calculation
 
-0 1
+1 1
 C         -3.21259        0.03174        0.00000
 C         -2.14259        0.03174        0.00000
 H         -3.56925       -0.86059        0.47056
@@ -12,3 +12,4 @@ H         -3.56926        0.88543        0.53751
 H         -1.78593       -0.82194       -0.53751
 H         -1.78592       -0.00691        1.00806
 H         -1.78592        0.92408       -0.47056
+

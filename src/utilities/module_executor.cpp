@@ -1321,6 +1321,7 @@ int execute_create_input_command(const CommandContext& context)
         }
         creator.set_scf_maxcycle(context.ci_scf_maxcycle);
         creator.set_opt_maxcycles(context.ci_opt_maxcycles);
+        creator.set_opt_maxstep(context.ci_opt_maxstep);
         creator.set_irc_maxpoints(context.ci_irc_maxpoints);
         creator.set_irc_recalc(context.ci_irc_recalc);
         creator.set_irc_maxcycle(context.ci_irc_maxcycle);
@@ -1430,54 +1431,69 @@ int execute_thermo_command(const CommandContext& context)
 
         // Process files using thermo interface
         ThermoInterface::ThermoResult result;
-        
-        if (!context.files.empty()) {
+
+        if (!context.files.empty())
+        {
             // Process multiple files
             result = ThermoInterface::process_batch(context, context.files);
-        } else if (!context.thermo_input_file.empty()) {
+        }
+        else if (!context.thermo_input_file.empty())
+        {
             // Process single file
             result = ThermoInterface::process_file(context);
-        } else {
+        }
+        else
+        {
             // Auto-detect files in current directory
             std::vector<std::string> auto_files;
-            for (const auto& entry : std::filesystem::directory_iterator(".")) {
-                if (entry.is_regular_file()) {
+            for (const auto& entry : std::filesystem::directory_iterator("."))
+            {
+                if (entry.is_regular_file())
+                {
                     std::string filename = entry.path().filename().string();
-                    std::string ext = entry.path().extension().string();
-                    
+                    std::string ext      = entry.path().extension().string();
+
                     // Check for supported quantum chemistry output files
-                    if (ext == ".log" || ext == ".out" || ext == ".LOG" || ext == ".OUT" ||
-                        ext == ".output") {
+                    if (ext == ".log" || ext == ".out" || ext == ".LOG" || ext == ".OUT" || ext == ".output")
+                    {
                         auto_files.push_back(filename);
                     }
                 }
             }
-            
-            if (auto_files.empty()) {
+
+            if (auto_files.empty())
+            {
                 std::cerr << "No suitable input files found in current directory." << std::endl;
                 std::cerr << "Supported extensions: .log, .out" << std::endl;
                 return 1;
             }
-            
-            if (!context.quiet) {
+
+            if (!context.quiet)
+            {
                 std::cout << "Found " << auto_files.size() << " input files for processing." << std::endl;
             }
             result = ThermoInterface::process_batch(context, auto_files);
         }
-        
+
         // Report results
-        if (result.success) {
-            if (!context.quiet) {
+        if (result.success)
+        {
+            if (!context.quiet)
+            {
                 std::cout << "Thermodynamic analysis completed successfully." << std::endl;
-                if (!result.output_files.empty()) {
+                if (!result.output_files.empty())
+                {
                     std::cout << "Output files generated:" << std::endl;
-                    for (const auto& file : result.output_files) {
+                    for (const auto& file : result.output_files)
+                    {
                         std::cout << "  " << file << std::endl;
                     }
                 }
             }
             return 0;
-        } else {
+        }
+        else
+        {
             std::cerr << "Thermodynamic analysis failed: " << result.error_message << std::endl;
             return result.exit_code != 0 ? result.exit_code : 1;
         }

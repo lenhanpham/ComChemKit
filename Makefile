@@ -7,9 +7,12 @@ BUILD_DIR = build
 TEST_DIR = tests
 
 # Compiler settings
+# Allow CXX override from environment, otherwise auto-detect
+ifndef CXX
 # Auto-detect compiler. Prefers Intel compilers (icpx, icpc, icc) over GCC (g++).
 COMPILER_LIST := icpx icpc icc g++
 CXX := $(firstword $(foreach c,$(COMPILER_LIST),$(if $(shell command -v $(c)),$(c))))
+endif
 
 # Fallback to a default if no compiler is found in PATH and print a warning.
 ifeq ($(CXX),)

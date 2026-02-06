@@ -29,7 +29,7 @@ CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, bool quiet)
       large_basis_(""), solvent_(""), solvent_model_("smd"), print_level_(""), extra_keywords_(""), charge_(0),
       mult_(1), tail_(""), modre_(""), extra_keyword_section_(""), extension_(".gau"), tschk_path_(""),
       freeze_atoms_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
-      irc_maxcycle_(-1), irc_stepsize_(-1)
+      irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1)
 {}
 
 std::string CreateInput::select_basis_for_calculation() const
@@ -66,7 +66,7 @@ bool CreateInput::is_gen_basis(const std::string& basis_str) const
 }
 
 // Check generic solvent, and read keyword
-//bool CreateInput::is_solvent_read(const std::string& solvent_read) const
+// bool CreateInput::is_solvent_read(const std::string& solvent_read) const
 //{
 //    // Check if basis is GEN or GENECP (case insensitive)
 //    std::string upper_solvent_read = solvent_read;
@@ -189,7 +189,7 @@ CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, const std::stri
       large_basis_(""), solvent_(""), solvent_model_("smd"), print_level_(""), extra_keywords_(""), charge_(0),
       mult_(1), tail_(""), modre_(""), extra_keyword_section_(""), extension_(".gau"), tschk_path_(""),
       freeze_atoms_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
-      irc_maxcycle_(-1), irc_stepsize_(-1)
+      irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1)
 {
     if (!loadParameters(param_file))
     {
@@ -302,6 +302,7 @@ bool CreateInput::loadParameters(const std::string& param_file)
     irc_recalc_    = parser.getInt("irc_recalc", -1);
     irc_maxcycle_  = parser.getInt("irc_maxcycle", -1);
     irc_stepsize_  = parser.getInt("irc_stepsize", -1);
+    opt_maxstep_   = parser.getInt("opt_maxstep", -1);
 
     return true;
 }
@@ -320,8 +321,8 @@ CreateSummary CreateInput::create_inputs(const std::vector<std::string>& xyz_fil
     }
 
     // Thread-safe containers
-    std::mutex               results_mutex;
-    std::atomic<size_t>      file_index{0};
+    std::mutex          results_mutex;
+    std::atomic<size_t> file_index{0};
 
     // Calculate safe thread count
     unsigned int num_threads = calculateSafeThreadCount(
@@ -353,7 +354,7 @@ CreateSummary CreateInput::create_inputs(const std::vector<std::string>& xyz_fil
                     {
                         std::lock_guard<std::mutex> lock(results_mutex);
                         summary.processed_files++;
-                        
+
                         if (result.success)
                         {
                             summary.created_files += result.created_count;
@@ -408,7 +409,7 @@ CreateSummary CreateInput::create_inputs(const std::vector<std::string>& xyz_fil
 FileCreationResult CreateInput::create_from_file(const std::string& xyz_file)
 {
     FileCreationResult result;
-    
+
     try
     {
         // Extract isomer name from filename
@@ -423,7 +424,7 @@ FileCreationResult CreateInput::create_from_file(const std::string& xyz_file)
             if (coordinates.empty())
             {
                 result.error_msg = "Failed to read coordinates from XYZ file";
-                result.success = false;
+                result.success   = false;
                 return result;
             }
         }
@@ -447,8 +448,9 @@ FileCreationResult CreateInput::create_from_file(const std::string& xyz_file)
 
             if (!std::filesystem::exists(ts_chk_path))
             {
-                result.error_msg = "TS checkpoint file not found: " + ts_chk_path +
-                            ". Please specify --tschk-path or ensure the TS checkpoint exists in the parent directory.";
+                result.error_msg =
+                    "TS checkpoint file not found: " + ts_chk_path +
+                    ". Please specify --tschk-path or ensure the TS checkpoint exists in the parent directory.";
                 result.success = false;
                 return result;
             }
@@ -499,7 +501,7 @@ FileCreationResult CreateInput::create_from_file(const std::string& xyz_file)
             if (!write_input_file(input_file, content))
             {
                 result.error_msg = "Failed to write input file: " + input_file;
-                result.success = false;
+                result.success   = false;
                 return result;
             }
             else
@@ -517,7 +519,7 @@ FileCreationResult CreateInput::create_from_file(const std::string& xyz_file)
     catch (const std::exception& e)
     {
         result.error_msg = e.what();
-        result.success = false;
+        result.success   = false;
         return result;
     }
 }
@@ -594,7 +596,8 @@ std::string CreateInput::generate_single_section_calc_type(CalculationType    ty
     return content.str();
 }
 
-// At the end of check point file, a new line \n is always added; but no newline \n at the end of whole single route section
+// At the end of check point file, a new line \n is always added; but no newline \n at the end of whole single route
+// section
 std::string CreateInput::generate_route_for_single_section_calc_type(CalculationType    type,
                                                                      const std::string& isomer_name)
 {
@@ -638,28 +641,35 @@ std::string CreateInput::generate_route_for_single_section_calc_type(Calculation
             route << " scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
             break;
         case CalculationType::OPT_FREQ:
-            route << " opt(maxcycles=" << opt_mc << ") freq scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/"
-                  << basis_;
+            route << " opt(maxcycles=" << opt_mc;
+            if (opt_maxstep_ > 0)
+                route << ",MaxStep=" << opt_maxstep_;
+            route << ") freq scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
             break;
         case CalculationType::TS_FREQ: {
             std::string basis_to_use = select_basis_for_calculation();
-            route << " opt(maxcycles=" << opt_mc << ",ts,noeigen,calcfc) freq scf(maxcycle=" << scf_mc << ",xqc) "
-                  << functional_ << "/" << basis_to_use;
+            route << " opt(maxcycles=" << opt_mc << ",ts,noeigen,calcfc";
+            if (opt_maxstep_ > 0)
+                route << ",MaxStep=" << opt_maxstep_;
+            route << ") freq scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_to_use;
             break;
         }
         case CalculationType::TS_FREQ_FROM_CHK: {
-            std::string basis_to_use = select_basis_for_calculation();
-            route << " opt(maxcycles=" << opt_mc
-                  << ",ts,noeigen,calcfc,NoFreeze,MaxStep=5) freq scf(maxcycle=" << scf_mc << ",xqc) " << functional_
-                  << "/" << basis_to_use << " Guess(Read) Geom(AllCheck)";
+            std::string basis_to_use   = select_basis_for_calculation();
+            int         maxstep_to_use = (opt_maxstep_ > 0) ? opt_maxstep_ : 5;  // Default to 5 if not specified
+            route << " opt(maxcycles=" << opt_mc << ",ts,noeigen,calcfc,NoFreeze,MaxStep=" << maxstep_to_use
+                  << ") freq scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_to_use
+                  << " Guess(Read) Geom(AllCheck)";
         }
         break;
         case CalculationType::OSS_CHECK_SP:
             route << " Stable=Opt scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
             break;
         case CalculationType::MODRE_OPT:
-            route << " opt(maxcycles=" << opt_mc << ",modredundant) scf(maxcycle=" << scf_mc << ",xqc) " << functional_
-                  << "/" << basis_;
+            route << " opt(maxcycles=" << opt_mc << ",modredundant";
+            if (opt_maxstep_ > 0)
+                route << ",MaxStep=" << opt_maxstep_;
+            route << ") scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
             break;
         case CalculationType::HIGH_SP: {
             std::string basis_to_use = select_basis_for_calculation();
@@ -691,7 +701,7 @@ std::string CreateInput::generate_route_for_single_section_calc_type(Calculation
                   << ",MaxCycle=" << maxcyc << ",StepSize=" << stepsz << ",loose,LQA,nogradstop) " << functional_ << "/"
                   << basis_to_use << " Guess(Read) Geom(AllCheck)";
         }
-            break;
+        break;
         case CalculationType::OSS_TS_FREQ:
             // OSS_TS_FREQ is handled as multi-section
             break;
@@ -741,10 +751,10 @@ std::string CreateInput::generate_input_content(const std::string& isomer_name, 
             content << "--Link1--\n%OldChk=" << isomer_name << "-modre.chk\n";
             content << generate_single_section_calc_type(CalculationType::TS_FREQ_FROM_CHK, isomer_name, coordinates);
             break;
-        
+
         // Need to fix this to generate an IRC input with both
         case CalculationType::IRC:
-        // IRC creates one single file for both directions
+            // IRC creates one single file for both directions
             content << generate_single_section_calc_type(CalculationType::IRC, isomer_name, coordinates);
             break;
 
@@ -1025,6 +1035,11 @@ void CreateInput::set_scf_maxcycle(int maxcycle)
 void CreateInput::set_opt_maxcycles(int maxcycles)
 {
     opt_maxcycles_ = maxcycles;
+}
+
+void CreateInput::set_opt_maxstep(int maxstep)
+{
+    opt_maxstep_ = maxstep;
 }
 
 void CreateInput::set_irc_maxpoints(int maxpoints)

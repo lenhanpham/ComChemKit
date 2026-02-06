@@ -132,39 +132,40 @@ struct CommandContext
     int         ci_freeze_atom2;           ///< Second atom to freeze (for TS calculations)
     int         ci_scf_maxcycle;           ///< SCF maxcycle override
     int         ci_opt_maxcycles;          ///< OPT maxcycles override
+    int         ci_opt_maxstep;            ///< OPT maxstep override (-1 = default, >0 = custom value)
     int         ci_irc_maxpoints;          ///< IRC maxpoints override
     int         ci_irc_recalc;             ///< IRC recalc override
     int         ci_irc_maxcycle;           ///< IRC maxcycle override
     int         ci_irc_stepsize;           ///< IRC stepsize override
 
     // Thermo-specific parameters
-    std::string thermo_input_file;                      ///< Input file for thermo analysis
-    double      thermo_temperature       = 298.15;      ///< Temperature for thermo calculations (K)
-    double      thermo_pressure          = 1.0;         ///< Pressure for thermo calculations (atm)
-    double      thermo_temp_low          = 0.0;         ///< Low temperature for scanning (K)
-    double      thermo_temp_high         = 0.0;         ///< High temperature for scanning (K)
-    double      thermo_temp_step         = 0.0;         ///< Temperature step for scanning (K)
-    double      thermo_pressure_low      = 0.0;         ///< Low pressure for scanning (atm)
-    double      thermo_pressure_high     = 0.0;         ///< High pressure for scanning (atm)
-    double      thermo_pressure_step     = 0.0;         ///< Pressure step for scanning (atm)
-    std::string thermo_concentration     = "0";         ///< Concentration for solution phase
-    int         thermo_print_vib         = 0;           ///< Print vibrational analysis
-    int         thermo_mass_mode         = 1;           ///< Mass mode for isotope handling
-    int         thermo_ip_mode           = 0;           ///< IP mode setting
-    std::string thermo_low_vib_treatment = "harmonic";  ///< Low frequency vibration treatment
-    double      thermo_scale_zpe         = 1.0;         ///< Zero-point energy scaling factor
-    double      thermo_scale_heat        = 1.0;         ///< Heat capacity scaling factor
-    double      thermo_scale_entropy     = 1.0;         ///< Entropy scaling factor
-    double      thermo_scale_cv          = 1.0;         ///< Heat capacity scaling factor
-    double      thermo_raise_vib         = 100.0;       ///< Raise vibration frequency threshold
-    double      thermo_interp_vib        = 100.0;       ///< Interpolation vibration threshold
-    double      thermo_imag_real         = 0.0;         ///< Imaginary to real frequency conversion
-    double      thermo_external_energy   = 0.0;         ///< External energy contribution
-    bool        thermo_output_otm        = false;       ///< Output in OpenThermo format
-    bool        thermo_no_settings       = false;       ///< Disable settings file loading
-    std::string              thermo_point_group = "?";  ///< Point group symmetry
-    std::string              thermo_help_topic;         ///< Help topic for thermo command
-    std::vector<std::string> thermo_cli_args;           ///< Raw CLI arguments to pass to thermo module
+    std::string              thermo_input_file;                      ///< Input file for thermo analysis
+    double                   thermo_temperature       = 298.15;      ///< Temperature for thermo calculations (K)
+    double                   thermo_pressure          = 1.0;         ///< Pressure for thermo calculations (atm)
+    double                   thermo_temp_low          = 0.0;         ///< Low temperature for scanning (K)
+    double                   thermo_temp_high         = 0.0;         ///< High temperature for scanning (K)
+    double                   thermo_temp_step         = 0.0;         ///< Temperature step for scanning (K)
+    double                   thermo_pressure_low      = 0.0;         ///< Low pressure for scanning (atm)
+    double                   thermo_pressure_high     = 0.0;         ///< High pressure for scanning (atm)
+    double                   thermo_pressure_step     = 0.0;         ///< Pressure step for scanning (atm)
+    std::string              thermo_concentration     = "0";         ///< Concentration for solution phase
+    int                      thermo_print_vib         = 0;           ///< Print vibrational analysis
+    int                      thermo_mass_mode         = 1;           ///< Mass mode for isotope handling
+    int                      thermo_ip_mode           = 0;           ///< IP mode setting
+    std::string              thermo_low_vib_treatment = "harmonic";  ///< Low frequency vibration treatment
+    double                   thermo_scale_zpe         = 1.0;         ///< Zero-point energy scaling factor
+    double                   thermo_scale_heat        = 1.0;         ///< Heat capacity scaling factor
+    double                   thermo_scale_entropy     = 1.0;         ///< Entropy scaling factor
+    double                   thermo_scale_cv          = 1.0;         ///< Heat capacity scaling factor
+    double                   thermo_raise_vib         = 100.0;       ///< Raise vibration frequency threshold
+    double                   thermo_interp_vib        = 100.0;       ///< Interpolation vibration threshold
+    double                   thermo_imag_real         = 0.0;         ///< Imaginary to real frequency conversion
+    double                   thermo_external_energy   = 0.0;         ///< External energy contribution
+    bool                     thermo_output_otm        = false;       ///< Output in OpenThermo format
+    bool                     thermo_no_settings       = false;       ///< Disable settings file loading
+    std::string              thermo_point_group       = "?";         ///< Point group symmetry
+    std::string              thermo_help_topic;                      ///< Help topic for thermo command
+    std::vector<std::string> thermo_cli_args;                        ///< Raw CLI arguments to pass to thermo module
 
     /**
      * @brief Default constructor with built-in fallback values
@@ -212,6 +213,7 @@ struct CommandContext
           ci_freeze_atom1(0),                       // No frozen atoms
           ci_freeze_atom2(0), ci_scf_maxcycle(-1),  // Use default SCF maxcycle
           ci_opt_maxcycles(-1),                     // Use default OPT maxcycles
+          ci_opt_maxstep(-1),                       // Use default OPT maxstep (none for most, 5 for TS_FREQ_FROM_CHK)
           ci_irc_maxpoints(-1),                     // Use default IRC maxpoints
           ci_irc_recalc(-1),                        // Use default IRC recalc
           ci_irc_maxcycle(-1),                      // Use default IRC maxcycle

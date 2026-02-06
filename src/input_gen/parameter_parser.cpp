@@ -462,6 +462,8 @@ std::string ParameterParser::createTemplateContent(const std::string& calc_type)
         calc_type == "modre_ts_freq" || calc_type == "modre_opt")
     {
         content << "# opt_maxcycles = 300\n";
+        content << "# opt_maxstep = -1  # MaxStep for opt keyword (-1 = default: none for most types, 5 for "
+                   "TS_FREQ_FROM_CHK)\n";
     }
     if (calc_type.find("irc") != std::string::npos)
     {
@@ -579,6 +581,8 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "# Override defaults for SCF, OPT, IRC keywords\n";
     content << "# scf_maxcycle = 500  # Default 500 for SP/OPT_FREQ/HIGH_SP, 300 for others\n";
     content << "# opt_maxcycles = 300\n";
+    content << "# opt_maxstep = -1  # MaxStep for opt keyword (-1 = default: none for most types, 5 for "
+               "TS_FREQ_FROM_CHK)\n";
     content << "# irc_maxpoints = 50\n";
     content << "# irc_recalc = 10\n";
     content << "# irc_maxcycle = 350\n";
