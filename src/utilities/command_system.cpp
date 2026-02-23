@@ -901,6 +901,57 @@ void CommandParser::parse_create_input_options(CommandContext& context, int& i, 
             add_warning(context, "Error: solvent-extra requires a value");
         }
     }
+    else if (arg == "--tddft-method")
+    {
+        if (++i < argc)
+        {
+            context.ci_tddft_method = argv[i];
+        }
+        else
+        {
+            add_warning(context, "Error: tddft-method requires a value (td or tda)");
+        }
+    }
+    else if (arg == "--tddft-states")
+    {
+        if (++i < argc)
+        {
+            context.ci_tddft_states = argv[i];
+        }
+        else
+        {
+            add_warning(context, "Error: tddft-states requires a value (singlets, triplets, or 50-50)");
+        }
+    }
+    else if (arg == "--tddft-nstates")
+    {
+        if (++i < argc)
+        {
+            try
+            {
+                context.ci_tddft_nstates = std::stoi(argv[i]);
+            }
+            catch (const std::exception&)
+            {
+                add_warning(context, "Error: tddft-nstates must be an integer");
+            }
+        }
+        else
+        {
+            add_warning(context, "Error: tddft-nstates requires a value");
+        }
+    }
+    else if (arg == "--tddft-extra")
+    {
+        if (++i < argc)
+        {
+            context.ci_tddft_extra = argv[i];
+        }
+        else
+        {
+            add_warning(context, "Error: tddft-extra requires a value");
+        }
+    }
     else if (arg == "--charge")
     {
         if (++i < argc)
@@ -1192,7 +1243,7 @@ void CommandParser::parse_create_input_options(CommandContext& context, int& i, 
                 if (lower_arg == "sp" || lower_arg == "opt_freq" || lower_arg == "ts_freq" ||
                     lower_arg == "modre_opt" || lower_arg == "oss_ts_freq" || lower_arg == "modre_ts_freq" ||
                     lower_arg == "oss_check_sp" || lower_arg == "high_sp" || lower_arg == "irc_forward" ||
-                    lower_arg == "irc_reverse" || lower_arg == "irc")
+                    lower_arg == "irc_reverse" || lower_arg == "irc" || lower_arg == "tddft")
                 {
                     // It's a calc_type, use default param and set calc_type
                     param_file = find_or_create_default_param_file();
@@ -1339,6 +1390,12 @@ void CommandParser::parse_create_input_options(CommandContext& context, int& i, 
             context.ci_irc_recalc    = parser.getInt("irc_recalc", context.ci_irc_recalc);
             context.ci_irc_maxcycle  = parser.getInt("irc_maxcycle", context.ci_irc_maxcycle);
             context.ci_irc_stepsize  = parser.getInt("irc_stepsize", context.ci_irc_stepsize);
+
+            // Load TD-DFT parameters
+            context.ci_tddft_method  = parser.getString("tddft_method", context.ci_tddft_method);
+            context.ci_tddft_states  = parser.getString("tddft_states", context.ci_tddft_states);
+            context.ci_tddft_nstates = parser.getInt("tddft_nstates", context.ci_tddft_nstates);
+            context.ci_tddft_extra   = parser.getString("tddft_extra", context.ci_tddft_extra);
 
             std::cout << "Parameters loaded from: " << param_file << std::endl;
             if (!detected_calc_type.empty())

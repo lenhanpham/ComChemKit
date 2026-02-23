@@ -1277,6 +1277,10 @@ int execute_create_input_command(const CommandContext& context)
         {
             calc_type = CalculationType::IRC;
         }
+        else if (context.ci_calc_type == "tddft")
+        {
+            calc_type = CalculationType::TDDFT;
+        }
         // Default is SP for any other value
 
         // Validate freeze atoms or modre for OSS_TS_FREQ and MODRE_TS_FREQ
@@ -1326,6 +1330,8 @@ int execute_create_input_command(const CommandContext& context)
         creator.set_irc_recalc(context.ci_irc_recalc);
         creator.set_irc_maxcycle(context.ci_irc_maxcycle);
         creator.set_irc_stepsize(context.ci_irc_stepsize);
+        creator.set_tddft_params(context.ci_tddft_method, context.ci_tddft_states, context.ci_tddft_nstates,
+                                  context.ci_tddft_extra);
 
         // Execute the creation (with batch processing if enabled)
         CreateSummary total_summary;

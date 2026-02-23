@@ -383,6 +383,8 @@ Phase correction converts gas-phase energies to solution-phase:
 +------------------+--------------------------------------------------+
 | ``irc``          | IRC calculation (both directions)                |
 +------------------+--------------------------------------------------+
+| ``tddft``        | TD-DFT excited state calculation                 |
++------------------+--------------------------------------------------+
 
 **Basic Examples:**
 

@@ -474,6 +474,7 @@ cck ci --calc-type ts_freq
 - **irc_forward**: IRC calculation in forward direction
 - **irc_reverse**: IRC calculation in reverse direction
 - **irc**: IRC calculation in both directions
+- **tddft**: TD-DFT excited state calculation (singlets, triplets, or 50-50 states)
 
 #### Command-Line Options
 
@@ -492,6 +493,11 @@ cck ci --calc-type ts_freq
 | `--extra-keywords`   | Additional keywords           | any Gaussian keywords       | -         |
 | `--extension`        | Output extension              | .gau, .com, etc.            | .gau      |
 | `--tschk-path`       | TS checkpoint path            | directory path              | -         |
+| `--solvent-extra`    | Extra SCRF keyword            | e.g. read                   | -         |
+| `--tddft-method`     | TD-DFT method                 | td, tda                     | tda       |
+| `--tddft-states`     | States to calculate           | singlets, triplets, 50-50   | both      |
+| `--tddft-nstates`    | Number of excited states      | integer                     | 15        |
+| `--tddft-extra`      | Extra keywords in td/tda()    | e.g. Root=5,Read,IVOGuess   | -         |
 | `--genci-params`     | Generate parameter template   | calculation type            | -         |
 | `--genci-all-params` | Generate all templates        | directory path              | -         |
 | `--param-file`       | Load parameters from file     | file path                   | -         |
