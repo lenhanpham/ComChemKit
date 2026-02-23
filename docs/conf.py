@@ -15,8 +15,8 @@ sys.path.insert(0, os.path.abspath('../src'))
 project = 'ComChemKit'
 copyright = '2025, Le Nhan Pham'
 author = 'Le Nhan Pham'
-release = '0.000.1'
-version = '0.000.1'
+release = '0.000.2'
+version = '0.000.2'
 
 # -- General configuration ---------------------------------------------------
 
@@ -87,6 +87,7 @@ exhale_args = {
     "createTreeView": True,
     "afterTitleDescription": "Comprehensive API documentation for the ComChemKit.",
     "verboseBuild": False,
+    "contentsDirectives": False,
 }
 
 
