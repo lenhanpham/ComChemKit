@@ -414,7 +414,8 @@ std::string ParameterParser::createTemplateContent(const std::string& calc_type)
     // Solvent parameters
     content << "# Solvent parameters (optional)\n";
     content << "# solvent = water\n";
-    content << "# solvent_model = smd\n\n";
+    content << "# solvent_model = smd\n";
+    content << "# solvent_extra = read   # Optional: extra SCRF keyword appended after solvent= (e.g. read)\n\n";
 
     // Calculation-specific parameters
     if (calc_type == "ts_freq" || calc_type == "oss_ts_freq" || calc_type == "modre_ts_freq" ||
@@ -537,7 +538,8 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "# SOLVENT PARAMETERS (optional)\n";
     content << "# ==========================================\n";
     content << "# solvent = water\n";
-    content << "# solvent_model = smd\n\n";
+    content << "# solvent_model = smd\\n";
+    content << "# solvent_extra = read   # Optional: extra SCRF keyword appended after solvent= (e.g. read)\\n\\n";
 
     // TS-specific parameters (used by TS calculations)
     content << "# ==========================================\n";

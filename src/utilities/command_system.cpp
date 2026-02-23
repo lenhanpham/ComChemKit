@@ -890,6 +890,17 @@ void CommandParser::parse_create_input_options(CommandContext& context, int& i, 
             add_warning(context, "Error: solvent-model requires a value");
         }
     }
+    else if (arg == "--solvent-extra")
+    {
+        if (++i < argc)
+        {
+            context.ci_solvent_extra = argv[i];
+        }
+        else
+        {
+            add_warning(context, "Error: solvent-extra requires a value");
+        }
+    }
     else if (arg == "--charge")
     {
         if (++i < argc)
@@ -1221,6 +1232,7 @@ void CommandParser::parse_create_input_options(CommandContext& context, int& i, 
             context.ci_large_basis   = parser.getString("large_basis", context.ci_large_basis);
             context.ci_solvent       = parser.getString("solvent", context.ci_solvent);
             context.ci_solvent_model = parser.getString("solvent_model", context.ci_solvent_model);
+            context.ci_solvent_extra = parser.getString("solvent_extra", context.ci_solvent_extra);
 
             // Convert functional and basis to uppercase for better readability
             std::transform(
