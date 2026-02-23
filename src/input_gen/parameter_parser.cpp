@@ -286,7 +286,8 @@ std::vector<std::string> ParameterParser::getSupportedCalcTypes() const
             "oss_check_sp",
             "high_sp",
             "irc_forward",
-            "irc_reverse"};
+            "irc_reverse",
+            "tddft"};
 }
 
 void ParameterParser::clear()
@@ -323,6 +324,11 @@ bool ParameterParser::parseLine(const std::string& line, std::string& key, std::
 
     key   = trim(trimmed.substr(0, equals_pos));
     value = trim(trimmed.substr(equals_pos + 1));
+
+    // Strip inline comments (everything from the first '#' onwards)
+    size_t comment_pos = value.find('#');
+    if (comment_pos != std::string::npos)
+        value = trim(value.substr(0, comment_pos));
 
     return true;
 }
@@ -378,7 +384,8 @@ std::string ParameterParser::createTemplateContent(const std::string& calc_type)
                                             "irc_reverse",
                                             "irc",
                                             "modre_ts_freq",
-                                            "modre_opt"};
+                                            "modre_opt",
+                                            "tddft"};
 
     bool is_valid = false;
     for (const auto& type : valid_types)
@@ -449,6 +456,24 @@ std::string ParameterParser::createTemplateContent(const std::string& calc_type)
         content << "# tschk_path = ../ts_checkpoints\n\n";
     }
 
+    // TD-DFT specific parameters
+    if (calc_type == "tddft")
+    {
+        content << "# TD-DFT parameters\n";
+        content << "# tddft_method = tda   # td or tda (default: tda)\n";
+        content << "# tddft_states =       # singlets | triplets | 50-50 | empty (default: both singlets+triplets)\n";
+        content << "# tddft_nstates = 15   # Number of excited states per calculation\n";
+        content << "# tddft_extra =        # Extra keywords added inside td/tda() e.g.: Root=5,Read,IVOGuess\n";
+        content << "#\n";
+        content << "# Examples:\n";
+        content << "#   singlets only:          tddft_states = singlets  -> stem-singlets.gau\n";
+        content << "#   triplets only:          tddft_states = triplets  -> stem-triplets.gau\n";
+        content << "#   combined 50-50:         tddft_states = 50-50     -> stem.gau\n";
+        content << "#   both (default, 2 files): tddft_states =          -> stem-singlets.gau + stem-triplets.gau\n";
+        content << "# Route generated: tda(singlets,nstates=15) scf(maxcycle=500,xqc) functional/basis\n";
+        content << "# With extra:       tda(singlets,nstates=15,Root=5,Read,IVOGuess) scf(maxcycle=500,xqc) functional/basis\n\n";
+    }
+
     // Advanced parameters
     content << "# print_level = P\n";
     content << "# route_extra_keywords = Int=UltraFine SCF=Conver=8\n";
@@ -457,7 +482,7 @@ std::string ParameterParser::createTemplateContent(const std::string& calc_type)
     // Custom cycle and optimization parameters
     content << "# Custom cycle and optimization parameters (optional)\n";
     content << "# Override defaults for SCF, OPT, IRC keywords\n";
-    int default_scf = (calc_type == "sp" || calc_type == "opt_freq" || calc_type == "high_sp") ? 500 : 300;
+    int default_scf = (calc_type == "sp" || calc_type == "opt_freq" || calc_type == "high_sp" || calc_type == "tddft") ? 500 : 300;
     content << "# scf_maxcycle = " << default_scf << "\n";
     if (calc_type == "opt_freq" || calc_type == "ts_freq" || calc_type == "oss_ts_freq" ||
         calc_type == "modre_ts_freq" || calc_type == "modre_opt")
@@ -478,7 +503,8 @@ std::string ParameterParser::createTemplateContent(const std::string& calc_type)
     // Multi-line tail example (only for calc types that support GEN/GENECP)
     if (calc_type == "sp" || calc_type == "opt_freq" || calc_type == "ts_freq" || calc_type == "oss_ts_freq" ||
         calc_type == "oss_check_sp" || calc_type == "modre_ts_freq" || calc_type == "modre_opt" ||
-        calc_type == "high_sp" || calc_type == "irc_forward" || calc_type == "irc_reverse" || calc_type == "irc")
+        calc_type == "high_sp" || calc_type == "irc_forward" || calc_type == "irc_reverse" || calc_type == "irc" ||
+        calc_type == "tddft")
     {
         content << "# Multi-line tail (for custom basis sets, etc.)\n";
         content << "# tail = \n";
@@ -540,6 +566,15 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "# solvent = water\n";
     content << "# solvent_model = smd\\n";
     content << "# solvent_extra = read   # Optional: extra SCRF keyword appended after solvent= (e.g. read)\\n\\n";
+
+    // TD-DFT parameters
+    content << "# ==========================================\n";
+    content << "# TDDFT PARAMETERS (used by tddft calc type)\n";
+    content << "# ==========================================\n";
+    content << "# tddft_method = tda          # td or tda (default: tda)\n";
+    content << "# tddft_states =              # singlets | triplets | 50-50 | empty (default: both)\n";
+    content << "# tddft_nstates = 15          # Number of excited states per calculation\n";
+    content << "# tddft_extra =               # Extra keywords inside td/tda() e.g.: Root=5,Read,IVOGuess\n\n";
 
     // TS-specific parameters (used by TS calculations)
     content << "# ==========================================\n";
@@ -646,7 +681,16 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "# For IRC calculations:\n";
     content << "#   calc_type = irc_forward\n";
     content << "#   large_basis = def2TZVPP\n";
-    content << "#   tschk_path = ../ts_checkpoints\n\n";
+    content << "#   tschk_path = ../ts_checkpoints\n";
+    content << "#\n";
+    content << "# For TD-DFT excited states (singlets + triplets, 2 files per XYZ):\n";
+    content << "#   calc_type = tddft\n";
+    content << "#   tddft_method = tda\n";
+    content << "#   tddft_nstates = 15\n";
+    content << "# For TD-DFT combined 50-50 (1 file per XYZ):\n";
+    content << "#   calc_type = tddft\n";
+    content << "#   tddft_states = 50-50\n";
+    content << "#   tddft_nstates = 30\n\n";
 
     return content.str();
 }

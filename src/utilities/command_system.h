@@ -139,6 +139,12 @@ struct CommandContext
     int         ci_irc_maxcycle;           ///< IRC maxcycle override
     int         ci_irc_stepsize;           ///< IRC stepsize override
 
+    // TD-DFT parameters
+    std::string ci_tddft_method;  ///< TD method: "tda" or "td" (default: tda)
+    std::string ci_tddft_states;  ///< State type: singlets | triplets | 50-50 | empty (both)
+    int         ci_tddft_nstates; ///< Number of excited states (default: 15)
+    std::string ci_tddft_extra;   ///< Extra keywords appended inside td/tda parentheses
+
     // Thermo-specific parameters
     std::string              thermo_input_file;                      ///< Input file for thermo analysis
     double                   thermo_temperature       = 298.15;      ///< Temperature for thermo calculations (K)
@@ -219,7 +225,11 @@ struct CommandContext
           ci_irc_maxpoints(-1),                     // Use default IRC maxpoints
           ci_irc_recalc(-1),                        // Use default IRC recalc
           ci_irc_maxcycle(-1),                      // Use default IRC maxcycle
-          ci_irc_stepsize(-1)                       // Use default IRC stepsize
+          ci_irc_stepsize(-1),                      // Use default IRC stepsize
+          ci_tddft_method("tda"),                   // Default TD method
+          ci_tddft_states(""),                      // Default: generate both singlets and triplets
+          ci_tddft_nstates(15),                     // Default number of excited states
+          ci_tddft_extra("")                        // No extra TD keywords by default
     {}
 
     /**

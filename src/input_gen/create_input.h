@@ -33,6 +33,7 @@ enum class CalculationType
     IRC,              ///< IRC calculation in both directions
     MODRE_TS_FREQ,    ///< Modredundant TS search + frequency analysis
     MODRE_OPT,        ///< Modredundant single point energy calculation
+    TDDFT,            ///< TD-DFT excited state calculation (tda/td, singlets/triplets/50-50)
     TS_FREQ_FROM_CHK  ///< Transition state search using modre check file + frequency analysis
 };
 
@@ -218,6 +219,15 @@ public:
                      const std::string& extra = "");
 
     /**
+     * @brief Set TD-DFT parameters
+     * @param method  TD method: "tda" or "td" (default: "tda")
+     * @param states  State type: "singlets", "triplets", "50-50", or "" for both
+     * @param nstates Number of excited states (default: 15)
+     */
+    void set_tddft_params(const std::string& method, const std::string& states, int nstates,
+                          const std::string& extra = "");
+
+    /**
      * @brief Set pound sign for route section
      * @param print_level The pound sign ("", "P", "T", etc.)
      */
@@ -344,6 +354,12 @@ private:
     std::string         extra_keyword_section_;  ///< Extra keyword text for additional input sections
     std::string         extension_;              ///< Output file extension
     std::string         tschk_path_;             ///< TS checkpoint path
+
+    // TD-DFT parameters
+    std::string         tddft_method_;  ///< TD method: "tda" or "td"
+    std::string         tddft_states_;  ///< State type: "singlets", "triplets", "50-50", or empty (both)
+    int                 tddft_nstates_; ///< Number of excited states
+    std::string         tddft_extra_;   ///< Extra keywords appended inside td/tda parentheses
     std::pair<int, int> freeze_atoms_;           ///< Atoms to freeze (1-based indices)
 
     // Configurable cycle and optimization parameters (-1 means use default)

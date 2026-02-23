@@ -20,7 +20,6 @@ build_windows.bat
 .env
 .trae
 mcp.json
-*.bat
 gaussian-extractor-v0.4.2-windows
 *.zip
 opencode.json
@@ -43,4 +42,7 @@ docs/_build
 CRUSH.md
 .crush.json
 __cmake_systeminformation
+*.bat   
+!add_to_path.bat
+
 

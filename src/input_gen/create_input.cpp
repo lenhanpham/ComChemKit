@@ -28,6 +28,7 @@ CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, bool quiet)
     : context(ctx), quiet_mode(quiet), calc_type_(CalculationType::SP), functional_("UwB97XD"), basis_("Def2SVPP"),
       large_basis_(""), solvent_(""), solvent_model_("smd"), solvent_extra_(""), print_level_(""), extra_keywords_(""), charge_(0),
       mult_(1), tail_(""), modre_(""), extra_keyword_section_(""), extension_(".gau"), tschk_path_(""),
+      tddft_method_("tda"), tddft_states_(""), tddft_nstates_(15), tddft_extra_(""),
       freeze_atoms_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
       irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1)
 {}
@@ -195,6 +196,7 @@ CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, const std::stri
     : context(ctx), quiet_mode(quiet), calc_type_(CalculationType::SP), functional_("UwB97XD"), basis_("Def2SVPP"),
       large_basis_(""), solvent_(""), solvent_model_("smd"), solvent_extra_(""), print_level_(""), extra_keywords_(""), charge_(0),
       mult_(1), tail_(""), modre_(""), extra_keyword_section_(""), extension_(".gau"), tschk_path_(""),
+      tddft_method_("tda"), tddft_states_(""), tddft_nstates_(15), tddft_extra_(""),
       freeze_atoms_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
       irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1)
 {
@@ -230,6 +232,12 @@ bool CreateInput::loadParameters(const std::string& param_file)
     solvent_       = parser.getString("solvent", "");
     solvent_model_ = parser.getString("solvent_model", "smd");
     solvent_extra_ = parser.getString("solvent_extra", "");
+
+    // TD-DFT parameters
+    tddft_method_ = parser.getString("tddft_method", "tda");
+    tddft_states_ = parser.getString("tddft_states", "");
+    tddft_nstates_ = parser.getInt("tddft_nstates", 15);
+    tddft_extra_  = parser.getString("tddft_extra", "");
 
     // Advanced parameters
     print_level_    = parser.getString("print_level", "");
@@ -300,6 +308,8 @@ bool CreateInput::loadParameters(const std::string& param_file)
             calc_type_ = CalculationType::MODRE_TS_FREQ;
         else if (calc_type_str == "modre_opt")
             calc_type_ = CalculationType::MODRE_OPT;
+        else if (calc_type_str == "tddft")
+            calc_type_ = CalculationType::TDDFT;
         // If invalid, keep default SP
     }
 
@@ -485,6 +495,15 @@ FileCreationResult CreateInput::create_from_file(const std::string& xyz_file)
                 content                       = generate_input_content(isomer_name, coordinates);
                 calc_type_                    = original_type;
             }
+            else if (calc_type_ == CalculationType::TDDFT && tddft_states_.empty())
+            {
+                // Default TDDFT: generate singlets and triplets in separate files
+                bool        is_singlets   = input_file.find("-singlets" + extension_) != std::string::npos;
+                std::string original_states = tddft_states_;
+                tddft_states_             = is_singlets ? "singlets" : "triplets";
+                content                   = generate_input_content(isomer_name, coordinates);
+                tddft_states_             = original_states;
+            }
             else if (calc_type_ == CalculationType::IRC_FORWARD || calc_type_ == CalculationType::IRC_REVERSE)
             {
                 content = generate_input_content(isomer_name, coordinates);
@@ -637,7 +656,11 @@ std::string CreateInput::generate_route_for_single_section_calc_type(Calculation
                             : "#" + print_level_ + " ";
 
     // Generate route based on type
-    int scf_mc = (scf_maxcycle_ != -1) ? scf_maxcycle_ : 300;
+    int scf_mc_default = (calc_type_ == CalculationType::SP || calc_type_ == CalculationType::OPT_FREQ ||
+                          calc_type_ == CalculationType::HIGH_SP || calc_type_ == CalculationType::TDDFT)
+                             ? 500
+                             : 300;
+    int scf_mc = (scf_maxcycle_ != -1) ? scf_maxcycle_ : scf_mc_default;
     int opt_mc = (opt_maxcycles_ != -1) ? opt_maxcycles_ : 300;
 
     route << pound;
@@ -648,6 +671,14 @@ std::string CreateInput::generate_route_for_single_section_calc_type(Calculation
         case CalculationType::SP:
             route << " scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
             break;
+        case CalculationType::TDDFT: {
+            std::string states = tddft_states_.empty() ? "singlets" : tddft_states_;
+            route << " " << tddft_method_ << "(" << states << ",nstates=" << tddft_nstates_;
+            if (!tddft_extra_.empty())
+                route << "," << tddft_extra_;
+            route << ") scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            break;
+        }
         case CalculationType::OPT_FREQ:
             route << " opt(maxcycles=" << opt_mc;
             if (opt_maxstep_ > 0)
@@ -773,7 +804,21 @@ std::string CreateInput::generate_input_content(const std::string& isomer_name, 
 
         default:
             // Single-section calculations
-            content << generate_single_section_calc_type(calc_type_, isomer_name, coordinates);
+            if (calc_type_ == CalculationType::TDDFT)
+            {
+                // chk name must match the output file name (includes state suffix)
+                std::string chk_suffix;
+                if (tddft_states_ == "singlets")
+                    chk_suffix = "-singlets";
+                else if (tddft_states_ == "triplets")
+                    chk_suffix = "-triplets";
+                // 50-50 uses no suffix (single file, plain stem)
+                content << generate_single_section_calc_type(calc_type_, isomer_name, coordinates, chk_suffix);
+            }
+            else
+            {
+                content << generate_single_section_calc_type(calc_type_, isomer_name, coordinates);
+            }
             break;
     }
 
@@ -805,6 +850,8 @@ std::string CreateInput::generate_title()
             return "Title: Modredundant transition state search and frequency calculation";
         case CalculationType::MODRE_OPT:
             return "Title: Modredundant geometrical optimization";
+        case CalculationType::TDDFT:
+            return "Title: TD-DFT excited state calculation";
         default:
             return "Title: Gaussian calculation";
     }
@@ -834,6 +881,8 @@ std::string CreateInput::generate_title(CalculationType calc_type)
             return "Title: Modredundant transition state search and frequency calculation";
         case CalculationType::MODRE_OPT:
             return "Title: Modredundant geometrical optimization";
+        case CalculationType::TDDFT:
+            return "Title: TD-DFT excited state calculation";
         default:
             return "Title: Gaussian calculation";
     }
@@ -915,6 +964,30 @@ std::vector<std::string> CreateInput::generate_input_filename(const std::string&
     {
         return {(dir / (stem + "R" + extension_)).string()};
     }
+    else if (calc_type_ == CalculationType::TDDFT)
+    {
+        if (tddft_states_ == "50-50")
+        {
+            // Combined states in one file — use plain stem
+            return {(dir / (stem + extension_)).string()};
+        }
+        else if (tddft_states_ == "singlets")
+        {
+            return {(dir / (stem + "-singlets" + extension_)).string()};
+        }
+        else if (tddft_states_ == "triplets")
+        {
+            return {(dir / (stem + "-triplets" + extension_)).string()};
+        }
+        else
+        {
+            // Default: generate both singlets and triplets files
+            std::vector<std::string> files;
+            files.push_back((dir / (stem + "-singlets" + extension_)).string());
+            files.push_back((dir / (stem + "-triplets" + extension_)).string());
+            return files;
+        }
+    }
     else
     {
         return {(dir / (stem + extension_)).string()};
@@ -993,6 +1066,21 @@ void CreateInput::set_solvent(const std::string& solvent, const std::string& mod
     solvent_       = solvent;
     solvent_model_ = model;
     solvent_extra_ = extra;
+}
+
+void CreateInput::set_tddft_params(const std::string& method, const std::string& states, int nstates,
+                                    const std::string& extra)
+{
+    tddft_method_  = method.empty() ? "tda" : method;
+    tddft_states_  = states;
+    tddft_nstates_ = (nstates > 0) ? nstates : 15;
+    // Strip leading/trailing whitespace and commas from extra keywords
+    std::string trimmed = extra;
+    while (!trimmed.empty() && (trimmed.front() == ',' || trimmed.front() == ' '))
+        trimmed.erase(trimmed.begin());
+    while (!trimmed.empty() && (trimmed.back() == ',' || trimmed.back() == ' '))
+        trimmed.pop_back();
+    tddft_extra_ = trimmed;
 }
 
 void CreateInput::set_print_level(const std::string& print_level)

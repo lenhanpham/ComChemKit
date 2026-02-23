@@ -165,7 +165,8 @@ namespace HelpUtils
                 std::cout << "  high_sp               High-level single point with larger basis set\n";
                 std::cout << "  irc_forward           IRC calculation in forward direction\n";
                 std::cout << "  irc_reverse           IRC calculation in reverse direction\n";
-                std::cout << "  irc                   IRC calculation in both directions\n\n";
+                std::cout << "  irc                   IRC calculation in both directions\n";
+                std::cout << "  tddft                 TD-DFT excited state calculation (tda/td, singlets/triplets/50-50)\n\n";
 
                 std::cout << "Calculation Type Details:\n";
                 std::cout << "  sp: Basic single point energy calculation on provided coordinates\n";
@@ -178,7 +179,8 @@ namespace HelpUtils
                 std::cout << "  high_sp: High-level single point using larger basis set (requires TS checkpoint)\n";
                 std::cout << "  irc_forward: Intrinsic reaction coordinate from TS to reactants\n";
                 std::cout << "  irc_reverse: Intrinsic reaction coordinate from TS to products\n";
-                std::cout << "  irc: Complete IRC calculation in both directions (creates two files)\n\n";
+                std::cout << "  irc: Complete IRC calculation in both directions (creates two files)\n";
+                std::cout << "  tddft: TD-DFT excited states. tddft_method (td/tda), tddft_states (singlets/triplets/50-50), tddft_nstates\n\n";
 
                 std::cout << "Additional Options:\n";
                 std::cout << "  --calc-type <type>       Calculation type (see list above, default: sp)\n";
@@ -193,7 +195,12 @@ namespace HelpUtils
                 std::cout << "  --print-level <sign>     Route section modifier: N|P|T (Gaussian versions)\n";
                 std::cout << "  --extra-keywords <kw>    Additional Gaussian keywords\n";
                 std::cout << "  --extension <ext>        Output file extension (default: .gau)\n";
-                std::cout << "  --tschk-path <path>      Path to TS checkpoint files (for high_sp/IRC)\n\n";
+                std::cout << "  --tschk-path <path>      Path to TS checkpoint files (for high_sp/IRC)\n";
+                std::cout << "  --solvent-extra <kw>     Extra SCRF keyword after solvent= (e.g. read)\n";
+                std::cout << "  --tddft-method <m>       TD-DFT method: td or tda (default: tda)\n";
+                std::cout << "  --tddft-states <s>       States: singlets|triplets|50-50|empty (default: both)\n";
+                std::cout << "  --tddft-nstates <n>      Number of excited states (default: 15)\n";
+                std::cout << "  --tddft-extra <kw>       Extra keywords inside td/tda() e.g. Root=5,Read,IVOGuess\n\n";
 
                 std::cout << "Generation of Gaussian keywords (template parameter file):\n";
                 std::cout << "  --genci-params [type] [dir]  Generate parameter template for input creation\n";

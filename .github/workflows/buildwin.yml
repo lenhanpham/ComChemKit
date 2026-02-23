@@ -1,0 +1,146 @@
+name: Build and Release ComChemKit
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag name (e.g., v0.1.0)'
+        required: true
+        type: string
+      release_name:
+        description: 'Release name'
+        required: true
+        type: string
+      release_notes:
+        description: 'Release notes'
+        required: false
+        type: string
+        default: 'Release build for ComChemKit'
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        install: >-
+          mingw-w64-x86_64-clang
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-make
+          mingw-w64-x86_64-lld
+          mingw-w64-x86_64-gcc-libs
+          mingw-w64-x86_64-binutils
+
+    - name: Configure and Build
+      shell: msys2 {0}
+      run: |
+        # Clean and create build directory
+        if [ -d build ]; then rm -rf build; fi
+        mkdir build
+        cd build
+
+        # Configure with CMake for static linking with Clang
+        echo "Configuring with CMake (static linking with Clang)..."
+        cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -fuse-ld=lld" -DCMAKE_SHARED_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -fuse-ld=lld"
+        if [ $? -ne 0 ]; then
+            echo "Error configuring with CMake"
+            exit 1
+        fi
+
+        # Build the project
+        echo "Building project (static linking)..."
+        cmake --build . -j$(nproc)
+        if [ $? -ne 0 ]; then
+            echo "Error building project"
+            exit 1
+        fi
+
+        cd ..
+
+        echo "Build completed successfully!"
+        echo "Executable created: build/bin/cck.exe"
+
+        # Check file size
+        FILE_SIZE=$(stat -c%s build/bin/cck.exe)
+        FILE_SIZE_MB=$((FILE_SIZE / 1048576))
+        echo "File size: $FILE_SIZE bytes (~$FILE_SIZE_MB MB)"
+
+        # Check for DLL dependencies
+        echo "Checking for DLL dependencies..."
+        if command -v llvm-objdump >/dev/null 2>&1; then
+            llvm-objdump -p build/bin/cck.exe | grep "DLL Name" > temp_deps.txt || true
+            if [ -s temp_deps.txt ]; then
+                echo "Dependencies found:"
+                cat temp_deps.txt
+                rm temp_deps.txt
+            else
+                echo "No DLL dependencies found (fully static)"
+            fi
+        else
+            echo "llvm-objdump not available, skipping dependency check"
+        fi
+
+        # Collect release assets
+        echo "Collecting release assets..."
+        mkdir -p dist
+        cp build/bin/cck.exe dist/
+        cp resources/QUICK_START.txt dist/
+        cp resources/add_to_path.bat dist/
+        echo "Contents of dist/:" && ls -lh dist/
+
+        # Test executable
+        echo "Testing executable..."
+        ./build/bin/cck.exe --version
+        if [ $? -ne 0 ]; then
+            echo "Warning: Executable test failed, but binary was created"
+        else
+            echo "Executable test passed!"
+        fi
+
+    - name: Prepare Release Assets
+      shell: pwsh
+      run: |
+        Compress-Archive -Path "dist/*" -DestinationPath "ComChemKit-windows-x64.zip" -Force
+        Write-Host "ZIP contents:"
+        Get-ChildItem -Path "dist"
+        Write-Host "ZIP file:"
+        Get-ChildItem -Path "ComChemKit-windows-x64.zip"
+    - name: Create GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      shell: pwsh
+      run: |
+        $notes = "${{ inputs.release_notes }}"
+        if ("${{ inputs.prerelease }}" -eq "true") {
+          gh release create "${{ inputs.tag_name }}" `
+            --title "${{ inputs.release_name }}" `
+            --notes $notes `
+            --prerelease `
+            "ComChemKit-windows-x64.zip"
+        } else {
+          gh release create "${{ inputs.tag_name }}" `
+            --title "${{ inputs.release_name }}" `
+            --notes $notes `
+            "ComChemKit-windows-x64.zip"
+        }
+
+    - name: Generate artifact attestation
+      uses: actions/attest-build-provenance@v2
+      with:
+        subject-path: ./ComChemKit-windows-x64.zip
