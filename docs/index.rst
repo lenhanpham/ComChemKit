@@ -80,13 +80,18 @@ Contents
 
    installation
    usage
-   api/api
 
 .. toctree::
    :maxdepth: 2
    :caption: Developer Guide:
 
    developer
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API Reference:
+
+   api/api
 
 Indices and Tables
 ==================
