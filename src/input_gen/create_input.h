@@ -212,8 +212,10 @@ public:
      * @brief Set solvent parameters
      * @param solvent Solvent name (empty for gas phase)
      * @param model Solvent model (default: "smd")
+     * @param extra Extra SCRF keyword appended after solvent= (e.g. "read", empty = none)
      */
-    void set_solvent(const std::string& solvent, const std::string& model = "smd");
+    void set_solvent(const std::string& solvent, const std::string& model = "smd",
+                     const std::string& extra = "");
 
     /**
      * @brief Set pound sign for route section
@@ -332,6 +334,7 @@ private:
     std::string         large_basis_;            ///< Large basis set
     std::string         solvent_;                ///< Solvent name
     std::string         solvent_model_;          ///< Solvent model
+    std::string         solvent_extra_;          ///< Extra SCRF keyword (e.g. "read")
     std::string         print_level_;            ///< Print level for route
     std::string         extra_keywords_;         ///< Extra keywords
     int                 charge_;                 ///< Molecular charge

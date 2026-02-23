@@ -26,7 +26,7 @@ extern std::atomic<bool> g_shutdown_requested;
 
 CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, bool quiet)
     : context(ctx), quiet_mode(quiet), calc_type_(CalculationType::SP), functional_("UwB97XD"), basis_("Def2SVPP"),
-      large_basis_(""), solvent_(""), solvent_model_("smd"), print_level_(""), extra_keywords_(""), charge_(0),
+      large_basis_(""), solvent_(""), solvent_model_("smd"), solvent_extra_(""), print_level_(""), extra_keywords_(""), charge_(0),
       mult_(1), tail_(""), modre_(""), extra_keyword_section_(""), extension_(".gau"), tschk_path_(""),
       freeze_atoms_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
       irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1)
@@ -171,7 +171,14 @@ void CreateInput::validate_solvent_tail_requirements() const
     std::string lower_solvent = solvent_;
     std::transform(lower_solvent.begin(), lower_solvent.end(), lower_solvent.begin(), ::tolower);
 
-    if (lower_solvent.find("generic") != std::string::npos && lower_solvent.find("read") != std::string::npos)
+    std::string lower_extra = solvent_extra_;
+    std::transform(lower_extra.begin(), lower_extra.end(), lower_extra.begin(), ::tolower);
+
+    bool has_generic = (lower_solvent.find("generic") != std::string::npos);
+    bool has_read    = (lower_solvent.find("read") != std::string::npos) ||
+                       (lower_extra.find("read") != std::string::npos);
+
+    if (has_generic && has_read)
     {
         if (tail_.empty())
         {
@@ -186,7 +193,7 @@ void CreateInput::validate_solvent_tail_requirements() const
 
 CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, const std::string& param_file, bool quiet)
     : context(ctx), quiet_mode(quiet), calc_type_(CalculationType::SP), functional_("UwB97XD"), basis_("Def2SVPP"),
-      large_basis_(""), solvent_(""), solvent_model_("smd"), print_level_(""), extra_keywords_(""), charge_(0),
+      large_basis_(""), solvent_(""), solvent_model_("smd"), solvent_extra_(""), print_level_(""), extra_keywords_(""), charge_(0),
       mult_(1), tail_(""), modre_(""), extra_keyword_section_(""), extension_(".gau"), tschk_path_(""),
       freeze_atoms_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
       irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1)
@@ -222,6 +229,7 @@ bool CreateInput::loadParameters(const std::string& param_file)
     // Solvent parameters
     solvent_       = parser.getString("solvent", "");
     solvent_model_ = parser.getString("solvent_model", "smd");
+    solvent_extra_ = parser.getString("solvent_extra", "");
 
     // Advanced parameters
     print_level_    = parser.getString("print_level", "");
@@ -713,7 +721,12 @@ std::string CreateInput::generate_route_for_single_section_calc_type(Calculation
     // Add solvent and extra keywords
     if (!solvent_.empty())
     {
-        route << " scrf(" << solvent_model_ << ",solvent=" << solvent_ << ")";
+        route << " scrf(" << solvent_model_ << ",solvent=" << solvent_;
+        if (!solvent_extra_.empty())
+        {
+            route << "," << solvent_extra_;
+        }
+        route << ")";
     }
     if (!extra_keywords_.empty())
     {
@@ -975,10 +988,11 @@ void CreateInput::set_large_basis(const std::string& large_basis)
     large_basis_ = large_basis;
 }
 
-void CreateInput::set_solvent(const std::string& solvent, const std::string& model)
+void CreateInput::set_solvent(const std::string& solvent, const std::string& model, const std::string& extra)
 {
     solvent_       = solvent;
     solvent_model_ = model;
+    solvent_extra_ = extra;
 }
 
 void CreateInput::set_print_level(const std::string& print_level)

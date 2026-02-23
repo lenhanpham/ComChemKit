@@ -1305,7 +1305,7 @@ int execute_create_input_command(const CommandContext& context)
         }
         if (!context.ci_solvent.empty())
         {
-            creator.set_solvent(context.ci_solvent, context.ci_solvent_model);
+            creator.set_solvent(context.ci_solvent, context.ci_solvent_model, context.ci_solvent_extra);
         }
         creator.set_print_level(context.ci_print_level);
         creator.set_extra_keywords(context.ci_extra_keywords);

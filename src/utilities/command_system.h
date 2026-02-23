@@ -119,6 +119,7 @@ struct CommandContext
     std::string ci_large_basis;            ///< Large basis set for higher level calculations
     std::string ci_solvent;                ///< Solvent name
     std::string ci_solvent_model;          ///< Solvent model (smd, pcm, etc.)
+    std::string ci_solvent_extra;          ///< Extra SCRF keyword (e.g. read)
     std::string ci_print_level;            ///< Pound sign modifier (N, P, T)
     std::string ci_extra_keywords;         ///< Additional Gaussian keywords
     std::string ci_extra_keyword_section;  ///< Additional input sections
@@ -201,6 +202,7 @@ struct CommandContext
           ci_large_basis(""),                       // No large basis by default
           ci_solvent(""),                           // Gas phase by default
           ci_solvent_model("smd"),                  // Default solvent model
+          ci_solvent_extra(""),                     // No extra SCRF keyword
           ci_print_level(""),                       // Empty pound sign (defaults to N)
           ci_extra_keywords(""),                    // No extra keywords
           ci_extra_keyword_section(""),             // No extra keyword section
