@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath('../src'))
 # -- Project information -----------------------------------------------------
 
 project = 'ComChemKit'
-copyright = '2025, Le Nhan Pham'
+copyright = '2026, Le Nhan Pham'
 author = 'Le Nhan Pham'
 release = '0.000.2'
 version = '0.000.2'
