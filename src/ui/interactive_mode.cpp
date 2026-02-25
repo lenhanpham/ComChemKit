@@ -8,10 +8,12 @@
  * command-line interface of the ComChemKit application.
  */
 
-#include "interactive_mode.h"
-#include "help_utils.h"
+#include "ui/interactive_mode.h"
+#include "ui/help_utils.h"
 #include "input_gen/parameter_parser.h"
-#include "utilities/command_system.h"
+#include "commands/command_registry.h"
+#include "commands/icommand.h"
+#include "commands/command_system.h"
 #include "utilities/config_manager.h"
 #include "utilities/utils.h"
 #include "utilities/version.h"
@@ -1373,43 +1375,16 @@ int run_interactive_loop()
 
                             // Execute based on command type
                             int result = 0;
-                            switch (context.command)
+                            std::string cmd_name = CommandParser::get_command_name(context.command);
+                            ICommand* cmd = CommandRegistry::get_instance().get_command(cmd_name);
+                            if (cmd)
                             {
-                                case CommandType::EXTRACT:
-                                    result = execute_extract_command(context);
-                                    break;
-                                case CommandType::CHECK_DONE:
-                                    result = execute_check_done_command(context);
-                                    break;
-                                case CommandType::CHECK_ERRORS:
-                                    result = execute_check_errors_command(context);
-                                    break;
-                                case CommandType::CHECK_PCM:
-                                    result = execute_check_pcm_command(context);
-                                    break;
-                                case CommandType::CHECK_IMAGINARY:
-                                    result = execute_check_imaginary_command(context);
-                                    break;
-                                case CommandType::CHECK_ALL:
-                                    result = execute_check_all_command(context);
-                                    break;
-                                case CommandType::HIGH_LEVEL_KJ:
-                                    result = execute_high_level_kj_command(context);
-                                    break;
-                                case CommandType::HIGH_LEVEL_AU:
-                                    result = execute_high_level_au_command(context);
-                                    break;
-                                case CommandType::EXTRACT_COORDS:
-                                    result = execute_extract_coords_command(context);
-                                    break;
-                                case CommandType::CREATE_INPUT:
-                                    result = execute_create_input_command(context);
-                                    break;
-                                case CommandType::THERMO:
-                                    result = execute_thermo_command(context);
-                                    break;                                default:
-                                    std::cerr << "Unknown command" << std::endl;
-                                    result = 1;
+                                result = cmd->execute(context);
+                            }
+                            else
+                            {
+                                std::cerr << "Unknown command: " << cmd_name << std::endl;
+                                result = 1;
                             }
 
                             if (result != 0)

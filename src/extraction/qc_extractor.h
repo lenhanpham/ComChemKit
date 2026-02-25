@@ -33,8 +33,8 @@
  * - Integration with job scheduler resource limits
  */
 
-#ifndef GAUSSIAN_EXTRACTOR_H
-#define GAUSSIAN_EXTRACTOR_H
+#ifndef QC_EXTRACTOR_H
+#define QC_EXTRACTOR_H
 
 #include <atomic>
 #include <condition_variable>
@@ -538,8 +538,11 @@ struct ProcessingContext
     std::shared_ptr<FileHandleManager>        file_manager;       ///< Shared file handle manager
     std::shared_ptr<ThreadSafeErrorCollector> error_collector;    ///< Shared error collector
     double                                    base_temp;          ///< Base temperature for calculations (K)
+    double                                    base_pressure;      ///< Base pressure for calculations (atm)
     int                                       concentration;      ///< Concentration for phase corrections (mM)
     bool                                      use_input_temp;     ///< Whether to use temperature from input files
+    bool                                      use_input_pressure; ///< Whether to use pressure from user input
+    bool                                      use_input_concentration = false; ///< Whether to use concentration from user input
     std::string                               extension;          ///< File extension to process
     unsigned int                              requested_threads;  ///< Number of requested processing threads
     size_t                                    max_file_size_mb;   ///< Maximum individual file size in MB
@@ -565,16 +568,18 @@ struct ProcessingContext
      *       and available system resources
      */
     ProcessingContext(double              temp,
+                      double              pressure,
                       int                 C,
                       bool                use_temp,
+                      bool                use_pressure,
                       unsigned int        thread_count = 1,
                       const std::string&  ext          = ".log",
                       size_t              max_file_mb  = DEFAULT_MAX_FILE_SIZE_MB,
                       const JobResources& job_res      = JobResources{})
         : memory_monitor(std::make_shared<MemoryMonitor>(MemoryMonitor::calculate_optimal_memory_limit(thread_count))),
           file_manager(std::make_shared<FileHandleManager>()),
-          error_collector(std::make_shared<ThreadSafeErrorCollector>()), base_temp(temp), concentration(C),
-          use_input_temp(use_temp), extension(ext), requested_threads(thread_count), max_file_size_mb(max_file_mb),
+          error_collector(std::make_shared<ThreadSafeErrorCollector>()), base_temp(temp), base_pressure(pressure), concentration(C),
+          use_input_temp(use_temp), use_input_pressure(use_pressure), extension(ext), requested_threads(thread_count), max_file_size_mb(max_file_mb),
           job_resources(job_res)
     {}
 };
@@ -674,12 +679,15 @@ Result extract(const std::string& file_name_param, const ProcessingContext& cont
  *       including graceful shutdown, error collection, and resource cleanup
  */
 void processAndOutputResults(double                          temp,
+                             double                          pressure,
                              int                             C,
                              int                             column,
                              const std::string&              extension,
                              bool                            quiet,
                              const std::string&              format,
                              bool                            use_input_temp,
+                             bool                            use_input_pressure,
+                             bool                            use_input_concentration,
                              unsigned int                    requested_threads,
                              size_t                          max_file_size_mb,
                              size_t                          memory_limit_mb,

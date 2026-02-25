@@ -10,8 +10,8 @@
  * algorithms, and string manipulation functions used throughout OpenThermo.
  */
 
-#include "util.h"
-#include "chemsys.h"  // For SystemData and related types
+#include "thermo/util.h"
+#include "thermo/chemsys.h"  // For SystemData and related types
 #include <algorithm>  // for std::swap
 #include <array>
 #include <cmath>  // for atan, sin, cos, abs
@@ -355,9 +355,11 @@ namespace util
                     return LowVibTreatment::Grimme;
                 case 3:
                     return LowVibTreatment::Minenkov;
+                case 4:
+                    return LowVibTreatment::HeadGordon;
                 default:
                     throw std::runtime_error("Invalid low frequency treatment value: " + str +
-                                             ". Must be 0-3 or method name.");
+                                             ". Must be 0-4 or method name.");
             }
         }
 
@@ -373,9 +375,32 @@ namespace util
             return LowVibTreatment::Grimme;
         if (lowVibMth == "minenkov")
             return LowVibTreatment::Minenkov;
+        if (lowVibMth == "headgordon")
+            return LowVibTreatment::HeadGordon;
 
         throw std::runtime_error("Invalid low frequency treatment method: " + str +
-                                 ". Valid options: 0/Harmonic, 1/Truhlar, 2/Grimme, 3/Minenkov");
+                                 ". Valid options: 0/Harmonic, 1/Truhlar, 2/Grimme, 3/Minenkov, 4/HeadGordon");
+    }
+
+    /**
+     * @brief Parse a Bav preset string into a BavPreset enum value.
+     *
+     * Accepts case-insensitive strings "qchem" and "grimme".
+     *
+     * @param str Input string to parse
+     * @return BavPreset enum value
+     * @throws std::runtime_error if input is invalid
+     */
+    BavPreset parseBavPreset(const std::string& str)
+    {
+        std::string lower = str;
+        std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+        if (lower == "qchem")
+            return BavPreset::QChem;
+        if (lower == "grimme")
+            return BavPreset::Grimme;
+        throw std::runtime_error("Invalid Bav preset: " + str +
+                                 ". Valid options: qchem, grimme");
     }
 
     /**
@@ -410,15 +435,18 @@ namespace util
     void loadarguments(SystemData& sys, int argc, std::vector<std::string>& argv)
     {
         // Print full command line
-        std::string command = argv[0];
-        for (int i = 1; i < argc; ++i)
+        if (sys.prtlevel >= 2)
         {
-            command += " " + std::string(argv[i]);
+            std::string command = argv[0];
+            for (int i = 1; i < argc; ++i)
+            {
+                command += " " + std::string(argv[i]);
+            }
+            std::cout << "Command of invoking OpenThermo:\n " << command << "\n";
         }
-        std::cout << "Command of invoking OpenThermo:\n " << command << "\n";
 
         // Check if additional arguments override parameters
-        if (argc > 2)
+        if (argc > 2 && sys.prtlevel >= 2)
         {  // argv[0] = program, argv[1] = inputfile
             std::cout << "Note: One or more running parameters are overridden by arguments\n";
         }
@@ -538,6 +566,35 @@ namespace util
                 if (!(iss >> sys.ravib))
                     throw std::runtime_error("Error: Invalid value for -ravib");
             }
+            else if (inputArgs == "-intpvib")
+            {
+                if (++iarg >= argc)
+                    throw std::runtime_error("Error: Missing value for -intpvib");
+                std::istringstream iss(argv[iarg]);
+                if (!(iss >> sys.intpvib))
+                    throw std::runtime_error("Error: Invalid value for -intpvib");
+            }
+            else if (inputArgs == "-hg_entropy")
+            {
+                if (++iarg >= argc)
+                    throw std::runtime_error("Error: Missing value for -hg_entropy");
+                std::string val = argv[iarg];
+                std::transform(val.begin(), val.end(), val.begin(), ::tolower);
+                if (val == "true" || val == "1")
+                    sys.hgEntropy = true;
+                else if (val == "false" || val == "0")
+                    sys.hgEntropy = false;
+                else
+                    throw std::runtime_error("Error: Invalid value for -hg_entropy. Use true/false or 1/0");
+            }
+            else if (inputArgs == "-bav")
+            {
+                if (++iarg >= argc)
+                    throw std::runtime_error("Error: Missing value for -bav");
+                sys.bavPreset       = parseBavPreset(argv[iarg]);
+                sys.Bav             = bavPresetValue(sys.bavPreset);
+                sys.bavUserOverride = true;
+            }
             else if (inputArgs == "-ipmode")
             {
                 if (++iarg >= argc)
@@ -560,6 +617,16 @@ namespace util
                     throw std::runtime_error("Error: Missing value for -conc");
                 sys.concstr = argv[iarg];
             }
+            else if (inputArgs == "-prtlevel")
+            {
+                if (++iarg >= argc)
+                    throw std::runtime_error("Error: Missing value for -prtlevel");
+                std::istringstream iss(argv[iarg]);
+                if (!(iss >> sys.prtlevel))
+                    throw std::runtime_error("Error: Invalid value for -prtlevel");
+                if (sys.prtlevel < 0 || sys.prtlevel > 3)
+                    throw std::runtime_error("Error: -prtlevel must be 0, 1, 2, or 3");
+            }
             else if (inputArgs == "-outotm")
             {
                 if (++iarg >= argc)
@@ -581,6 +648,21 @@ namespace util
                 if (++iarg >= argc)
                     throw std::runtime_error("Error: Missing value for -PGname");
                 sys.PGnameinit = argv[iarg];
+            }
+            else if (inputArgs == "-omp-threads")
+            {
+                if (++iarg >= argc)
+                    throw std::runtime_error("Error: Missing value for -omp-threads");
+                std::istringstream iss(argv[iarg]);
+                int threads = 0;
+                if (!(iss >> threads) || threads <= 0)
+                {
+                    std::cerr << "Warning: Invalid -omp-threads value '" << argv[iarg] << "', using default\n";
+                }
+                else
+                {
+                    sys.exec.omp_threads_requested = threads;
+                }
             }
             else if (inputArgs == "-noset")
             {
@@ -661,7 +743,8 @@ namespace util
         }
         if (file.is_open())
         {
-            std::cout << "\nLoading running parameters from settings.ini...\n";
+            if (sys.prtlevel >= 2)
+                std::cout << "\nLoading running parameters from settings.ini...\n";
             std::string inputArgs;
             get_option_str(file, "E", inputArgs);
             if (!inputArgs.empty())
@@ -671,6 +754,17 @@ namespace util
                 iss.ignore(1, '=');
                 if (!(iss >> sys.Eexter))
                     throw std::runtime_error("Error: Invalid value for E in settings.ini");
+            }
+            get_option_str(file, "prtlevel", inputArgs);
+            if (!inputArgs.empty())
+            {
+                std::istringstream iss(inputArgs);
+                iss >> std::ws;
+                iss.ignore(1, '=');
+                if (!(iss >> sys.prtlevel))
+                    throw std::runtime_error("Error: Invalid value for prtlevel in settings.ini");
+                if (sys.prtlevel < 0 || sys.prtlevel > 3)
+                    throw std::runtime_error("Error: prtlevel must be 0, 1, 2, or 3 in settings.ini");
             }
             get_option_str(file, "prtvib", inputArgs);
             if (!inputArgs.empty())
@@ -860,6 +954,49 @@ namespace util
                         throw std::runtime_error("Error: Invalid value for intpvib in settings.ini");
                 }
             }
+            get_option_str(file, "hg_entropy", inputArgs);
+            if (!inputArgs.empty())
+            {
+                size_t eqPos = inputArgs.find('=');
+                if (eqPos != std::string::npos)
+                {
+                    std::string valueStr = inputArgs.substr(eqPos + 1);
+                    size_t start = valueStr.find_first_not_of(" \t");
+                    if (start != std::string::npos)
+                        valueStr = valueStr.substr(start);
+                    size_t end = valueStr.find_last_not_of(" \t");
+                    if (end != std::string::npos)
+                        valueStr = valueStr.substr(0, end + 1);
+
+                    std::string val = valueStr;
+                    std::transform(val.begin(), val.end(), val.begin(), ::tolower);
+                    if (val == "true" || val == "1")
+                        sys.hgEntropy = true;
+                    else if (val == "false" || val == "0")
+                        sys.hgEntropy = false;
+                    else
+                        throw std::runtime_error("Error: Invalid value for hg_entropy in settings.ini. Use true/false or 1/0");
+                }
+            }
+            get_option_str(file, "bav", inputArgs);
+            if (!inputArgs.empty())
+            {
+                size_t eqPos = inputArgs.find('=');
+                if (eqPos != std::string::npos)
+                {
+                    std::string valueStr = inputArgs.substr(eqPos + 1);
+                    size_t start = valueStr.find_first_not_of(" \t");
+                    if (start != std::string::npos)
+                        valueStr = valueStr.substr(start);
+                    size_t end = valueStr.find_last_not_of(" \t");
+                    if (end != std::string::npos)
+                        valueStr = valueStr.substr(0, end + 1);
+
+                    sys.bavPreset       = parseBavPreset(valueStr);
+                    sys.Bav             = bavPresetValue(sys.bavPreset);
+                    sys.bavUserOverride  = true;
+                }
+            }
             get_option_str(file, "imagreal", inputArgs);
             if (!inputArgs.empty())
             {
@@ -997,6 +1134,32 @@ namespace util
                     {
                         throw std::runtime_error(
                             "Error: Invalid value for extrape in settings.ini. Use true/yes/1 or false/no/0");
+                    }
+                }
+            }
+            get_option_str(file, "omp-threads", inputArgs);
+            if (!inputArgs.empty())
+            {
+                size_t eqPos = inputArgs.find('=');
+                if (eqPos != std::string::npos)
+                {
+                    std::string valueStr = inputArgs.substr(eqPos + 1);
+                    size_t start = valueStr.find_first_not_of(" \t");
+                    if (start != std::string::npos)
+                        valueStr = valueStr.substr(start);
+                    size_t end = valueStr.find_last_not_of(" \t");
+                    if (end != std::string::npos)
+                        valueStr = valueStr.substr(0, end + 1);
+
+                    std::istringstream iss(valueStr);
+                    int threads = 0;
+                    if (!(iss >> threads) || threads <= 0)
+                    {
+                        std::cerr << "Warning: Invalid omp-threads value in settings.ini, using default\n";
+                    }
+                    else
+                    {
+                        sys.exec.omp_threads_requested = threads;
                     }
                 }
             }
@@ -1248,6 +1411,11 @@ namespace util
             file.close();
             return QuantumChemistryProgram::Vasp;  // VASP
         }
+        if (loclabel(file, "Welcome to Q-Chem", nskip, true, false, 200))
+        {
+            file.close();
+            return QuantumChemistryProgram::QChem;  // Q-Chem
+        }
         file.close();
         return QuantumChemistryProgram::Unknown;  // Undetermined
     }
@@ -1274,11 +1442,11 @@ namespace util
         }
 
         // Write electronic energy
-        file << "*E  //Electronic energy (a.u.)\n";
+        file << "<E>  //Electronic energy (a.u.)\n";
         file << std::fixed << std::setprecision(10) << std::setw(20) << sys.E << "\n";
 
         // Write wavenumbers
-        file << "*wavenum  //Wavenumbers (cm-1).\n";
+        file << "<frequency>  //Wavenumbers (cm**-1).\n";
         if (sys.nfreq != static_cast<int>(sys.wavenum.size()))
         {
             file.close();
@@ -1290,7 +1458,7 @@ namespace util
         }
 
         // Write atoms
-        file << "*atoms  //System infor: Name, mass (amu), X, Y, Z (Angstrom)\n";
+        file << "<system>  //Name, mass (amu), X, Y, Z (Angstrom)\n";
         if (sys.ncenter != static_cast<int>(sys.a.size()))
         {
             file.close();
@@ -1309,7 +1477,7 @@ namespace util
         }
 
         // Write energy levels
-        file << "*elevel  //Energy (eV) and degeneracy of electronic energy levels\n";
+        file << "<elevel>  //Energy (eV) and degeneracy of electronic energy levels\n";
         if (sys.nelevel != static_cast<int>(sys.elevel.size()) || sys.nelevel != static_cast<int>(sys.edegen.size()))
         {
             file.close();
@@ -1377,6 +1545,7 @@ namespace util
         file << "# 1 = Truhlar's QRRHO (frequency raising)" << "\n";
         file << "# 2 = Grimme's entropy interpolation (default)" << "\n";
         file << "# 3 = Minenkov's entropy + energy interpolation" << "\n";
+        file << "# 4 = Head-Gordon's energy (+ optional entropy) interpolation" << "\n";
         file << "lowvibmeth = 2" << "\n";
         file << "\n";
 
@@ -1384,6 +1553,20 @@ namespace util
         file << "# Parameters for low frequency treatments" << "\n";
         file << "ravib = 100.0" << "\n";
         file << "intpvib = 100.0" << "\n";
+        file << "\n";
+
+        // Head-Gordon entropy interpolation
+        file << "# Enable entropy interpolation for Head-Gordon method (default: true)" << "\n";
+        file << "# When true, entropy is interpolated like Grimme's method in addition to energy" << "\n";
+        file << "hg_entropy = true" << "\n";
+        file << "\n";
+
+        // Average moment of inertia (Bav) for free-rotor entropy
+        file << "# Average moment of inertia for free-rotor entropy (only for HeadGordon method)" << "\n";
+        file << "# grimme = 1e-44 kg m^2 (Grimme 2012)" << "\n";
+        file << "# qchem  = 2.79928e-46 kg m^2 (B_av = 1 cm^-1, Q-Chem manual, HeadGordon default)" << "\n";
+        file << "# Grimme/Minenkov methods always use grimme; this option is ignored for them." << "\n";
+        file << "# bav = qchem" << "\n";
         file << "\n";
 
         // Calculation mode
@@ -1418,7 +1601,13 @@ namespace util
         file << "\n";
 
         // Output options
-        file << "# Output options" << "\n";
+        file << "# Output verbosity level" << "\n";
+        file << "# 0 = Minimal (banner + final data only)" << "\n";
+        file << "# 1 = Default (parameters + compact system info + final data)" << "\n";
+        file << "# 2 = Verbose (full system data + component breakdown)" << "\n";
+        file << "# 3 = Full (everything + per-mode vibrational detail)" << "\n";
+        file << "prtlevel = 1" << "\n";
+        file << "\n";
         file << "# Print vibration contributions: 0=no, 1=yes, -1=to file" << "\n";
         file << "prtvib = 0" << "\n";
         file << "# Output .otm file: 0=no, 1=yes" << "\n";
@@ -1430,6 +1619,16 @@ namespace util
         file << "# Select which energy to use from OUTCAR 'energy without entropy' line" << "\n";
         file << "# false/no/0 = energy  without entropy (default), true/yes/1 = energy(sigma->0)" << "\n";
         file << "extrape = false" << "\n";
+        file << "\n";
+
+        // OpenMP threading
+        file << "# OpenMP threading" << "\n";
+        file << "# Number of OpenMP threads to use for parallel computation" << "\n";
+        file << "# Default: half of physical CPU cores (or half of scheduler-allocated CPUs on HPC)" << "\n";
+        file << "# This conservative default prevents overloading shared HPC headnodes" << "\n";
+        file << "# On HPC, SLURM_CPUS_PER_TASK / PBS_NP / NSLOTS are detected automatically" << "\n";
+        file << "# Command-line -omp-threads overrides this setting" << "\n";
+        file << "# omp-threads = 4" << "\n";
         file << "\n";
 
         // Mass modifications section

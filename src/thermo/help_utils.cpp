@@ -8,19 +8,65 @@
  * used throughout the OpenThermo molecular thermochemistry program.
  */
 
-#include "help_utils.h"
+#include "thermo/help_utils.h"
+#include "thermo/version.h"
+#include <iomanip>
 #include <iostream>
 #include <map>
+#include <sstream>
 #include <string>
 
 namespace ThermoHelpUtils
 {
 
+    void print_version()
+    {
+        // Build version/date line and pad to fixed width
+        std::ostringstream ver_line;
+        ver_line << "Version " << OpenThermo::VERSION
+                 << "  Release date: " << OpenThermo::RELEASE_DATE;
+        std::string ver_str = ver_line.str();
+
+        // Build developers line
+        std::ostringstream dev_line;
+        dev_line << "Developers: " << OpenThermo::AUTHORS;
+        std::string dev_str = dev_line.str();
+
+        // Build project URL line
+        std::string url_str = OpenThermo::PROJECT_URL;
+
+        // Fixed-width field (73 chars between "# " and " #")
+        constexpr int field_width = 73;
+
+        std::cout << "  " << "                                                                                     \n"
+                  << "  " << "   ***********************************************************************     " << " \n"
+                  << "  " << "                                OPENTHERMO                                     " << " \n"
+                  << "  " << "   ***********************************************************************     " << " \n"
+                  << "# " << "-------------------------------------------------------------------------------" << "#\n"
+                  << "# " << std::left << std::setw(field_width) << ver_str << " " << "     #\n"
+                  << "# " << std::left << std::setw(field_width) << dev_str << " " << "     #\n"
+                  << "# " << std::left << std::setw(field_width) << url_str << " " << "     #\n"
+                  << "# " << "-------------------------------------------------------------------------------" << "#\n";
+
+        std::cout << "  " << "                                                                                     \n"
+                  << "  " << "                                                                               " << " \n"
+                  << "  " << "Please cite this preprint if you use OpenThermo for your research              " << " \n"
+                  << "  " << "                                                                               " << " \n"
+                  << "# " << "-------------------------------------------------------------------------------" << "#\n"
+                  << "# " << "L.N Pham, \"OpenThermo A Comprehensive C++ Program for Calculation of           " << "#\n"
+                  << "# " << "Thermochemical Properties\" 2025, http://dx.doi.org/10.13140/RG.2.2.22380.63363 " << "#\n"
+                  << "# " << "-------------------------------------------------------------------------------" << "#\n";
+
+        // Restore default right-alignment (std::left is sticky and would
+        // break std::setw formatting in subsequent output, e.g. calc.cpp)
+        std::cout << std::right;
+    }
+
     void print_help(const std::string& program_name)
     {
         std::cout << "OpenThermo: A Comprehensive C++ Program for Calculation of Thermochemical Properties\n"
-                  << "Version 0.001.1\n"
-                  << "Developer: Le Nhan Pham\n\n";
+                  << "Version " << OpenThermo::VERSION << "\n"
+                  << "Developers: " << OpenThermo::AUTHORS << "\n\n";
         std::cout << "Usage: " << program_name << " [input_file] [options]\n\n";
         std::cout << "Description:\n";
         std::cout << "  OpenThermo calculates thermochemical properties from quantum chemistry output files.\n";
@@ -29,8 +75,8 @@ namespace ThermoHelpUtils
             << "  including Gibbs free energy, enthalpy, entropy, heat capacity, and vibrational corrections.\n\n";
         std::cout << "Input Files:\n";
         std::cout << "  input_file    Path to input file (.otm format or quantum chemistry output)\n";
-        std::cout << "                Supported formats: Gaussian, ORCA, GAMESS-US, NWChem, CP2K, VASP\n";
-        std::cout << "                If no file specified, program will look for input in the current directory\n\n";
+        std::cout << "                Supported formats: Gaussian, ORCA, GAMESS-US, NWChem, CP2K, VASP, Q-Chem\n";
+        std::cout << "                If no file specified, program will prompt for input\n\n";
         std::cout << "Options:\n";
         std::cout << "  -E <value>           Electronic energy in a.u. (overrides file value)\n";
         std::cout << "  -T <T>               Temperature in K (default: 298.15)\n";
@@ -41,17 +87,23 @@ namespace ThermoHelpUtils
         std::cout << "  -sclheat <factor>    Scale factor for thermal energy frequencies (default: 1.0)\n";
         std::cout << "  -sclS <factor>       Scale factor for entropy frequencies (default: 1.0)\n";
         std::cout << "  -sclCV <factor>      Scale factor for heat capacity frequencies (default: 1.0)\n";
-        std::cout << "  -lowvibmeth <mode>     Low frequency treatment: 0/Harmonic, 1/Truhlar, 2/Grimme, 3/Minenkov\n";
+        std::cout << "  -lowvibmeth <mode>   Low frequency treatment: 0/Harmonic, 1/Truhlar, 2/Grimme, 3/Minenkov, 4/HeadGordon\n";
         std::cout << "  -ravib <value>       Raising value for low frequencies in cm^-1 (default: 100.0)\n";
+        std::cout << "  -intpvib <value>     Interpolation frequency threshold in cm^-1 (default: 100.0)\n";
+        std::cout << "  -hg_entropy <bool>   Entropy interpolation for Head-Gordon: true/false (default: true)\n";
+        std::cout << "  -bav <preset>        Bav for HeadGordon method: grimme, qchem (default for HeadGordon)\n";
         std::cout << "  -ipmode <mode>       Calculation mode: 0=gas phase, 1=condensed phase\n";
         std::cout << "  -imagreal <value>    Treat imaginary freq < value as real (default: 0.0)\n";
         std::cout << "  -conc <string>       Concentration string for phase correction\n";
         std::cout << "  -massmod <type>      Default mass type: 1=element, 2=most abundant isotope, 3=file\n";
         std::cout << "  -PGname <name>       Force point group symmetry\n";
         std::cout << "  -prtvib <mode>       Print vibration contributions: 0=no, 1=yes, -1=to file\n";
+        std::cout << "  -prtlevel <level>    Output verbosity: 0=minimal, 1=default, 2=verbose, 3=full\n";
         std::cout << "  -outotm <mode>       Output .otm file: 0=no, 1=yes\n";
+        std::cout << "  -omp-threads <N>     OpenMP thread count (default: half physical cores)\n";
         std::cout << "  -noset               Don't load settings from settings.ini\n";
         std::cout << "  --help               Show this help message\n";
+        std::cout << "  --version, -v        Show version, authors, and citation\n";
         std::cout << "  --create-config      Create a default settings.ini file\n";
         std::cout << "  --help-input         Show input file format help\n";
         std::cout << "  --help-output        Show output format help\n";
@@ -140,6 +192,7 @@ namespace ThermoHelpUtils
              "    1/Truhlar: Raise frequencies below threshold to ravib value\n"
              "    2/Grimme: Grimme's interpolation for entropy\n"
              "    3/Minenkov: Minenkov's interpolation for entropy and internal energy\n"
+             "    4/HeadGordon: Head-Gordon's interpolation for energy (+ optional entropy)\n"
              "  Example: -lowvibmeth 2 or -lowvibmeth Grimme\n"
              "  Default: Grimme"},
             {"ravib",
@@ -148,6 +201,36 @@ namespace ThermoHelpUtils
              "  Frequency value (cm^-1) to which low frequencies are raised when lowvibmeth=1\n"
              "  Example: -ravib 50.0\n"
              "  Default: 100.0"},
+            {"intpvib",
+             "Interpolation Frequency Threshold\n"
+             "  -intpvib <value>\n"
+             "  Frequency threshold (cm^-1) used for interpolation in Grimme, Minenkov, and Head-Gordon methods\n"
+             "  Controls the damping function w(v) = 1/(1 + (intpvib/v)^4)\n"
+             "  Example: -intpvib 50.0\n"
+             "  Default: 100.0"},
+            {"hg_entropy",
+             "Head-Gordon Entropy Interpolation\n"
+             "  -hg_entropy <bool>\n"
+             "  Enable or disable entropy interpolation for the Head-Gordon method (lowvibmeth=4)\n"
+             "  When true, entropy is interpolated between harmonic and free-rotor models (like Grimme)\n"
+             "  When false, only energy is interpolated; entropy uses standard harmonic model\n"
+             "  Accepts: true/false or 1/0\n"
+             "  Example: -hg_entropy false\n"
+             "  Default: true"},
+            {"bav",
+             "Average Moment of Inertia (Bav) Preset\n"
+             "  -bav <preset>\n"
+             "  Selects the average moment of inertia used in the free-rotor entropy term\n"
+             "  of quasi-RRHO interpolation. Only applicable to the HeadGordon method.\n"
+             "  Grimme and Minenkov methods always use the grimme value (1e-44 kg m^2).\n"
+             "  Available presets (HeadGordon only):\n"
+             "    grimme : I_av = 1e-44 kg m^2 (Grimme 2012, ORCA/xtb/GoodVibes)\n"
+             "    qchem  : I_av = 2.79928e-46 kg m^2 (B_av = 1 cm^-1, Q-Chem manual)\n"
+             "  The Q-Chem value corresponds to B_av = 1 cm^-1 via I = h/(8 pi^2 c B).\n"
+             "  Grimme's value is the original mu'_av from the 2012 paper.\n"
+             "  If used with Grimme or Minenkov, a warning is issued and the setting is ignored.\n"
+             "  Example: -bav grimme\n"
+             "  Default: qchem (for HeadGordon)"},
             {"ipmode",
              "Calculation Mode\n"
              "  -ipmode <mode>\n"
@@ -195,6 +278,16 @@ namespace ThermoHelpUtils
              "   -1: Yes, to <basename>.vibcon file\n"
              "  Example: -prtvib 1\n"
              "  Default: 0"},
+            {"prtlevel",
+             "Output Verbosity Level\n"
+             "  -prtlevel <level>\n"
+             "  Controls how much information is printed:\n"
+             "    0: Minimal - banner + final data only\n"
+             "    1: Default - parameters + compact system info + final data\n"
+             "    2: Verbose - full system data + component breakdown (Translation/Rotation/Vibration/Electronic)\n"
+             "    3: Full    - everything in 2 + per-mode vibrational detail tables\n"
+             "  Example: -prtlevel 2\n"
+             "  Default: 1"},
             {"outotm",
              "Output OpenThermo File\n"
              "  -outotm <mode>\n"
@@ -217,7 +310,35 @@ namespace ThermoHelpUtils
              "  This creates a settings.ini file in the current directory that you can\n"
              "  edit to customize your default calculation parameters.\n"
              "  Example: ./OpenThermo --create-config\n"
-             "  Note: This command exits immediately after creating the file"}};
+             "  Note: This command exits immediately after creating the file"},
+            {"omp-threads",
+             "OpenMP Thread Count\n"
+             "  -omp-threads <N>\n"
+             "  Set the number of OpenMP threads for parallel computation.\n"
+             "  Default behavior (no flag): uses half of the detected physical CPU cores.\n"
+             "  This conservative default is designed for HPC headnode environments\n"
+             "  where oversubscription can destabilize shared login nodes.\n\n"
+             "  HPC job scheduler support:\n"
+             "    On managed HPC systems, OpenThermo automatically detects allocated CPUs\n"
+             "    from scheduler environment variables (checked in order):\n"
+             "      SLURM_CPUS_PER_TASK, PBS_NUM_PPN, PBS_NP, NSLOTS, LSB_DJOB_NUMPROC\n"
+             "    When detected, the scheduler allocation is used as the ceiling instead\n"
+             "    of total hardware cores, and the default becomes half of that allocation.\n\n"
+             "  Clamping: If N exceeds the effective core ceiling (scheduler allocation\n"
+             "  or physical cores), the request is ignored and the default is used\n"
+             "  with a warning.\n\n"
+             "  Strategy auto-selection:\n"
+             "    - Outer: When there are many T/P scan points (>= nthreads), the T/P\n"
+             "      loop is parallelized and vibrational loops run serially.\n"
+             "    - Inner: When there are few T/P points but many frequencies (>50),\n"
+             "      the vibrational loop is parallelized instead.\n\n"
+             "  Can also be set in settings.ini:\n"
+             "    omp-threads = 4\n"
+             "  Command-line -omp-threads overrides the settings.ini value.\n\n"
+             "  Examples:\n"
+             "    -omp-threads 4   (use 4 threads, if <= effective core ceiling)\n"
+             "    -omp-threads 2   (use 2 threads)\n\n"
+             "  Default: half of physical cores or scheduler allocation (minimum 1)"}};
 
         auto it = option_descriptions.find(option);
         if (it != option_descriptions.end())
@@ -238,10 +359,10 @@ namespace ThermoHelpUtils
         std::cout << "1. OpenThermo Format (.otm):\n";
         std::cout << "   Native format containing all necessary molecular data\n";
         std::cout << "   Sections:\n";
-        std::cout << "     *E          Electronic energy in a.u.\n";
-        std::cout << "     *wavenum    Vibrational frequencies in cm^-1\n";
-        std::cout << "     *atoms      Atomic coordinates and masses\n";
-        std::cout << "     *elevel     Electronic energy levels and degeneracies\n\n";
+        std::cout << "     <E>          Electronic energy in a.u.\n";
+        std::cout << "     <frequency>  Vibrational frequencies in cm^-1\n";
+        std::cout << "     <system>     Atomic coordinates and masses\n";
+        std::cout << "     <elevel>     Electronic energy levels and degeneracies\n\n";
         std::cout << "2. Quantum Chemistry Output Files:\n";
         std::cout << "   Gaussian (.log, .out):\n";
         std::cout << "     - Frequency analysis output\n";
@@ -258,10 +379,11 @@ namespace ThermoHelpUtils
         std::cout << "     - Supports both molecular and periodic systems\n\n";
         std::cout << "   VASP (OUTCAR):\n";
         std::cout << "     - Vibrational analysis output\n";
-        std::cout << "     - Supports both molecular and periodic systems\n";
-        std::cout << "     - Both CONTCAR and OUTCAR are needed \n\n";
-        // std::cout << "   xtb (g98.out):\n";
-        // std::cout << "     - xtb frequency analysis output in Gaussian format\n\n";
+        std::cout << "     - Supports both molecular and periodic systems\n";  
+        std::cout << "     - Both CONTCAR and OUTCAR are needed \n\n";        
+        std::cout << "   Q-Chem (.out):\n";
+        std::cout << "     - Combined OPT+FREQ or frequency-only output\n";
+        std::cout << "     - Supports gas-phase and SMD solvation jobs\n\n";
         std::cout << "3. List Files (text file):\n";
         std::cout << "   Text file containing paths to multiple input files (one per line)\n";
         std::cout << "   Useful for batch processing of multiple molecules\n\n";
@@ -279,11 +401,13 @@ namespace ThermoHelpUtils
     {
         std::cout << "OpenThermo Output Information\n\n";
         std::cout << "Console Output:\n";
-        std::cout << "  - Program version and developer information\n";
-        std::cout << "  - Running parameters (temperature, pressure, scaling factors, etc.)\n";
-        std::cout << "  - Molecular information (atoms, masses, point group, moments of inertia)\n";
-        std::cout << "  - Vibrational frequencies\n";
-        std::cout << "  - Thermodynamic properties at specified conditions\n\n";
+        std::cout << "  The amount of detail printed to the console is controlled by -prtlevel:\n";
+        std::cout << "    Level 0 (minimal):  Banner + final thermodynamic data only\n";
+        std::cout << "    Level 1 (default):  + parameter summary, compact system info (atom count,\n";
+        std::cout << "                          point group, frequency range)\n";
+        std::cout << "    Level 2 (verbose):  + per-atom masses, full frequency list, moments of inertia,\n";
+        std::cout << "                          translation/rotation/vibration/electronic breakdown\n";
+        std::cout << "    Level 3 (full):     + per-mode vibrational detail tables\n\n";
         std::cout << "Output Files:\n\n";
         std::cout << "1. <basename>.UHG (Temperature/Pressure Scan):\n";
         std::cout << "   Contains thermal corrections and total energies\n";
@@ -345,7 +469,8 @@ namespace ThermoHelpUtils
         std::cout << "# Low frequency treatment\n";
         std::cout << "lowvibmeth = Grimme\n";
         std::cout << "ravib = 100.0\n";
-        std::cout << "intpvib = 100.0\n\n";
+        std::cout << "intpvib = 100.0\n";
+        std::cout << "# bav = qchem   # Only for HeadGordon: grimme or qchem (default: qchem)\n\n";
         std::cout << "# Calculation mode and options\n";
         std::cout << "ipmode = 0\n";
         std::cout << "imagreal = 0.0\n";
@@ -353,6 +478,7 @@ namespace ThermoHelpUtils
         std::cout << "massmod = 1\n";
         std::cout << "PGname = \"?\"\n\n";
         std::cout << "# Output options\n";
+        std::cout << "prtlevel = 1    # Verbosity: 0=minimal, 1=default, 2=verbose, 3=full\n";
         std::cout << "prtvib = 0\n";
         std::cout << "outotm = 0\n\n";
         std::cout << "# VASP energy selection\n";
@@ -361,11 +487,20 @@ namespace ThermoHelpUtils
         std::cout << "# modmass should match exactly the index order of atoms in quantum chemical outputs\n";
         std::cout << "# 1 1.007825  # Atom index, element, mass\n";
         std::cout << "# 2 12.0      # Use specific isotope mass\n\n";
+        std::cout << "# OpenMP threading\n";
+        std::cout << "# Default: half of physical CPU cores or scheduler-allocated CPUs\n";
+        std::cout << "# On HPC, SLURM_CPUS_PER_TASK / PBS_NP / NSLOTS are auto-detected\n";
+        std::cout << "# omp-threads = 4\n";
+        std::cout << "# Override on command line with: -omp-threads N (takes precedence)\n";
+        std::cout << "# If N > effective cores, the default (half) is used with a warning\n";
+        std::cout << "# Strategy (outer T/P vs inner vibrational) is auto-selected\n\n";
         std::cout << "Notes:\n";
         std::cout << "  - Parameters set in command line override settings file values\n";
         std::cout << "  - Use -noset to skip loading settings file\n";
         std::cout << "  - Mass modifications section is optional and allows per-atom mass changes\n";
-        std::cout << "  - Empty or missing settings file uses program defaults\n\n";
+        std::cout << "  - Empty or missing settings file uses program defaults\n";
+        std::cout << "  - OpenMP threading can be set via omp-threads in settings.ini or -omp-threads on CLI\n";
+        std::cout << "  - HPC scheduler CPUs (SLURM, PBS, SGE, LSF) are auto-detected\n\n";
     }
 
 }  // namespace ThermoHelpUtils

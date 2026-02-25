@@ -3,8 +3,8 @@
  * @brief Implementation of metadata utilities
  */
 
-#include "metadata.h"
-#include "version.h"
+#include "utilities/metadata.h"
+#include "utilities/version.h"
 
 #include <sstream>
 

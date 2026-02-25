@@ -1,7 +1,7 @@
 #ifndef COORD_EXTRACTOR_H
 #define COORD_EXTRACTOR_H
 
-#include "gaussian_extractor.h"
+#include "extraction/qc_extractor.h"
 #include "job_management/job_checker.h"
 #include <memory>
 #include <string>

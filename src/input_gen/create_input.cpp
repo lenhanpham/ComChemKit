@@ -8,8 +8,8 @@
  * creating Gaussian input files from XYZ coordinate files.
  */
 
-#include "create_input.h"
-#include "parameter_parser.h"
+#include "input_gen/create_input.h"
+#include "input_gen/parameter_parser.h"
 #include <algorithm>
 #include <atomic>
 #include <chrono>

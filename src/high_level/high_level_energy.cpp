@@ -1,5 +1,5 @@
-#include "high_level_energy.h"
-#include "extraction/gaussian_extractor.h"
+#include "high_level/high_level_energy.h"
+#include "extraction/qc_extractor.h"
 #include "utilities/metadata.h"
 #include <algorithm>
 #include <atomic>

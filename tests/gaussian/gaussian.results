@@ -1,0 +1,20 @@
+                                                             
+*************************************************************
+* ComChemKit v0.000.2 developed by Le Nhan Pham             *
+* https://github.com/lenhanpham/ComChemKit                  *
+*************************************************************
+                                                             
+Default temperature for files without specified temp: 298.150 K
+The concentration for phase correction: 1 M or 1000 mol/m3
+Representative Gibbs free correction for phase changing at 298.150 K: 0.003019 au
+Using 4 threads for processing.
+Successfully processed 6/6 files.
+Peak memory usage: 423.35 KB
+Output name                                                  ETG kJ/mol    Low FC           ETG a.u      Nuclear E au              SCFE      ZPE   Status PCorr Round
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+to-10-step-1-TS.log                                     -5529453.693247   -553.70      -2106.057236       1099.933699      -2106.263252  0.244212    DONE   YES     1
+BIH-conformers-6.log                                    -1812451.818226     16.83       -690.326292       1159.155991       -690.567357  0.280255    DONE   YES     1
+BIH-conformers-1.log                                    -1812442.434688     25.14       -690.322718       1181.205069       -690.564525  0.280430    DONE   YES     1
+BIH-conformers-5.log                                    -1812442.426812     25.25       -690.322715       1181.196069       -690.564525  0.280428    DONE   YES     1
+BIH-conformers-8.log                                    -1812377.343287     48.12       -690.297926       1163.256395       -690.541221  0.280990    DONE   YES     1
+BIH-conformers-7.log                                    -1812377.340662     48.01       -690.297925       1163.264615       -690.541220  0.280994    DONE   YES     1

@@ -56,14 +56,14 @@ jobs:
           cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
       - name: Static Analysis
-        run: clang-tidy -p build src/main.cpp src/extraction/gaussian_extractor.cpp src/job_management/job_scheduler.cpp
+        run: clang-tidy -p build src/main.cpp src/extraction/qc_extractor.cpp src/job_management/job_scheduler.cpp
 
       - name: Build the project
         run: cmake --build build
 
       - name: Prepare test data
         run: |
-          cp tests/data/*.log .
+          cp tests/gaussian/*.log .
           cp tests/extract-xyz/*.log tests/extract-xyz/*.LOG tests/extract-xyz/*.Log tests/extract-xyz/*.out tests/extract-xyz/*.OUT .
           cp tests/create-input/*.xyz .
 

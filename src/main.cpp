@@ -18,12 +18,19 @@
  * - Graceful shutdown handling for long-running operations
  */
 
-#include "extraction/gaussian_extractor.h"
+#include "extraction/qc_extractor.h"
 #include "ui/interactive_mode.h"
-#include "utilities/command_system.h"
+#include "commands/command_system.h"
 #include "utilities/config_manager.h"
-#include "utilities/module_executor.h"
+#include "commands/signal_handler.h"
 #include "utilities/version.h"
+#include "commands/command_registry.h"
+#include "commands/extract_command.h"
+#include "commands/thermo_command.h"
+#include "commands/checker_command.h"
+#include "commands/high_level_command.h"
+#include "commands/extract_coords_command.h"
+#include "commands/create_input_command.h"
 #include <atomic>
 #include <csignal>
 #include <iostream>
@@ -84,7 +91,7 @@ void signalHandler(int signal)
  *
  * @section Configuration
  * The configuration system is initialized first, loading settings from:
- * - Default configuration file (.gaussian_extractor.conf)
+ * - Default configuration file (.qc_extractor.conf)
  * - User-specified configuration file
  * - Command-line overrides
  *
@@ -101,27 +108,43 @@ void signalHandler(int signal)
  */
 int main(int argc, char* argv[])
 {
+    // Initialize configuration system FIRST so commands can access preferences
+    if (!g_config_manager.load_config())
+    {
+        // Configuration loaded with warnings/errors - continue with defaults
+        auto errors = g_config_manager.get_load_errors();
+        if (!errors.empty())
+        {
+            std::cerr << "Configuration warnings:" << std::endl;
+            for (const auto& error : errors)
+            {
+                std::cerr << "  " << error << std::endl;
+            }
+            std::cerr << std::endl;
+        }
+    }
+
+    // Bootstrap Command Registry
+    auto& registry = CommandRegistry::get_instance();
+    registry.register_command(std::make_unique<ExtractCommand>());
+    registry.register_command(std::make_unique<ThermoCommand>());
+    registry.register_command(std::make_unique<CheckerCommand>(CommandType::CHECK_DONE, "check-done", "Check and organize completed calculations"));
+    registry.register_command(std::make_unique<CheckerCommand>(CommandType::CHECK_ERRORS, "check-errors", "Check and organize failed calculations"));
+    registry.register_command(std::make_unique<CheckerCommand>(CommandType::CHECK_PCM, "check-pcm", "Check and organize PCM failures"));
+    registry.register_command(std::make_unique<CheckerCommand>(CommandType::CHECK_IMAGINARY, "check-imaginary", "Check and organize jobs with imaginary frequencies"));
+    registry.register_command(std::make_unique<CheckerCommand>(CommandType::CHECK_ALL, "check-all", "Run comprehensive checks for all job types"));
+    registry.register_command(std::make_unique<HighLevelCommand>(CommandType::HIGH_LEVEL_KJ, "high-kj", "High-level energies in kJ/mol"));
+    registry.register_command(std::make_unique<HighLevelCommand>(CommandType::HIGH_LEVEL_AU, "high-au", "High-level energies in atomic units"));
+    registry.register_command(std::make_unique<ExtractCoordsCommand>());
+    registry.register_command(std::make_unique<CreateInputCommand>());
+
     // Install signal handlers for graceful shutdown
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
 
     try
     {
-        // Initialize configuration system - load from file and apply defaults
-        if (!g_config_manager.load_config())
-        {
-            // Configuration loaded with warnings/errors - continue with defaults
-            auto errors = g_config_manager.get_load_errors();
-            if (!errors.empty())
-            {
-                std::cerr << "Configuration warnings:" << std::endl;
-                for (const auto& error : errors)
-                {
-                    std::cerr << "  " << error << std::endl;
-                }
-                std::cerr << std::endl;
-            }
-        }
+        // Configuration already loaded at startup
 
         // Check if running without arguments
         bool no_arguments = (argc == 1);
@@ -143,7 +166,7 @@ int main(int argc, char* argv[])
             std::cout << "> High-performance multi-threaded extraction of thermodynamic data and energy components"
                       << std::endl;
             std::cout << "> Job status checking and error detection" << std::endl;
-            std::cout << "> High-level theoryGibbs free energy calculations with thermal corrections " << std::endl;
+            std::cout << "> High-level theory Gibbs free energy calculations with thermal corrections " << std::endl;
             std::cout << "> Coordinate extraction and Gaussian input file generation" << std::endl;
             std::cout << std::endl;
             std::cout << "For help and available commands, type 'help' in interactive mode." << std::endl;
@@ -170,7 +193,8 @@ int main(int argc, char* argv[])
             }
 
             // Execute EXTRACT and exit
-            int extract_result = execute_extract_command(extract_context);
+            ICommand* cmd = CommandRegistry::get_instance().get_command("extract");
+            int extract_result = cmd ? cmd->execute(extract_context) : 1;
 
             // On Linux, exit immediately after command execution
             return extract_result;
@@ -191,58 +215,15 @@ int main(int argc, char* argv[])
                 std::cerr << std::endl;
             }
 
-            // Execute based on command type - dispatch to appropriate handler
-            int command_result;
-            switch (context.command)
-            {
-                case CommandType::EXTRACT:
-                    command_result = execute_extract_command(context);
-                    break;
-
-                case CommandType::CHECK_DONE:
-                    command_result = execute_check_done_command(context);
-                    break;
-
-                case CommandType::CHECK_ERRORS:
-                    command_result = execute_check_errors_command(context);
-                    break;
-
-                case CommandType::CHECK_PCM:
-                    command_result = execute_check_pcm_command(context);
-                    break;
-
-                case CommandType::CHECK_IMAGINARY:
-                    command_result = execute_check_imaginary_command(context);
-                    break;
-
-                case CommandType::CHECK_ALL:
-                    command_result = execute_check_all_command(context);
-                    break;
-
-                case CommandType::HIGH_LEVEL_KJ:
-                    command_result = execute_high_level_kj_command(context);
-                    break;
-
-                case CommandType::HIGH_LEVEL_AU:
-                    command_result = execute_high_level_au_command(context);
-                    break;
-
-                case CommandType::EXTRACT_COORDS:
-                    command_result = execute_extract_coords_command(context);
-                    break;
-
-                case CommandType::CREATE_INPUT:
-                    command_result = execute_create_input_command(context);
-                    break;
-
-                case CommandType::THERMO:
-                    command_result = execute_thermo_command(context);
-                    break;
-
-                default:
-                    std::cerr << "Error: Unknown command type" << std::endl;
-                    command_result = 1;
-                    break;
+            // Execute based on command type dispatcher
+            int command_result = 1;
+            std::string cmd_name = CommandParser::get_command_name(context.command);
+            ICommand* cmd = CommandRegistry::get_instance().get_command(cmd_name);
+            
+            if (cmd) {
+                command_result = cmd->execute(context);
+            } else {
+                std::cerr << "Error: Unknown or unregistered command type: " << cmd_name << std::endl;
             }
 
             return command_result;

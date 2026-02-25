@@ -1,0 +1,19 @@
+                                                             
+*************************************************************
+* ComChemKit v0.000.2 developed by Le Nhan Pham             *
+* https://github.com/lenhanpham/ComChemKit                  *
+*************************************************************
+                                                             
+Default temperature for files without specified temp: 298.150 K
+The concentration for phase correction: 1 M or 1000 mol/m3
+Representative Gibbs free correction for phase changing at 298.150 K: 0.003019 au
+Using 4 threads for processing.
+Successfully processed 5/5 files.
+Peak memory usage: 277.38 KB
+Output name                                                  ETG kJ/mol    Low FC           ETG a.u      Nuclear E au              SCFE      ZPE   Status PCorr Round
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Orca-triplet.out                                        -2030741.334564     30.18       -773.468360          0.000000       -773.675267  0.249133    DONE    NO     0
+Orca.out                                                 -958096.279884     72.74       -364.919523          0.000000       -365.039145  0.151765    DONE    NO     0
+ORCA_ethanol_optfreq.out                                 -406889.497447    247.04       -154.975992          0.000000       -155.030852  0.080248    DONE    NO     0
+Orca-C2v-water.out                                       -200485.738452      0.00        -76.360969          0.000000        -76.360969  0.000000    DONE    NO     0
+Orca-6-C3v.out                                           -146451.564909    993.18        -55.780443          0.000000        -55.801472  0.039054    DONE    NO     0

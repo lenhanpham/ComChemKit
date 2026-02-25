@@ -101,11 +101,11 @@ const std::array<std::string, nelesupp + 1> ind2name{
     "Na", "Mg", "Al", "Si", "P",  "S",  "Cl", "Ar",                    // 11-18
     "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br",
     "Kr",  // 19-36
-    "Rb", "Sr", "Y ", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I ",
+    "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",
     "Xe",                                                                                                  // 37-54
     "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu",  // 55-71
-    "Hf", "Ta", "W ", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn",              // 72-86
-    "Fr", "Ra", "Ac", "Th", "Pa", "U ", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr",  // 87-103
+    "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn",              // 72-86
+    "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr",  // 87-103
     "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og", "Un", "Ux",  // 104-120
     "??", "??", "??", "??", "??", "??", "??", "??", "??", "??",                                            // 121-130
     "??", "??", "??", "??", "??", "??", "??", "??", "??", "??",                                            // 131-140
@@ -117,10 +117,61 @@ const std::array<std::string, nelesupp + 1> ind2name{
  */
 enum class LowVibTreatment : std::uint8_t
 {
-    Harmonic = 0, /**< Standard rigid rotor harmonic oscillator */
-    Truhlar  = 1, /**< Quasi-rigid rotor harmonic oscillator (raises low frequencies) */
-    Grimme   = 2, /**< Grimme's interpolation between harmonic and free rotor */
-    Minenkov = 3  /**< Minenkov's interpolation scheme */
+    Harmonic    = 0, /**< Standard rigid rotor harmonic oscillator */
+    Truhlar     = 1, /**< Quasi-rigid rotor harmonic oscillator (raises low frequencies) */
+    Grimme      = 2, /**< Grimme's interpolation between harmonic and free rotor */
+    Minenkov    = 3, /**< Minenkov's interpolation scheme */
+    HeadGordon  = 4  /**< Head-Gordon's interpolation for energy (+ optional entropy) */
+};
+
+/**
+ * @brief Enumeration for the average moment of inertia (Bav) preset
+ *        used in the free-rotor entropy term of quasi-RRHO methods.
+ */
+enum class BavPreset : std::uint8_t
+{
+    QChem  = 0, /**< B_av = 1 cm^-1 => I_av = 2.79928e-46 kg m^2 (Q-Chem manual) */
+    Grimme = 1  /**< mu'_av = 1e-44 kg m^2 (Grimme 2012, ORCA/xtb/GoodVibes/Shermo) */
+};
+
+/// Return the numeric Bav value (kg m^2) for a given preset.
+inline double bavPresetValue(BavPreset p)
+{
+    switch (p)
+    {
+        case BavPreset::QChem:  return 2.79928e-46;
+        case BavPreset::Grimme: return 1e-44;
+        default:                return 2.79928e-46;
+    }
+}
+
+/// Return a human-readable label for a BavPreset.
+inline const char* bavPresetName(BavPreset p)
+{
+    switch (p)
+    {
+        case BavPreset::QChem:  return "qchem";
+        case BavPreset::Grimme: return "grimme";
+        default:                return "qchem";
+    }
+}
+
+/**
+ * @brief Hardware and OpenMP parallelisation configuration
+ *
+ * Encapsulates all fields related to thread detection, validation, and
+ * strategy selection. Separated from SystemData because execution
+ * configuration is orthogonal to molecular chemistry: thermochemical
+ * functions should not need to know about thread counts or HPC schedulers.
+ */
+struct ExecutionConfig
+{
+    int  omp_threads_requested   = 0;      ///< 0 = auto (default), >0 = user-specified
+    int  omp_threads_actual      = 0;      ///< Final thread count after validation
+    int  physical_cores_detected = 0;      ///< Hardware info for notifications
+    int  scheduler_cpus_detected = 0;      ///< HPC scheduler allocated CPUs (0 = no scheduler)
+    bool omp_user_override       = false;  ///< Whether user explicitly set thread count via -omp-threads
+    int  omp_strategy            = 0;      ///< 0=outer (T/P scan), 1=inner (vibrational loop)
 };
 
 // Structure to hold system data
@@ -148,6 +199,7 @@ struct SystemData
     std::string     PGnameinit     = "?";                      // Initial point group label
     std::string     PGname         = "?";                      // Point group label used in OpenThermo
     std::string     concstr         = "0";                      // Concentration string
+    int             prtlevel        = 1;                        // Output verbosity: 0=minimal, 1=default, 2=verbose, 3=full
     int             prtvib          = 0;                        // Print vibration contributions
     LowVibTreatment lowVibTreatment = LowVibTreatment::Grimme;  // Low frequency treatment
     int             massmod         = 3;                        // Mass assignment mode
@@ -163,9 +215,16 @@ struct SystemData
     double          sclCV    = 1.0;                        // CV scaling factor
     double          ravib    = 100.0;                      // Vibrational averaging parameter
     double          intpvib  = 100.0;                      // Vibrational interpolation parameter
+    bool            hgEntropy = true;                      // Enable entropy interpolation for Head-Gordon method
+    BavPreset       bavPreset = BavPreset::Grimme;          // Bav preset for free-rotor entropy
+    double          Bav       = 1e-44;                     // Average moment of inertia (kg m^2)
+    bool            bavUserOverride = false;                // Whether user explicitly set -bav
     double          imagreal = 0.0;                        // Imaginary frequency threshold
     double          Eexter   = 0.0;                        // External electronic energy
     int vasp_energy_select   = 0;  // VASP energy selection: 0=energy  without entropy (default), 1=energy(sigma->0)
+
+    // OpenMP / execution configuration
+    ExecutionConfig exec;  ///< Hardware and OpenMP parallelisation settings
 
     // Special
     int inoset = 0;  // Skip settings.ini if 1

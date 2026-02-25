@@ -13,19 +13,8 @@
 
 #include <string>
 
-// Forward declarations for command execution functions
+// Forward declarations for command objects if necessary
 struct CommandContext;
-int execute_extract_command(const CommandContext& context);
-int execute_check_done_command(const CommandContext& context);
-int execute_check_errors_command(const CommandContext& context);
-int execute_check_pcm_command(const CommandContext& context);
-int execute_check_imaginary_command(const CommandContext& context);
-int execute_check_all_command(const CommandContext& context);
-int execute_high_level_kj_command(const CommandContext& context);
-int execute_high_level_au_command(const CommandContext& context);
-int execute_extract_coords_command(const CommandContext& context);
-int execute_create_input_command(const CommandContext& context);
-int execute_thermo_command(const CommandContext& context);
 
 /**
  * @brief Interactive command loop for Windows double-click usage

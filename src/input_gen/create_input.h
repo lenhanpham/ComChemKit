@@ -11,7 +11,7 @@
 #ifndef CREATE_INPUT_H
 #define CREATE_INPUT_H
 
-#include "extraction/gaussian_extractor.h"
+#include "extraction/qc_extractor.h"
 #include <memory>
 #include <string>
 #include <vector>
