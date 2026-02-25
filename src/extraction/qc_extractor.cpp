@@ -36,9 +36,10 @@
  * - Other Unix: Using standard POSIX interfaces
  */
 
-#include "gaussian_extractor.h"
+#include "extraction/qc_extractor.h"
 #include "job_management/job_scheduler.h"
 #include "utilities/metadata.h"
+#include "thermo/thermo.h"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -887,17 +888,13 @@ Result extract(const std::string& file_name_param, const ProcessingContext& cont
     };
     MemoryGuard memory_guard(context.memory_monitor, estimated_memory);
 
-    std::ifstream file(file_name_param);
-    if (!file.is_open())
-    {
-        throw std::runtime_error("Could not open file: " + file_name_param);
-    }
-
     std::string file_name = file_name_param;
     if (file_name.substr(0, 2) == "./")
     {
         file_name = file_name.substr(2);
     }
+
+    std::string prog_name = ThermoInterface::identify_program(file_name_param);
 
     std::string         line;
     int                 copyright_count = 0;
@@ -906,219 +903,343 @@ Result extract(const std::string& file_name_param, const ProcessingContext& cont
     double              scf = 0, zpe = 0, tcg = 0, etg = 0, ezpe = 0, nucleare = 0;
     double              scfEqui = 0, scftd = 0;
     double              temp = context.base_temp;  // Local copy for this file
+    double              pressure = context.base_pressure; // Local copy for this file
     std::vector<double> negative_freqs, positive_freqs;
     std::string         status    = "UNDONE";
     std::string         phaseCorr = "NO";
+    double              lf = 0;
 
-    // Pre-compile regex patterns for better performance
-    static const std::regex scf_pattern(R"(SCF Done.*?=\s+(-?\d+\.\d+))");
-    static const std::regex freq_pattern(R"(Frequencies\s+--\s+(.*))");
+    if (prog_name == "Unknown") {
+        // Cannot identify the quantum chemistry program – skip parsing.
+        status = "UNDONE";
+    } else if (prog_name != "Gaussian"
+               || context.use_input_temp
+               || context.use_input_pressure
+               || context.use_input_concentration) {
+        // Rule B: thermo module – all non-Gaussian programs, and Gaussian with any argument flag.
+        int nfreq = 0;
+        double corrG_au = 0.0, corrH_au = 0.0, zpe_au = 0.0, lf_cm = 0.0;
+        if (ThermoInterface::extract_basic_properties(file_name_param, temp, pressure, scf, corrG_au, corrH_au, zpe_au, lf_cm, nfreq, prog_name)) {
+            lf = lf_cm;
+            if (nfreq > 0) {
+                zpe = zpe_au;
+                etg = scf + corrG_au;
+            } else {
+                etg = scf;
+            }
 
-    std::vector<double> scf_values;
-    size_t              line_count = 0;
+            // Determine the program-specific termination signal.
+            // Add more programs here as support expands.
+            std::string termination_signal;
+            if      (prog_name == "ORCA")     { termination_signal = "****ORCA TERMINATED NORMALLY****"; }
+            else if (prog_name == "Gaussian") { termination_signal = "Normal termination"; }
+            // Q-Chem, NWChem, GAMESS-US, CP2K, xTB, VASP etc. – to be added later
 
-    try
-    {
-        while (std::getline(file, line) && !g_shutdown_requested.load())
+            if (termination_signal.empty()) {
+                // No termination-signal check defined for this program yet;
+                // trust the parser's success as a best-effort indicator.
+                status = "DONE";
+            } else {
+                // Scan the tail of the file for the termination signal.
+                // Open in binary mode so that seekg arithmetic is reliable on all platforms
+                // (text-mode seek arithmetic is undefined when CRLF translation is active on Windows).
+                std::ifstream tail_file(file_name_param, std::ios::binary);
+                if (!tail_file.is_open()) {
+                    context.error_collector->add_warning(
+                        "Could not reopen file for termination check: " + file_name_param);
+                    status = "UNDONE";
+                } else {
+                    tail_file.seekg(0, std::ios::end);
+                    std::streampos file_size = tail_file.tellg();
+
+                    constexpr std::streamoff TAIL_BYTES = 4096;
+                    std::streampos read_pos =
+                        (file_size > std::streampos(TAIL_BYTES))
+                            ? file_size - TAIL_BYTES
+                            : std::streampos(0);
+                    tail_file.seekg(read_pos);
+
+                    std::string tail_content;
+                    tail_content.reserve(static_cast<std::size_t>(TAIL_BYTES) + 64);
+                    std::string tail_line;
+                    while (std::getline(tail_file, tail_line)) {
+                        // Strip CR so the pattern match works on both CRLF and LF files
+                        if (!tail_line.empty() && tail_line.back() == '\r') {
+                            tail_line.pop_back();
+                        }
+                        tail_content += tail_line + "\n";
+                    }
+                    tail_file.close();
+
+                    status = (tail_content.find(termination_signal) != std::string::npos)
+                                 ? "DONE"
+                                 : "UNDONE";
+                }
+            }
+        } else {
+            status = "ERROR";
+        }
+    } else {
+        std::ifstream file(file_name_param);
+        if (!file.is_open())
         {
-            line_count++;
+            throw std::runtime_error("Could not open file: " + file_name_param);
+        }
 
-            // Count termination status messages
-            if (line.find("Normal termination") != std::string::npos)
-            {
-                normal_count++;
-            }
-            else if (line.find("Error termination") != std::string::npos)
-            {
-                error_count++;
-            }
+        // Pre-compile regex patterns for better performance
+        static const std::regex scf_pattern(R"(SCF Done.*?=\s+(-?\d+\.\d+))");
+        static const std::regex freq_pattern(R"(Frequencies\s+--\s+(.*))");
 
-            // Process line content
-            if (line.find("Copyright") != std::string::npos)
-            {
-                ++copyright_count;
-            }
+        std::vector<double> scf_values;
+        size_t              line_count = 0;
 
-            std::smatch match;
-            try
+        try
+        {
+            while (std::getline(file, line) && !g_shutdown_requested.load())
             {
-                if (line.find("SCF Done") != std::string::npos && std::regex_search(line, match, scf_pattern))
-                {
-                    double value;
-                    if (safe_stod(match[1], value))
-                    {
-                        scf_values.push_back(value);
-                    }
-                }
-                else if (line.find("Total Energy, E(CIS") != std::string::npos)
-                {
-                    size_t eq_pos = line.find("=");
-                    if (eq_pos != std::string::npos)
-                    {
-                        std::string value_str = line.substr(eq_pos + 1);
-                        safe_stod(value_str, scftd);
-                    }
-                }
-                else if (line.find("After PCM corrections, the energy is") != std::string::npos)
-                {
-                    size_t is_pos = line.find("is");
-                    if (is_pos != std::string::npos)
-                    {
-                        std::string value_str = line.substr(is_pos + 2);
-                        safe_stod(value_str, scfEqui);
-                    }
-                }
-                else if (line.find("Zero-point correction") != std::string::npos)
-                {
-                    size_t eq_pos = line.find("=");
-                    if (eq_pos != std::string::npos)
-                    {
-                        std::string value_str = line.substr(eq_pos + 1);
-                        safe_stod(value_str, zpe);
-                    }
-                }
-                else if (line.find("Thermal correction to Gibbs Free Energy") != std::string::npos)
-                {
-                    size_t eq_pos = line.find("=");
-                    if (eq_pos != std::string::npos)
-                    {
-                        std::string value_str = line.substr(eq_pos + 1);
-                        safe_stod(value_str, tcg);
-                    }
-                }
-                else if (line.find("Sum of electronic and thermal Free Energies") != std::string::npos)
-                {
-                    size_t eq_pos = line.find("=");
-                    if (eq_pos != std::string::npos)
-                    {
-                        std::string value_str = line.substr(eq_pos + 1);
-                        safe_stod(value_str, etg);
-                    }
-                }
-                else if (line.find("Sum of electronic and zero-point Energies") != std::string::npos)
-                {
-                    size_t eq_pos = line.find("=");
-                    if (eq_pos != std::string::npos)
-                    {
-                        std::string value_str = line.substr(eq_pos + 1);
-                        safe_stod(value_str, ezpe);
-                    }
-                }
-                else if (line.find("nuclear repulsion energy") != std::string::npos)
-                {
-                    size_t pos = line.find("nuclear repulsion energy") + 25;
-                    if (pos < line.length())
-                    {
-                        std::string num_str = line.substr(pos);
+                line_count++;
 
-                        // Clean up the string
-                        num_str.erase(0, num_str.find_first_not_of(" \t"));
-                        size_t end_pos = num_str.find("Hartrees");
-                        if (end_pos != std::string::npos)
+                // Count termination status messages
+                if (line.find("Normal termination") != std::string::npos)
+                {
+                    normal_count++;
+                }
+                else if (line.find("Error termination") != std::string::npos)
+                {
+                    error_count++;
+                }
+
+                // Process line content
+                if (line.find("Copyright") != std::string::npos)
+                {
+                    ++copyright_count;
+                }
+
+                std::smatch match;
+                try
+                {
+                    if (line.find("SCF Done") != std::string::npos && std::regex_search(line, match, scf_pattern))
+                    {
+                        double value;
+                        if (safe_stod(match[1], value))
                         {
-                            num_str = num_str.substr(0, end_pos);
-                        }
-                        num_str.erase(num_str.find_last_not_of(" \t") + 1);
-
-                        if (!num_str.empty() && !safe_stod(num_str, nucleare))
-                        {
-                            context.error_collector->add_warning("Could not parse nuclear repulsion energy from '" +
-                                                                 line + "' in file '" + file_name + "'");
+                            scf_values.push_back(value);
                         }
                     }
-                }
-                else if (line.find("Frequencies") != std::string::npos && std::regex_search(line, match, freq_pattern))
-                {
-                    std::istringstream iss(match[1]);
-                    double             freq;
-                    while (iss >> freq)
+                    else if (line.find("Total Energy, E(CIS") != std::string::npos)
                     {
-                        if (freq < 0)
+                        size_t eq_pos = line.find("=");
+                        if (eq_pos != std::string::npos)
                         {
-                            negative_freqs.push_back(freq);
-                        }
-                        else
-                        {
-                            positive_freqs.push_back(freq);
+                            std::string value_str = line.substr(eq_pos + 1);
+                            safe_stod(value_str, scftd);
                         }
                     }
-                }
-                else if (!context.use_input_temp && line.find("Kelvin.  Pressure") != std::string::npos)
-                {
-                    size_t start_pos = line.find("Temperature");
-                    size_t end_pos   = line.find("Kelvin");
-
-                    if (start_pos != std::string::npos && end_pos != std::string::npos && start_pos < end_pos)
+                    else if (line.find("After PCM corrections, the energy is") != std::string::npos)
                     {
-                        start_pos += 11;  // Length of "Temperature"
-                        std::string temp_str = line.substr(start_pos, end_pos - start_pos);
-
-                        // Clean up the string
-                        temp_str.erase(0, temp_str.find_first_not_of(" \t"));
-                        temp_str.erase(temp_str.find_last_not_of(" \t") + 1);
-
-                        if (!temp_str.empty())
+                        size_t is_pos = line.find("is");
+                        if (is_pos != std::string::npos)
                         {
-                            if (!safe_stod(temp_str, temp))
+                            std::string value_str = line.substr(is_pos + 2);
+                            safe_stod(value_str, scfEqui);
+                        }
+                    }
+                    else if (line.find("Zero-point correction") != std::string::npos)
+                    {
+                        size_t eq_pos = line.find("=");
+                        if (eq_pos != std::string::npos)
+                        {
+                            std::string value_str = line.substr(eq_pos + 1);
+                            safe_stod(value_str, zpe);
+                        }
+                    }
+                    else if (line.find("Thermal correction to Gibbs Free Energy") != std::string::npos)
+                    {
+                        size_t eq_pos = line.find("=");
+                        if (eq_pos != std::string::npos)
+                        {
+                            std::string value_str = line.substr(eq_pos + 1);
+                            safe_stod(value_str, tcg);
+                        }
+                    }
+                    else if (line.find("Sum of electronic and thermal Free Energies") != std::string::npos)
+                    {
+                        size_t eq_pos = line.find("=");
+                        if (eq_pos != std::string::npos)
+                        {
+                            std::string value_str = line.substr(eq_pos + 1);
+                            safe_stod(value_str, etg);
+                        }
+                    }
+                    else if (line.find("Sum of electronic and zero-point Energies") != std::string::npos)
+                    {
+                        size_t eq_pos = line.find("=");
+                        if (eq_pos != std::string::npos)
+                        {
+                            std::string value_str = line.substr(eq_pos + 1);
+                            safe_stod(value_str, ezpe);
+                        }
+                    }
+                    else if (line.find("nuclear repulsion energy") != std::string::npos)
+                    {
+                        size_t pos = line.find("nuclear repulsion energy") + 25;
+                        if (pos < line.length())
+                        {
+                            std::string num_str = line.substr(pos);
+
+                            // Clean up the string
+                            num_str.erase(0, num_str.find_first_not_of(" \t"));
+                            size_t end_pos = num_str.find("Hartrees");
+                            if (end_pos != std::string::npos)
                             {
-                                context.error_collector->add_warning("Could not parse temperature from '" + line +
-                                                                     "' in file '" + file_name +
-                                                                     "'. Using default 298.15 K");
-                                temp = 298.15;
+                                num_str = num_str.substr(0, end_pos);
+                            }
+                            num_str.erase(num_str.find_last_not_of(" \t") + 1);
+
+                            if (!num_str.empty() && !safe_stod(num_str, nucleare))
+                            {
+                                context.error_collector->add_warning("Could not parse nuclear repulsion energy from '" +
+                                                                     line + "' in file '" + file_name + "'");
                             }
                         }
                     }
-                }
-                else if (line.find("scrf") != std::string::npos)
-                {
-                    phaseCorr = "YES";
-                }
-            }
-            catch (const std::regex_error& e)
-            {
-                context.error_collector->add_warning("Regex error in file '" + file_name + "': " + e.what());
-            }
-            catch (const std::exception& e)
-            {
-                context.error_collector->add_warning("Error processing line in file '" + file_name + "': " + e.what());
-            }
+                    else if (line.find("Frequencies") != std::string::npos && std::regex_search(line, match, freq_pattern))
+                    {
+                        std::istringstream iss(match[1]);
+                        double             freq;
+                        while (iss >> freq)
+                        {
+                            if (freq < 0)
+                            {
+                                negative_freqs.push_back(freq);
+                            }
+                            else
+                            {
+                                positive_freqs.push_back(freq);
+                            }
+                        }
+                    }
+                    else if ((!context.use_input_temp || !context.use_input_pressure) && line.find("Kelvin.  Pressure") != std::string::npos)
+                    {
+                        if (!context.use_input_temp)
+                        {
+                            size_t start_pos = line.find("Temperature");
+                            size_t end_pos   = line.find("Kelvin");
 
-            // Periodically check for shutdown
-            if (line_count % 1000 == 0 && g_shutdown_requested.load())
-            {
-                throw std::runtime_error("Processing interrupted by shutdown signal");
+                            if (start_pos != std::string::npos && end_pos != std::string::npos && start_pos < end_pos)
+                            {
+                                start_pos += 11;  // Length of "Temperature"
+                                std::string temp_str = line.substr(start_pos, end_pos - start_pos);
+
+                                // Clean up the string
+                                temp_str.erase(0, temp_str.find_first_not_of(" \t"));
+                                temp_str.erase(temp_str.find_last_not_of(" \t") + 1);
+
+                                if (!temp_str.empty())
+                                {
+                                    if (!safe_stod(temp_str, temp))
+                                    {
+                                        context.error_collector->add_warning("Could not parse temperature from '" + line +
+                                                                             "' in file '" + file_name +
+                                                                             "'. Using default 298.15 K");
+                                        temp = 298.15;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!context.use_input_pressure)
+                        {
+                            size_t start_pos = line.find("Pressure");
+                            size_t end_pos   = line.find("Atm.");
+
+                            if (start_pos != std::string::npos && end_pos != std::string::npos && start_pos < end_pos)
+                            {
+                                start_pos += 8;  // Length of "Pressure"
+                                std::string press_str = line.substr(start_pos, end_pos - start_pos);
+
+                                // Clean up the string
+                                press_str.erase(0, press_str.find_first_not_of(" \t"));
+                                press_str.erase(press_str.find_last_not_of(" \t") + 1);
+
+                                if (!press_str.empty())
+                                {
+                                    if (!safe_stod(press_str, pressure))
+                                    {
+                                        context.error_collector->add_warning("Could not parse pressure from '" + line +
+                                                                             "' in file '" + file_name +
+                                                                             "'. Using default 1.0 atm");
+                                        pressure = 1.0;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else if (line.find("scrf") != std::string::npos)
+                    {
+                        phaseCorr = "YES";
+                    }
+                }
+                catch (const std::regex_error& e)
+                {
+                    context.error_collector->add_warning("Regex error in file '" + file_name + "': " + e.what());
+                }
+                catch (const std::exception& e)
+                {
+                    context.error_collector->add_warning("Error processing line in file '" + file_name + "': " + e.what());
+                }
+
+                // Periodically check for shutdown
+                if (line_count % 1000 == 0 && g_shutdown_requested.load())
+                {
+                    throw std::runtime_error("Processing interrupted by shutdown signal");
+                }
             }
         }
-    }
-    catch (const std::ios_base::failure& e)
-    {
-        throw std::runtime_error("I/O error reading file '" + file_name + "': " + e.what());
+        catch (const std::ios_base::failure& e)
+        {
+            throw std::runtime_error("I/O error reading file '" + file_name + "': " + e.what());
+        }
+
+        file.close();
+
+        // Process extracted data
+        if (!scf_values.empty())
+        {
+            scf = scf_values.back();
+        }
+
+        if (!negative_freqs.empty())
+        {
+            lf = negative_freqs.back();
+        }
+        else if (!positive_freqs.empty())
+        {
+            lf = *std::min_element(positive_freqs.begin(), positive_freqs.end());
+        }
+
+        scf      = scfEqui ? scfEqui : (scftd ? scftd : scf);
+        nucleare = nucleare ? nucleare : 0;
+
+        // NOTE: argument-flag recalculation is now handled exclusively via Rule B
+        // (the thermo-module path above). Rule A never runs when argument flags are set.
+
+        etg      = etg ? etg : 0.0;
+        zpe      = zpe ? zpe : 0.0;
+
+        // Set status based on termination counts and final job state
+        if (error_count > 0)
+        {
+            status = "ERROR";
+        }
+        else if (normal_count > 0 && copyright_count > 0 && normal_count >= copyright_count)
+        {
+            status = "DONE";
+        }
     }
 
-    file.close();
-
-    // Process extracted data
-    if (!scf_values.empty())
-    {
-        scf = scf_values.back();
-    }
-
-    double lf = 0;
-    if (!negative_freqs.empty())
-    {
-        lf = negative_freqs.back();
-    }
-    else if (!positive_freqs.empty())
-    {
-        lf = *std::min_element(positive_freqs.begin(), positive_freqs.end());
-    }
-
-    scf      = scfEqui ? scfEqui : (scftd ? scftd : scf);
-    etg      = etg ? etg : 0.0;
-    nucleare = nucleare ? nucleare : 0;
-    zpe      = zpe ? zpe : 0;
-
-    double GphaseCorr       = R * temp * std::log(context.concentration * R * temp / Po) * 0.0003808798033989866 / 1000;
+    double current_pressure_Pa = pressure * Po;
+    double GphaseCorr       = R * temp * std::log(context.concentration * R * temp / current_pressure_Pa) * 0.0003808798033989866 / 1000;
     double GibbsFreeHartree = (phaseCorr == "YES" && etg != 0.0) ? etg + GphaseCorr : etg;
     double etgkj            = GibbsFreeHartree * 2625.5002;
 
@@ -1132,60 +1253,68 @@ Result extract(const std::string& file_name_param, const ProcessingContext& cont
     // 1. If any errors found, mark as ERROR
     // 2. If normal_count >= copyright_count AND "Normal termination" is in the last lines, mark as DONE
     // 3. Otherwise, mark as UNDONE (incomplete job)
-    if (error_count > 0)
+    // Second status check: applies only to Rule A (native Gaussian parser, no argument flags).
+    // Rule B and Unknown branches already set status inside their own blocks above.
+    if (prog_name == "Gaussian"
+        && !context.use_input_temp
+        && !context.use_input_pressure
+        && !context.use_input_concentration)
     {
-        status = "ERROR";
-    }
-    else if (normal_count >= copyright_count && copyright_count > 0)
-    {
-        // Reopen the file to read the tail
-        std::ifstream tail_file(file_name_param);
-        if (!tail_file.is_open())
+        if (error_count > 0)
         {
-            context.error_collector->add_error("Could not reopen file for tail check: " + file_name_param);
-            status = "UNDONE";  // Fallback on error
+            status = "ERROR";
+        }
+        else if (normal_count >= copyright_count && copyright_count > 0)
+        {
+            // Reopen the file to read the tail
+            std::ifstream tail_file(file_name_param);
+            if (!tail_file.is_open())
+            {
+                context.error_collector->add_error("Could not reopen file for tail check: " + file_name_param);
+                status = "UNDONE";  // Fallback on error
+            }
+            else
+            {
+                tail_file.seekg(0, std::ios::end);
+                std::streampos file_size = tail_file.tellg();
+
+                // Read approximately last 2KB of file
+                std::streampos read_pos;
+                if (file_size > std::streampos(2048))
+                {
+                    read_pos = file_size - std::streamoff(2048);
+                }
+                else
+                {
+                    read_pos = std::streampos(0);
+                }
+                tail_file.seekg(read_pos);
+
+                std::string tail_content;
+                std::string tail_line;
+                while (std::getline(tail_file, tail_line))
+                {
+                    tail_content += tail_line + "\n";
+                }
+
+                // Check if "Normal termination" appears in the final part of the file
+                // This confirms the job actually completed, not just had intermediate completions
+                if (tail_content.find("Normal termination") != std::string::npos)
+                {
+                    status = "DONE";
+                }
+                else
+                {
+                    status = "UNDONE";
+                }
+
+                tail_file.close();
+            }
         }
         else
         {
-            tail_file.seekg(0, std::ios::end);
-            std::streampos file_size = tail_file.tellg();
-
-            // Read approximately last 2KB of file
-            std::streampos read_pos;
-            if (file_size > std::streampos(2048))
-            {
-                read_pos = file_size - std::streamoff(2048);
-            }
-            else
-            {
-                read_pos = std::streampos(0);
-            }
-            tail_file.seekg(read_pos);
-
-            std::string tail_content;
-            std::string tail_line;
-            while (std::getline(tail_file, tail_line))
-            {
-                tail_content += tail_line + "\n";
-            }
-
-            // Check if "Normal termination" appears in the final part of the file
-            // This confirms the job actually completed, not just had intermediate completions
-            if (tail_content.find("Normal termination") != std::string::npos)
-            {
-                status = "DONE";
-            }
-            else
-            {
-                status = "UNDONE";
-            }
-
-            tail_file.close();
+            status = "UNDONE";
         }
-    }
-    else
-    {
-        status = "UNDONE";
     }
 
     // Truncate filename if too long
@@ -1205,12 +1334,15 @@ unsigned int getSafeThreadCount(unsigned int requested_threads, unsigned int fil
 }
 
 void processAndOutputResults(double                          temp,
+                             double                          pressure,
                              int                             C,
                              int                             column,
                              const std::string&              extension,
                              bool                            quiet,
                              const std::string&              format,
                              bool                            use_input_temp,
+                             bool                            use_input_pressure,
+                             bool                            use_input_concentration,
                              unsigned int                    requested_threads,
                              size_t                          max_file_size_mb,
                              size_t                          memory_limit_mb,
@@ -1363,7 +1495,8 @@ void processAndOutputResults(double                          temp,
         }
 
         // Create processing context with job-aware memory limit
-        ProcessingContext context(temp, C, use_input_temp, num_threads, extension, max_file_size_mb, job_resources);
+        ProcessingContext context(temp, pressure, C, use_input_temp, use_input_pressure, num_threads, extension, max_file_size_mb, job_resources);
+        context.use_input_concentration = use_input_concentration;
 
         // Apply calculated memory limit
         context.memory_monitor->set_memory_limit(calculated_memory_limit);

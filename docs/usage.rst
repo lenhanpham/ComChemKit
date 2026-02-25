@@ -39,6 +39,8 @@ ComChemKit supports the following commands:
 +------------------+--------------------------------------------------+
 | ``check``        | Run all job checks                               |
 +------------------+--------------------------------------------------+
+| ``thermo``       | Calculate thermochemical properties (OpenThermo) |
++------------------+--------------------------------------------------+
 | ``high-kj``      | Calculate high-level energies (kJ/mol)           |
 +------------------+--------------------------------------------------+
 | ``high-au``      | Calculate high-level energies (atomic units)     |
@@ -495,6 +497,139 @@ Phase correction converts gas-phase energies to solution-phase:
    C     0.000000    0.000000    0.000000
    H     1.089000    0.000000    0.000000
    ...
+
+6. Thermo Module (OpenThermo)
+-----------------------------
+
+**Purpose:** Comprehensive thermochemical property calculations using statistical mechanics methods from quantum chemistry output files.
+
+**Supported Quantum Chemistry Programs:**
+
+- Gaussian (.log, .out)
+- ORCA (.out)
+- GAMESS-US (.log)
+- NWChem (.out)
+- CP2K (.out)
+- VASP (OUTCAR)
+- Q-Chem (.out/.log)
+- OpenThermo Format (.otm)
+
+**Basic Usage:**
+
+.. code-block:: bash
+
+   # Single file thermochemistry calculation
+   cck thermo molecule.log
+
+   # Custom temperature and pressure
+   cck thermo molecule.log -T 298.15 -P 1.0
+
+   # Head-Gordon's low-frequency treatment with Q-Chem preset
+   cck thermo molecule.log -lowvibmeth headgordon -bav qchem -prtlevel 2
+
+**Batch Processing (Parallel):**
+
+.. code-block:: bash
+
+   # Process multiple files with auto-detected threads
+   cck thermo files.list
+
+   # Specify thread count
+   cck thermo files.list -nt 8
+
+   # OpenMP parallelization for scan loops
+   cck thermo molecule.log -T 200 400 25 -omp-threads 4
+
+**Temperature/Pressure Scanning:**
+
+.. code-block:: bash
+
+   # Temperature scan
+   cck thermo molecule.log -T 200 400 25
+
+   # Combined scan (creates .UHG and .SCq files)
+   cck thermo molecule.log -T 273 373 50 -P 0.5 2.0 0.5
+
+
+**Command-Line Options:**
+
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| Option                        | Description                       | Values                                    | Default |
++===============================+===================================+===========================================+=========+
+| ``-T <T>`` or ``-T <...>``    | Temperature (K)                   | number or range                           | 298.15  |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-P <P>`` or ``-P <...>``    | Pressure (atm)                    | number or range                           | 1.0     |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-sclZPE <factor>``          | ZPE frequency scaling             | decimal                                   | 1.0     |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-sclheat <factor>``         | Thermal energy scaling            | decimal                                   | 1.0     |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-sclS <factor>``            | Entropy scaling                   | decimal                                   | 1.0     |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-sclCV <factor>``           | Heat capacity scaling             | decimal                                   | 1.0     |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-lowvibmeth <mode>``        | Low-frequency treatment           | 0/Harmonic, 1/Truhlar, ... 4/HeadGordon   | 2       |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-ravib <value>``            | Truhlar raising threshold (cm^-1) | decimal                                   | 100.0   |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-intpvib <value>``          | Interpolation threshold (cm^-1)   | decimal                                   | 100.0   |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-hgEntropy <0|1>``          | Head-Gordon entropy interpolation | 0=no, 1=yes                               | 1       |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-bav <preset>``             | Head-Gordon Bav preset            | grimme, qchem, auto                       | auto    |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-ipmode <mode>``            | Phase mode                        | 0=gas, 1=condensed                        | 0       |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-imagreal <value>``         | Imaginary freq threshold (cm^-1)  | decimal                                   | 0.0     |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-massmod <type>``           | Mass assignment                   | 1=average, 2=isotope, 3=file              | 3       |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-PGname <name>``            | Point group                       | string or "?"                             | "?"     |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-conc <string>``            | Concentration (mol/L)             | decimal                                   | 0       |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-prtlevel <0-3>``           | Output verbosity level            | 0=minimal, 1=default, 2=verbose, 3=full   | 1       |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-prtvib <mode>``            | Vibrational contributions         | 0=no, 1=screen, -1=file                   | 0       |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-outotm <mode>``            | Output .otm file                  | 0=no, 1=yes                               | 0       |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-omp-threads <threads>``    | OpenMP parallelization threads    | positive integer, 0=auto                  | 0       |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-nt <threads>``             | File processing thread count      | number, half, max                         | half    |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-memory-limit <MB>``        | Memory limit                      | positive integer                          | auto    |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+| ``-E <value>``                | Electronic energy override (a.u.) | decimal                                   | from file |
++-------------------------------+-----------------------------------+-------------------------------------------+---------+
+
+**Calculation Methods:**
+
+**Standard RRHO (Rigid-Rotor Harmonic Oscillator)**
+
+- Traditional harmonic approximation
+- Suitable for most molecular systems
+
+**Quasi-RRHO Treatments:**
+
+1. **Truhlar's Method** (``lowvibmeth = 1``)
+   - Raises frequencies below threshold (default: 100 cm^-1)
+   - Simple and computationally efficient
+
+2. **Grimme's Interpolation** (``lowvibmeth = 2`` or ``grimme``)
+   - Entropy interpolation between RRHO and free rotor
+   - Weighting: ``w = 1 / (1 + (ν_threshold/ν)^4)``
+   - Better treatment of low-frequency modes
+
+3. **Minenkov's Interpolation** (``lowvibmeth = 3`` or ``minenkov``)
+   - Extended Grimme's method with energy interpolation
+   - Includes both entropy and thermal energy corrections
+   - Most comprehensive treatment for flexible molecules
+
+4. **Head-Gordon Interpolation** (``lowvibmeth = 4`` or ``headgordon``)
+   - Smoothed damping for entropic contributions of low vibrational modes
+   - Supported by Q-Chem inspired free rotor references (``-bav qchem``)
+   - Fully supports interpolating entropy (``-hgEntropy 1``)
 
 Configuration and Customization
 ===============================

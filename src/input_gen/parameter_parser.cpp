@@ -8,7 +8,7 @@
  * for reading and writing parameter files.
  */
 
-#include "parameter_parser.h"
+#include "input_gen/parameter_parser.h"
 #include "utilities/utils.h"
 #include <algorithm>
 #include <filesystem>

@@ -17,6 +17,11 @@ namespace ThermoHelpUtils
 {
 
     /**
+     * @brief Print version banner with authors, URL, and citation
+     */
+    void print_version();
+
+    /**
      * @brief Print general help information
      * @param program_name Name of the program (default: "OpenThermo")
      */

@@ -13,7 +13,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-#include "chemsys.h"  // For SystemData
+#include "thermo/chemsys.h"  // For SystemData
 #include <array>
 #include <fstream>
 #include <iostream>
@@ -37,7 +37,8 @@ namespace util
         Cp2k     = 5,
         Xtb      = 6,
         Vasp     = 7,
-        Otm      = 8
+        Otm      = 8,
+        QChem    = 9
     };
 
     /**

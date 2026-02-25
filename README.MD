@@ -317,6 +317,7 @@ The **Thermo Module** (based on OpenThermo) provides comprehensive thermochemica
 - **NWChem** (.out)
 - **CP2K** (.out)
 - **VASP** (OUTCAR)
+- **Q-Chem** (.out/.log)
 - **OpenThermo Format** (.otm)
 
 #### Basic Usage
@@ -370,17 +371,21 @@ cck thermo molecule.log -T 273 373 50 -P 0.5 2.0 0.5
 | `-sclheat <factor>`           | Thermal energy scaling            | decimal                                     | 1.0       |
 | `-sclS <factor>`              | Entropy scaling                   | decimal                                     | 1.0       |
 | `-sclCV <factor>`             | Heat capacity scaling             | decimal                                     | 1.0       |
-| `-lowvibmeth <mode>`          | Low-frequency treatment           | 0/Harmonic, 1/Truhlar, 2/Grimme, 3/Minenkov | 2         |
+| `-lowvibmeth <mode>`          | Low-frequency treatment           | 0/Harmonic, 1/Truhlar, 2/Grimme, 3/Minenkov, 4/HeadGordon | 2 |
 | `-ravib <value>`              | Truhlar raising threshold (cm⁻¹)  | decimal                                     | 100.0     |
 | `-intpvib <value>`            | Interpolation threshold (cm⁻¹)    | decimal                                     | 100.0     |
+| `-hgEntropy <0|1>`            | Head-Gordon entropy interpolation | 0=no, 1=yes                                 | 1         |
+| `-bav <preset>`               | Head-Gordon Bav preset            | grimme, qchem, auto                         | auto      |
 | `-ipmode <mode>`              | Phase mode                        | 0=gas, 1=condensed                          | 0         |
 | `-imagreal <value>`           | Imaginary freq threshold (cm⁻¹)   | decimal                                     | 0.0       |
 | `-massmod <type>`             | Mass assignment                   | 1=average, 2=isotope, 3=file                | 3         |
 | `-PGname <name>`              | Point group                       | string or "?"                               | "?"       |
 | `-conc <string>`              | Concentration (mol/L)             | decimal                                     | 0         |
+| `-prtlevel <0-3>`             | Output verbosity level            | 0=minimal, 1=default, 2=verbose, 3=full     | 1         |
 | `-prtvib <mode>`              | Vibrational contributions         | 0=no, 1=screen, -1=file                     | 0         |
 | `-outotm <mode>`              | Output .otm file                  | 0=no, 1=yes                                 | 0         |
-| `-nt <threads>`               | Thread count                      | number, half, max                           | half      |
+| `-omp-threads <threads>`      | OpenMP parallelization threads    | positive integer, 0=auto                    | 0         |
+| `-nt <threads>`               | Legacy file-processing thread count | number, half, max                         | half      |
 | `-memory-limit <MB>`          | Memory limit                      | positive integer                            | auto      |
 | `-E <value>`                  | Electronic energy override (a.u.) | decimal                                     | from file |
 
@@ -398,24 +403,30 @@ cck thermo molecule.log -T 273 373 50 -P 0.5 2.0 0.5
    - Raises frequencies below threshold (default: 100 cm⁻¹)
    - Simple and computationally efficient
 
-2. **Grimme's Interpolation** (`lowvibmeth = 2`)
+2. **Grimme's Interpolation** (`lowvibmeth = 2` or `grimme`)
    
    - Entropy interpolation between RRHO and free rotor
    - Weighting: `w = 1 / (1 + (ν_threshold/ν)^4)`
    - Better treatment of low-frequency modes
 
-3. **Minenkov's Interpolation** (`lowvibmeth = 3`)
+3. **Minenkov's Interpolation** (`lowvibmeth = 3` or `minenkov`)
    
    - Extended Grimme's method with energy interpolation
    - Includes both entropy and thermal energy corrections
    - Most comprehensive treatment for flexible molecules
+
+4. **Head-Gordon Interpolation** (`lowvibmeth = 4` or `headgordon`)
+   
+   - Smoothed damping for entropic contributions of low vibrational modes
+   - Supported by Q-Chem inspired free rotor references (`-bav qchem`)
+   - Fully supports interpolating entropy (`-hgEntropy 1`)
 
 #### Advanced Examples
 
 **High-Precision Calculation:**
 
 ```bash
-cck thermo molecule.log -T 298.15 -lowvibmeth 3 -sclZPE 0.98 -sclS 0.99 -sclCV 0.99
+cck thermo molecule.log -T 298.15 -lowvibmeth headgordon -bav qchem -prtlevel 2
 ```
 
 **Transition State Analysis:**

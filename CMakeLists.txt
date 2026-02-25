@@ -36,10 +36,10 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 # Define source files
 set(SOURCES
     src/main.cpp
-    src/utilities/module_executor.cpp
-    src/extraction/gaussian_extractor.cpp
+    src/commands/signal_handler.cpp
+    src/extraction/qc_extractor.cpp
     src/job_management/job_scheduler.cpp
-    src/utilities/command_system.cpp
+    src/commands/command_system.cpp
     src/job_management/job_checker.cpp
     src/utilities/config_manager.cpp
     src/high_level/high_level_energy.cpp
@@ -52,12 +52,18 @@ set(SOURCES
     src/ui/help_utils.cpp
     src/thermo/thermo.cpp
     src/thermo/calc.cpp
-    src/thermo/parallel_utils.cpp
-    src/utilities/loadfile.cpp
+    src/thermo/loadfile.cpp
     src/thermo/util.cpp
     src/thermo/atommass.cpp
     src/thermo/symmetry.cpp
     src/thermo/help_utils.cpp
+    src/commands/command_registry.cpp
+    src/commands/extract_command.cpp
+    src/commands/checker_command.cpp
+    src/commands/high_level_command.cpp
+    src/commands/extract_coords_command.cpp
+    src/commands/create_input_command.cpp
+    src/commands/thermo_command.cpp
 )
 
 # Add Windows resource file if building on Windows
@@ -70,10 +76,10 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 
 set(HEADERS
-    src/utilities/module_executor.h
-    src/extraction/gaussian_extractor.h
+    src/commands/signal_handler.h
+    src/extraction/qc_extractor.h
     src/job_management/job_scheduler.h
-    src/utilities/command_system.h
+    src/commands/command_system.h
     src/job_management/job_checker.h
     src/utilities/config_manager.h
     src/high_level/high_level_energy.h
@@ -87,13 +93,20 @@ set(HEADERS
     src/ui/help_utils.h
     src/thermo/thermo.h
     src/thermo/calc.h
-    src/thermo/parallel_utils.h
-    src/utilities/loadfile.h
+    src/thermo/loadfile.h
     src/thermo/util.h
     src/thermo/atommass.h
     src/thermo/symmetry.h
     src/thermo/chemsys.h
     src/thermo/help_utils.h
+    src/commands/icommand.h
+    src/commands/command_registry.h
+    src/commands/extract_command.h
+    src/commands/checker_command.h
+    src/commands/high_level_command.h
+    src/commands/extract_coords_command.h
+    src/commands/create_input_command.h
+    src/commands/thermo_command.h
 )
 
 # Create the executable

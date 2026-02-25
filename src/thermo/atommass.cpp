@@ -10,8 +10,8 @@
  * for all chemical elements supported by OpenThermo.
  */
 
-#include "atommass.h"
-#include "chemsys.h"
+#include "thermo/atommass.h"
+#include "thermo/chemsys.h"
 
 // Define the external arrays from chemsys.h
 // Note: Arrays are sized +1 to accommodate 1-based indexing used in the code

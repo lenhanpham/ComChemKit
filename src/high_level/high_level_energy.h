@@ -64,7 +64,7 @@
         #define HAS_EXECUTION_POLICIES 0
     #endif
 #endif
-#include "extraction/gaussian_extractor.h"
+#include "extraction/qc_extractor.h"
 #include <chrono>
 #include <unordered_map>
 

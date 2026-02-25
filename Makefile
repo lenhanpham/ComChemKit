@@ -44,7 +44,11 @@ ifneq ($(filter icpx icpc icc,$(CXX)),)
 endif
 
 # Platform detection
-UNAME_S := $(shell uname -s)
+ifeq ($(OS),Windows_NT)
+    UNAME_S := Windows
+else
+    UNAME_S := $(shell uname -s)
+endif
 ifeq ($(UNAME_S),Linux)
     LDFLAGS += -lrt -lstdc++fs
 endif
@@ -54,10 +58,10 @@ endif
 
 # Source files
 SOURCES = $(SRC_DIR)/main.cpp \
-          $(SRC_DIR)/utilities/module_executor.cpp \
-          $(SRC_DIR)/extraction/gaussian_extractor.cpp \
+          $(SRC_DIR)/commands/signal_handler.cpp \
+          $(SRC_DIR)/extraction/qc_extractor.cpp \
           $(SRC_DIR)/job_management/job_scheduler.cpp \
-          $(SRC_DIR)/utilities/command_system.cpp \
+          $(SRC_DIR)/commands/command_system.cpp \
           $(SRC_DIR)/job_management/job_checker.cpp \
           $(SRC_DIR)/utilities/config_manager.cpp \
           $(SRC_DIR)/utilities/metadata.cpp \
@@ -70,17 +74,23 @@ SOURCES = $(SRC_DIR)/main.cpp \
           $(SRC_DIR)/ui/help_utils.cpp \
           $(SRC_DIR)/thermo/thermo.cpp \
           $(SRC_DIR)/thermo/calc.cpp \
-          $(SRC_DIR)/thermo/parallel_utils.cpp \
-          $(SRC_DIR)/utilities/loadfile.cpp \
+          $(SRC_DIR)/thermo/loadfile.cpp \
           $(SRC_DIR)/thermo/util.cpp \
           $(SRC_DIR)/thermo/atommass.cpp \
           $(SRC_DIR)/thermo/symmetry.cpp \
-          $(SRC_DIR)/thermo/help_utils.cpp
+          $(SRC_DIR)/thermo/help_utils.cpp \
+          $(SRC_DIR)/commands/command_registry.cpp \
+          $(SRC_DIR)/commands/extract_command.cpp \
+          $(SRC_DIR)/commands/checker_command.cpp \
+          $(SRC_DIR)/commands/high_level_command.cpp \
+          $(SRC_DIR)/commands/extract_coords_command.cpp \
+          $(SRC_DIR)/commands/create_input_command.cpp \
+          $(SRC_DIR)/commands/thermo_command.cpp
 
-HEADERS = $(SRC_DIR)/utilities/module_executor.h \
-          $(SRC_DIR)/extraction/gaussian_extractor.h \
+HEADERS = $(SRC_DIR)/commands/signal_handler.h \
+          $(SRC_DIR)/extraction/qc_extractor.h \
           $(SRC_DIR)/job_management/job_scheduler.h \
-          $(SRC_DIR)/utilities/command_system.h \
+          $(SRC_DIR)/commands/command_system.h \
           $(SRC_DIR)/job_management/job_checker.h \
           $(SRC_DIR)/utilities/config_manager.h \
           $(SRC_DIR)/utilities/metadata.h \
@@ -94,19 +104,36 @@ HEADERS = $(SRC_DIR)/utilities/module_executor.h \
           $(SRC_DIR)/ui/help_utils.h \
           $(SRC_DIR)/thermo/thermo.h \
           $(SRC_DIR)/thermo/calc.h \
-          $(SRC_DIR)/thermo/parallel_utils.h \
-          $(SRC_DIR)/utilities/loadfile.h \
+          $(SRC_DIR)/thermo/loadfile.h \
           $(SRC_DIR)/thermo/util.h \
           $(SRC_DIR)/thermo/atommass.h \
           $(SRC_DIR)/thermo/symmetry.h \
           $(SRC_DIR)/thermo/chemsys.h \
-          $(SRC_DIR)/thermo/help_utils.h
+          $(SRC_DIR)/thermo/help_utils.h \
+          $(SRC_DIR)/commands/icommand.h \
+          $(SRC_DIR)/commands/command_registry.h \
+          $(SRC_DIR)/commands/extract_command.h \
+          $(SRC_DIR)/commands/checker_command.h \
+          $(SRC_DIR)/commands/high_level_command.h \
+          $(SRC_DIR)/commands/extract_coords_command.h \
+          $(SRC_DIR)/commands/create_input_command.h \
+          $(SRC_DIR)/commands/thermo_command.h
 
 OBJECTS = $(SOURCES:%.cpp=$(BUILD_DIR)/%.o)
 TARGET = $(BUILD_DIR)/bin/cck
 
-# Ensure build directory structure exists
-$(shell mkdir -p $(BUILD_DIR)/bin $(BUILD_DIR)/$(SRC_DIR)/extraction $(BUILD_DIR)/$(SRC_DIR)/high_level $(BUILD_DIR)/$(SRC_DIR)/input_gen $(BUILD_DIR)/$(SRC_DIR)/job_management $(BUILD_DIR)/$(SRC_DIR)/ui $(BUILD_DIR)/$(SRC_DIR)/utilities $(BUILD_DIR)/$(SRC_DIR)/thermo)
+# Ensure build directory structure exists (cross-platform fallback using CMake)
+MKDIR_P = cmake -E make_directory $1
+
+$(shell $(call MKDIR_P,$(BUILD_DIR)/bin))
+$(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/extraction))
+$(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/high_level))
+$(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/input_gen))
+$(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/job_management))
+$(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/ui))
+$(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/utilities))
+$(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/thermo))
+$(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/commands))
 
 # Default target
 all: $(TARGET)
@@ -117,7 +144,7 @@ $(TARGET): $(OBJECTS)
 
 # Compile source files to object files
 $(BUILD_DIR)/%.o: %.cpp $(HEADERS)
-	@mkdir -p $(dir $@)
+	@$(call MKDIR_P,$(dir $@))
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Debug build with additional safety checks
@@ -135,7 +162,7 @@ cluster: clean $(TARGET)
 
 # Clean build artifacts
 clean:
-	rm -rf $(BUILD_DIR) $(TARGET)
+	cmake -E rm -rf $(BUILD_DIR) $(TARGET)
 
 # Install to system (requires sudo)
 install: $(TARGET)

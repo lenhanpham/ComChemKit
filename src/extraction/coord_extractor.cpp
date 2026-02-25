@@ -1,4 +1,4 @@
-#include "coord_extractor.h"
+#include "extraction/coord_extractor.h"
 #include "job_management/job_checker.h"
 #include "utilities/utils.h"
 #include <atomic>

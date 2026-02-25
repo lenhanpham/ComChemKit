@@ -13,7 +13,7 @@
 #ifndef SYMMETRY_H
 #define SYMMETRY_H
 
-#include "chemsys.h"
+#include "thermo/chemsys.h"
 #include <algorithm>
 #include <array>
 #include <stdexcept>

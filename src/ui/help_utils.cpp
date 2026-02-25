@@ -8,9 +8,9 @@
  * used throughout the ComChemKit application.
  */
 
-#include "help_utils.h"
+#include "ui/help_utils.h"
 #include "thermo/help_utils.h"
-#include "utilities/command_system.h"
+#include "commands/command_system.h"
 #include "utilities/config_manager.h"
 #include "utilities/version.h"
 #include <iostream>
@@ -49,6 +49,7 @@ namespace HelpUtils
 
     void print_command_help(CommandType command, const std::string& program_name, const CommandContext* context)
     {
+        (void)context; // Suppress unused parameter warning
         std::string cmd_name = CommandParser::get_command_name(command);
         std::cout << "Help for command: " << cmd_name << "\n\n";
 
@@ -220,23 +221,8 @@ namespace HelpUtils
                 std::cout << "  Then use --param-file to load the parameters from your customized template.\n";
                 break;
             case CommandType::THERMO:
-                if (context && !context->thermo_help_topic.empty())
-                {
-                    if (context->thermo_help_topic == "input")
-                        ThermoHelpUtils::print_input_help();
-                    else if (context->thermo_help_topic == "output")
-                        ThermoHelpUtils::print_output_help();
-                    else if (context->thermo_help_topic == "settings")
-                        ThermoHelpUtils::print_settings_help();
-                    else
-                        ThermoHelpUtils::print_option_help(context->thermo_help_topic, program_name);
-                }
-                else
-                {
-                    // Call the full OpenThermo help instead of showing simplified version
-                    // This provides comprehensive documentation consistent with standalone OpenThermo
-                    ThermoHelpUtils::print_help(program_name);
-                }
+                // Delegate to thermo module's comprehensive help
+                ThermoHelpUtils::print_help(program_name);
                 break;
         }
 
@@ -378,11 +364,11 @@ namespace HelpUtils
             std::string home_dir = g_config_manager.get_user_home_directory();
             if (!home_dir.empty())
             {
-                std::cout << "Configuration file created at: " << home_dir << "/.gaussian_extractor.conf" << std::endl;
+                std::cout << "Configuration file created at: " << home_dir << "/.qc_extractor.conf" << std::endl;
             }
             else
             {
-                std::cout << "Configuration file created at: ./.gaussian_extractor.conf" << std::endl;
+                std::cout << "Configuration file created at: ./.qc_extractor.conf" << std::endl;
             }
             std::cout << "Edit this file to customize your default settings.\n";
         }
