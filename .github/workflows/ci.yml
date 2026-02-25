@@ -63,7 +63,7 @@ jobs:
 
       - name: Prepare test data
         run: |
-          cp tests/data/*.log .
+          cp tests/gaussian/*.log .
           cp tests/extract-xyz/*.log tests/extract-xyz/*.LOG tests/extract-xyz/*.Log tests/extract-xyz/*.out tests/extract-xyz/*.OUT .
           cp tests/create-input/*.xyz .
 
