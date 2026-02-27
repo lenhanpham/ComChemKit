@@ -368,7 +368,8 @@ CreateSummary CreateInput::create_inputs(const std::vector<std::string>& xyz_fil
                     if (!file_guard.is_acquired())
                         continue;
 
-                    FileCreationResult result = create_from_file(xyz_files[index]);
+                    CreateInput local_creator(*this);
+                    FileCreationResult result = local_creator.create_from_file(xyz_files[index]);
                     {
                         std::lock_guard<std::mutex> lock(results_mutex);
                         summary.processed_files++;
@@ -449,20 +450,19 @@ FileCreationResult CreateInput::create_from_file(const std::string& xyz_file)
         else
         {
             // For IRC calculations, check if TS checkpoint exists
-            std::string ts_chk_path;
+            std::filesystem::path chk_path;
             if (!tschk_path_.empty())
             {
-                std::filesystem::path chk_path = std::filesystem::path(tschk_path_) / (isomer_name + ".chk");
-                ts_chk_path                    = chk_path.string();
+                chk_path = std::filesystem::path(tschk_path_) / (isomer_name + ".chk");
             }
             else
             {
                 // Default to parent directory
                 std::filesystem::path current_path = std::filesystem::current_path();
-                std::filesystem::path parent_path  = current_path.parent_path();
-                std::filesystem::path chk_path     = parent_path / (isomer_name + ".chk");
-                ts_chk_path                        = chk_path.string();
+                chk_path = current_path.parent_path() / (isomer_name + ".chk");
             }
+
+            std::string ts_chk_path = std::filesystem::absolute(chk_path).string();
 
             if (!std::filesystem::exists(ts_chk_path))
             {
@@ -634,9 +634,13 @@ std::string CreateInput::generate_route_for_single_section_calc_type(Calculation
     if (type == CalculationType::HIGH_SP || type == CalculationType::IRC_FORWARD ||
         type == CalculationType::IRC_REVERSE)
     {
-        std::string ts_chk_path =
-            tschk_path_.empty() ? std::filesystem::current_path().parent_path().string() + "/" + isomer_name + ".chk"
-                                : tschk_path_ + "/" + isomer_name + ".chk";
+        std::filesystem::path chk_path;
+        if (tschk_path_.empty()) {
+            chk_path = std::filesystem::current_path().parent_path() / (isomer_name + ".chk");
+        } else {
+            chk_path = std::filesystem::path(tschk_path_) / (isomer_name + ".chk");
+        }
+        std::string ts_chk_path = std::filesystem::absolute(chk_path).string();
         route << "%OldChk=" << ts_chk_path << "\n";
 
         if (type == CalculationType::IRC_FORWARD || type == CalculationType::IRC_REVERSE)
