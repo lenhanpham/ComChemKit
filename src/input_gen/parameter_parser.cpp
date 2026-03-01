@@ -470,8 +470,8 @@ std::string ParameterParser::createTemplateContent(const std::string& calc_type)
         content << "#   triplets only:          tddft_states = triplets  -> stem-triplets.gau\n";
         content << "#   combined 50-50:         tddft_states = 50-50     -> stem.gau\n";
         content << "#   both (default, 2 files): tddft_states =          -> stem-singlets.gau + stem-triplets.gau\n";
-        content << "# Route generated: tda(singlets,nstates=15) scf(maxcycle=500,xqc) functional/basis\n";
-        content << "# With extra:       tda(singlets,nstates=15,Root=5,Read,IVOGuess) scf(maxcycle=500,xqc) functional/basis\n\n";
+        content << "# Route generated: tda(singlets,nstates=15) scf(maxcycle=300,xqc) functional/basis\n";
+        content << "# With extra:       tda(singlets,nstates=15,Root=5,Read,IVOGuess) scf(maxcycle=300,xqc) functional/basis\n\n";
     }
 
     // Advanced parameters
@@ -482,8 +482,7 @@ std::string ParameterParser::createTemplateContent(const std::string& calc_type)
     // Custom cycle and optimization parameters
     content << "# Custom cycle and optimization parameters (optional)\n";
     content << "# Override defaults for SCF, OPT, IRC keywords\n";
-    int default_scf = (calc_type == "sp" || calc_type == "opt_freq" || calc_type == "high_sp" || calc_type == "tddft") ? 500 : 300;
-    content << "# scf_maxcycle = " << default_scf << "\n";
+    content << "# scf_maxcycle = 300\n";
     if (calc_type == "opt_freq" || calc_type == "ts_freq" || calc_type == "oss_ts_freq" ||
         calc_type == "modre_ts_freq" || calc_type == "modre_opt")
     {
@@ -616,7 +615,7 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "# ==========================================\n";
     content << "# CUSTOM CYCLE AND OPTIMIZATION PARAMETERS (optional)\n";
     content << "# Override defaults for SCF, OPT, IRC keywords\n";
-    content << "# scf_maxcycle = 500  # Default 500 for SP/OPT_FREQ/HIGH_SP, 300 for others\n";
+    content << "# scf_maxcycle = 300  # Default 300 for SP/OPT_FREQ/HIGH_SP, 300 for others\n";
     content << "# opt_maxcycles = 300\n";
     content << "# opt_maxstep = -1  # MaxStep for opt keyword (-1 = default: none for most types, 5 for "
                "TS_FREQ_FROM_CHK)\n";

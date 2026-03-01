@@ -67,7 +67,7 @@
  * Human-readable version string combining all version components.
  * Format: "vMAJOR.MINOR.PATCH"
  */
-#define COMCHEMKIT_STRING "v0.000.2"
+#define COMCHEMKIT_STRING "v0.000.3"
 
 /** @} */ // end of VersionConstants group
 
