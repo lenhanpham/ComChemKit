@@ -1,0 +1,18 @@
+                                                             
+*************************************************************
+* ComChemKit v0.000.3 developed by Le Nhan Pham             *
+* https://github.com/lenhanpham/ComChemKit                  *
+*************************************************************
+                                                             
+Temperature in ../C4-2.log: 300.000 K. Make sure that temperature has been used in your input.
+The concentration for phase correction: 2.000 M or 2000.000 mol/m3
+Last Gibbs free correction for phase changing from 1 atm to 2.000 M: 0.003702 au
+                                         Output name       G kJ/mol       G a.u        G eV     LowFQ  Status  PhCorr
+   -------------------------------------------------   ------------   ---------   ---------   -------   -----   -----
+                                            C4-2.log       0.000000    0.000000    0.000000    0.0000   ERROR      NO
+                                            C4-2.out       0.000000    0.000000    0.000000    0.0000   ERROR      NO
+                                         C5-test.LOG       0.000000    0.000000    0.000000    0.0000   ERROR      NO
+                                       C5-testtt.Log       0.000000    0.000000    0.000000    0.0000   ERROR      NO
+                                         C6-test.OUT       0.000000    0.000000    0.000000    0.0000   ERROR      NO
+                                              C8.log       0.000000    0.000000    0.000000    0.0000   ERROR      NO
+                                     C8_modified.log       0.000000    0.000000    0.000000    0.0000   ERROR      NO

@@ -1123,9 +1123,9 @@ void HighLevelEnergyCalculator::print_summary_info(const std::string& last_paren
 
         out << "Temperature in " << last_parent_file << ": " << std::fixed << std::setprecision(3) << last_temp
             << " K. Make sure that temperature has been used in your input." << std::endl;
-        out << "The concentration for phase correction: " << std::fixed << std::setprecision(0) << concentration_m_
+        out << "The concentration for phase correction: " << concentration_m_
             << " M or " << concentration_mol_m3_ << " mol/m3" << std::endl;
-        out << "Last Gibbs free correction for phase changing from 1 atm to 1 M: " << std::fixed << std::setprecision(6)
+        out << "Last Gibbs free correction for phase changing from 1 atm to " << concentration_m_ << " M: " << std::fixed << std::setprecision(6)
             << last_phase_corr << " au" << std::endl;
     }
     catch (const std::exception& e)
