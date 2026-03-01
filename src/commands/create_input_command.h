@@ -44,7 +44,7 @@ private:
     int         ci_mult = 1;
     std::string ci_tail = "";
     std::string ci_modre = "";
-    std::string ci_extension = ".gau;
+    std::string ci_extension = ".gau";
     std::string ci_tschk_path = "";
     int         ci_freeze_atom1 = 0;
     int         ci_freeze_atom2 = 0;
