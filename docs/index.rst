@@ -117,11 +117,12 @@ ComChemKit is released under the MIT License. See the LICENSE file for details.
 Version Information
 ===================
 
-Current Version: **v0.000.3**
+Current Version: **v0.000.4**
 
 - **v0.000.1**: Initial release featuring parallel data extraction, computational chemistry input generation, and thermo module for multi-program thermodynamic calculations
 - **v0.000.2**: Updated version with new calculation types and improvements in create input functionality
-- **v0.000.**: Fix errors in create input functionality
+- **v0.000.3**: Fix errors in create input functionality
+- **v0.000.4**: Update concentration correction message
 
 .. note::
-    This documentation is for ComChemKit v0.000.3. For older versions, please refer to the archived documentation.
+    This documentation is for ComChemKit v0.000.4. For older versions, please refer to the archived documentation.
