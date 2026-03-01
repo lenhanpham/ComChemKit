@@ -906,7 +906,7 @@ Result extract(const std::string& file_name_param, const ProcessingContext& cont
     double              pressure = context.base_pressure; // Local copy for this file
     std::vector<double> negative_freqs, positive_freqs;
     std::string         status    = "UNDONE";
-    std::string         phaseCorr = "NO";
+    std::string         phaseCorr = context.use_input_concentration ? "YES" : "NO";
     double              lf = 0;
 
     if (prog_name == "Unknown") {
@@ -1631,7 +1631,7 @@ void processAndOutputResults(double                          temp,
                    << temp << " K\n";
         }
 
-        params << "The concentration for phase correction: " << C / 1000 << " M or " << C << " mol/m3\n";
+        params << "The concentration for phase correction: " << C / 1000.0 << " M or " << C << " mol/m3\n";
         double representative_GphaseCorr = R * temp * std::log(C * R * temp / Po) * 0.0003808798033989866 / 1000;
         params << "Representative Gibbs free correction for phase changing at " << std::fixed << std::setprecision(3)
                << temp << " K: " << std::fixed << std::setprecision(6) << representative_GphaseCorr << " au\n";

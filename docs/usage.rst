@@ -291,7 +291,7 @@ Phase correction converts gas-phase energies to solution-phase:
    # Custom temperature
    cck high-kj -t 310.15
 
-   # Custom concentration
+   # Custom concentration (accepts -c, -C, --cm, --conc)
    cck high-kj -c 2
 
    # Sort by different column
