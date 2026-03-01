@@ -660,11 +660,7 @@ std::string CreateInput::generate_route_for_single_section_calc_type(Calculation
                             : "#" + print_level_ + " ";
 
     // Generate route based on type
-    int scf_mc_default = (calc_type_ == CalculationType::SP || calc_type_ == CalculationType::OPT_FREQ ||
-                          calc_type_ == CalculationType::HIGH_SP || calc_type_ == CalculationType::TDDFT)
-                             ? 500
-                             : 300;
-    int scf_mc = (scf_maxcycle_ != -1) ? scf_maxcycle_ : scf_mc_default;
+    int scf_mc = (scf_maxcycle_ != -1) ? scf_maxcycle_ : 300;
     int opt_mc = (opt_maxcycles_ != -1) ? opt_maxcycles_ : 300;
 
     route << pound;
