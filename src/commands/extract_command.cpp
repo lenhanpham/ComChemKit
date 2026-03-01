@@ -94,13 +94,13 @@ void ExtractCommand::parse_args(int argc, char* argv[], int& i, CommandContext& 
             context.warnings.push_back("Error: Pressure value required after -p/--pressure.");
         }
     }
-    else if (arg == "-c" || arg == "--cm")
+    else if (arg == "-c" || arg == "-C" || arg == "--cm" || arg == "--conc")
     {
         if (++i < argc)
         {
             try
             {
-                int conc = std::stoi(argv[i]);
+                double conc = std::stod(argv[i]);
                 if (conc <= 0)
                 {
                     context.warnings.push_back("Error: Concentration must be positive. Using configured default.");
@@ -108,7 +108,7 @@ void ExtractCommand::parse_args(int argc, char* argv[], int& i, CommandContext& 
                 }
                 else
                 {
-                    concentration = conc * 1000;
+                    concentration = static_cast<int>(conc * 1000);
                     use_input_concentration = true;
                 }
             }

@@ -188,10 +188,10 @@ cck -e out                  # Process .out files instead of .log
 
 #### Command-Line Options
 
-| Option            | Description        | Values            | Default         |
-| ----------------- | ------------------ | ----------------- | --------------- |
-| `-t, --temp`      | Temperature (K)    | Positive number   | 298.15          |
-| `-c, --cm`        | Concentration (M)  | Positive value    | 1               |
+| Option            | Description        | Values            | Default           |
+| ----------------- | ------------------ | ----------------- | ----------------- |
+| `-t, --temp`      | Temperature (K)    | Positive number   | 298.15            |
+| `-c, -C, --cm, --conc` | Concentration (M) | Positive value | 1 (Enables PCorr) |
 | `-col, --column`  | Sort column        | 2-10              | 2 (ETG kJ/mol)  |
 | `-e, --ext`       | File extension     | log, out          | log             |
 | `-f, --format`    | Output format      | text, csv         | text            |
@@ -614,6 +614,11 @@ project/
 cd higher_level
 cck high-kj    # Improved Gibbs free energy in kJ/mol
 cck high-au    # Improved Gibbs free energy in hartree
+
+# Custom temperature and concentration (Both auto-enable phase correction)
+cck high-kj -t 310.15
+cck high-au -c 2          # Can also use -C, --cm, or --conc
+cck high-au -t 300 -c 2   # Can also use -C, --cm, or --conc
 ```
 
 #### Functionality

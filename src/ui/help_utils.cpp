@@ -62,7 +62,7 @@ namespace HelpUtils
                 std::cout << "thermodynamic properties from Gaussian log files.\n\n";
                 std::cout << "Additional Options:\n";
                 std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: 298.15)\n";
-                std::cout << "  -c, --concentration <M> Concentration in M for phase correction (default: 1.0)\n";
+                std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
                 std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
                 std::cout << "  -col, --column <N>      Sort column 1-7 (default: 2)\n";
                 std::cout
@@ -110,7 +110,7 @@ namespace HelpUtils
                 std::cout << "thermodynamic quantities. Output format focuses on final Gibbs energies.\n\n";
                 std::cout << "Additional Options:\n";
                 std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";
-                std::cout << "  -c, --concentration <M> Concentration in M for phase correction (default: 1.0)\n";
+                std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
                 std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
                 std::cout << "  -col, --column <N>      Sort column 1-7 (default: 2)\n";
                 std::cout
@@ -126,7 +126,7 @@ namespace HelpUtils
                 std::cout << "energy component breakdown including ZPE, TC, TS, H, and G values.\n\n";
                 std::cout << "Additional Options:\n";
                 std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";
-                std::cout << "  -c, --concentration <M> Concentration in M for phase correction (default: 1.0)\n";
+                std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
                 std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
                 std::cout << "  -col, --column <N>      Sort column 1-10 (default: 2)\n";
                 std::cout
