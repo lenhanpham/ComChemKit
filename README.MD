@@ -1174,7 +1174,10 @@ The thermo module implements advanced parallel processing specifically designed 
 
 ## Version History
 
-- **v0.000.2** Experimental version
+- **v0.000.4** Pre-release version
+- **v0.000.2** Pre-release version
+- **v0.000.2** Pre-release version
+- **v0.000.1** Pre-release version
 
 ## Contributing and Issues
 
