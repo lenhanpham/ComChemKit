@@ -327,6 +327,8 @@ int HighLevelCommand::execute_kj(const CommandContext& context)
         // Create enhanced high-level energy calculator (KJ format)
         HighLevelEnergyCalculator calculator(
             processing_context, temp, concentration_m, sort_column, false);
+        calculator.set_use_input_temp(use_input_temp);
+        calculator.set_use_input_concentration(use_input_concentration);
 
         // Use parallel processing for better performance
         std::vector<HighLevelEnergyData> results;
@@ -538,6 +540,8 @@ int HighLevelCommand::execute_au(const CommandContext& context)
         // Create enhanced high-level energy calculator (AU format)
         HighLevelEnergyCalculator calculator(
             processing_context, temp, concentration_m, sort_column, true);
+        calculator.set_use_input_temp(use_input_temp);
+        calculator.set_use_input_concentration(use_input_concentration);
 
         // Use parallel processing for better performance
         std::vector<HighLevelEnergyData> results;

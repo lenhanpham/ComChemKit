@@ -1627,8 +1627,8 @@ void processAndOutputResults(double                          temp,
         }
         else
         {
-            params << "Default temperature for files without specified temp: " << std::fixed << std::setprecision(3)
-                   << temp << " K\n";
+            params << "Temperature read per-file from output logs (representative default: " << std::fixed
+                   << std::setprecision(3) << temp << " K); use -t <T> to apply a single temperature to all files\n";
         }
 
         params << "The concentration for phase correction: " << C / 1000.0 << " M or " << C << " mol/m3\n";
