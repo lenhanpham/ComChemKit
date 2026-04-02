@@ -594,6 +594,30 @@ public:
     }
 
     /**
+     * @brief Set low-frequency vibrational treatment for the thermo module
+     * @param method Method name: "harmonic", "truhlar", "grimme", "minenkov", or "headgordon"
+     *
+     * Only used when the thermo path is active (i.e. -t or -c was specified).
+     * Default is "grimme" (Grimme 2012 quasi-RRHO).
+     */
+    void set_low_vib_method(const std::string& method)
+    {
+        low_vib_method_ = method;
+    }
+
+    /**
+     * @brief Set the crossover frequency for quasi-RRHO methods (cm-1)
+     * @param v Frequency threshold in cm⁻¹ (default 100)
+     *
+     * Passed as -ravib to the thermo module. Only active when the thermo path
+     * is used (i.e. -t or -c was specified).
+     */
+    void set_ravib(double v)
+    {
+        ravib_ = v;
+    }
+
+    /**
      * @brief Set concentration for phase corrections
      * @param conc_m Concentration in mol/L (molarity)
      *
@@ -662,8 +686,10 @@ private:
     double concentration_mol_m3_;  ///< Concentration in mol/m³ (for calculations)
     int    sort_column_;           ///< Column for sorting results (visual column numbers)
     bool   is_au_format_;          ///< Whether using AU format (affects column mapping)
-    bool   use_input_temp_ = false;           ///< True when the user explicitly specified -t/--temp
-    bool   use_input_concentration_ = false;  ///< True when the user explicitly specified -c/--conc
+    bool        use_input_temp_ = false;           ///< True when the user explicitly specified -t/--temp
+    bool        use_input_concentration_ = false;  ///< True when the user explicitly specified -c/--conc
+    std::string low_vib_method_ = "grimme";        ///< Low-frequency treatment passed to thermo module
+    double      ravib_           = 100.0;           ///< Crossover frequency for quasi-RRHO methods (cm-1)
 
     // Enhanced resource management
     std::shared_ptr<ProcessingContext> context_;      ///< Processing context with resource managers

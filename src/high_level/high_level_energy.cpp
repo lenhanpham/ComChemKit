@@ -982,7 +982,8 @@ bool HighLevelEnergyCalculator::extract_low_level_thermal_data_thermo(const std:
 
     bool ok = ThermoInterface::extract_basic_properties(
         parent_file, temperature_, pressure,
-        scf_au, corrG_au, corrH_au, zpe_au, lf_cm, nfreq, prog_name);
+        scf_au, corrG_au, corrH_au, zpe_au, lf_cm, nfreq, prog_name,
+        low_vib_method_, ravib_);
 
     if (!ok || nfreq == 0)
     {

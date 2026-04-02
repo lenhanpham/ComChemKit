@@ -725,13 +725,16 @@ namespace ThermoInterface
     }
 
     bool extract_basic_properties(const std::string& file, double T, double P, 
-                                  double& scf_au, double& corrG_au, double& corrH_au, double& zpe_au, double& lf_cm, int& nfreq, std::string& prog_name)
+                                  double& scf_au, double& corrG_au, double& corrH_au, double& zpe_au, double& lf_cm, int& nfreq, std::string& prog_name,
+                                  const std::string& low_vib_method, double ravib)
     {
         SystemData* sys = new SystemData();
         sys->inputfile = file;
         sys->T = T;
         sys->P = P;
         sys->prtlevel = 0; // Quiet parsing
+        sys->lowVibTreatment = util::parseLowVibTreatment(low_vib_method);
+        sys->ravib = ravib;
         
         util::QuantumChemistryProgram prog = util::deterprog(*sys);
         sys->isys = static_cast<int>(prog);
