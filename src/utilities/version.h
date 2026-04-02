@@ -67,7 +67,7 @@
  * Human-readable version string combining all version components.
  * Format: "vMAJOR.MINOR.PATCH"
  */
-#define COMCHEMKIT_STRING "v0.000.5"
+#define COMCHEMKIT_STRING "v0.000.6"
 
 /** @} */ // end of VersionConstants group
 
@@ -98,7 +98,7 @@
 /**
  * @brief Copyright notice
  */
-#define COMCHEMKIT_COPYRIGHT "Copyright (c) 2025 Le Nhan Pham"
+#define COMCHEMKIT_COPYRIGHT "Copyright (c) 2026 Le Nhan Pham"
 
 /**
  * @brief Primary author
