@@ -1,5 +1,6 @@
 #include "high_level/high_level_energy.h"
 #include "extraction/qc_extractor.h"
+#include "thermo/thermo.h"
 #include "utilities/metadata.h"
 #include <algorithm>
 #include <atomic>
@@ -309,11 +310,25 @@ HighLevelEnergyData HighLevelEnergyCalculator::calculate_high_level_energy(const
             data.final_scf_high = data.scf_high;
         }
 
-        // Extract low-level thermal data from parent directory
+        // Extract low-level thermal data from parent directory.
+        // When the user explicitly specified -t or -c, use the thermo module to recalculate
+        // thermal corrections (tc_gibbs, tc_enthalpy, zpe) at the user-specified temperature.
+        // Without those flags, read pre-calculated values directly from the Gaussian log.
         std::string parent_file = get_parent_file(high_level_file);
-        if (!extract_low_level_thermal_data(parent_file, data))
+        bool used_thermo_path = (use_input_temp_ || use_input_concentration_);
+        if (used_thermo_path)
         {
-            throw std::runtime_error("Failed to extract thermal data from " + parent_file);
+            if (!extract_low_level_thermal_data_thermo(parent_file, data))
+            {
+                throw std::runtime_error("Failed to extract thermal data from " + parent_file);
+            }
+        }
+        else
+        {
+            if (!extract_low_level_thermal_data(parent_file, data))
+            {
+                throw std::runtime_error("Failed to extract thermal data from " + parent_file);
+            }
         }
 
         // Calculate derived quantities
@@ -345,8 +360,12 @@ HighLevelEnergyData HighLevelEnergyCalculator::calculate_high_level_energy(const
         data.gibbs_ev     = data.gibbs_hartree_corrected * HARTREE_TO_EV;
 
         // Extract additional data
-        data.lowest_frequency = extract_lowest_frequency(parent_file);
-        data.status           = determine_job_status(high_level_file);
+        // lowest_frequency is already set when the thermo path was used (lf_cm from the module).
+        if (!used_thermo_path)
+        {
+            data.lowest_frequency = extract_lowest_frequency(parent_file);
+        }
+        data.status = determine_job_status(high_level_file);
 
         // Validate final data
         if (has_context_ && !HighLevelEnergyUtils::validate_energy_data(data))
@@ -915,19 +934,26 @@ bool HighLevelEnergyCalculator::extract_low_level_thermal_data(const std::string
             data.final_scf_low = data.scf_low;
         }
 
-        // Extract temperature from parent file
-        double temp = extract_value_from_file(parent_file, "Kelvin\\.\\s+Pressure", 2, -1, false);
-        if (temp > 0.0 && HighLevelEnergyUtils::validate_temperature(temp))
+        // Extract temperature: use user-supplied value if explicitly set, otherwise read from file
+        if (use_input_temp_)
         {
-            data.temperature = temp;
+            data.temperature = temperature_;
         }
         else
         {
-            data.temperature = temperature_;
-            if (has_context_ && context_->error_collector && temp > 0.0)
+            double temp = extract_value_from_file(parent_file, "Kelvin\\.\\s+Pressure", 2, -1, false);
+            if (temp > 0.0 && HighLevelEnergyUtils::validate_temperature(temp))
             {
-                context_->error_collector->add_warning("Invalid temperature (" + std::to_string(temp) + ") found in " +
-                                                       parent_file + ", using default");
+                data.temperature = temp;
+            }
+            else
+            {
+                data.temperature = temperature_;
+                if (has_context_ && context_->error_collector && temp > 0.0)
+                {
+                    context_->error_collector->add_warning("Invalid temperature (" + std::to_string(temp) + ") found in " +
+                                                           parent_file + ", using default");
+                }
             }
         }
 
@@ -942,6 +968,59 @@ bool HighLevelEnergyCalculator::extract_low_level_thermal_data(const std::string
         }
         return false;
     }
+}
+
+bool HighLevelEnergyCalculator::extract_low_level_thermal_data_thermo(const std::string&   parent_file,
+                                                                      HighLevelEnergyData& data)
+{
+    // Obtain effective pressure: use ProcessingContext when available, else default 1 atm.
+    double pressure = (has_context_) ? context_->base_pressure : 1.0;
+
+    double      scf_au = 0.0, corrG_au = 0.0, corrH_au = 0.0, zpe_au = 0.0, lf_cm = 0.0;
+    int         nfreq    = 0;
+    std::string prog_name;
+
+    bool ok = ThermoInterface::extract_basic_properties(
+        parent_file, temperature_, pressure,
+        scf_au, corrG_au, corrH_au, zpe_au, lf_cm, nfreq, prog_name);
+
+    if (!ok || nfreq == 0)
+    {
+        // No frequency data or unrecognised program — fall back to string-matching.
+        if (has_context_ && context_->error_collector)
+        {
+            context_->error_collector->add_warning(
+                "Thermo-module recalculation failed for " + parent_file +
+                "; falling back to values read from file");
+        }
+        return extract_low_level_thermal_data(parent_file, data);
+    }
+
+    // Map thermo-module outputs to HighLevelEnergyData fields.
+    // tc_gibbs, tc_enthalpy and zpe are now recalculated at temperature_.
+    data.scf_low       = scf_au;
+    data.zpe           = zpe_au;
+    data.tc_enthalpy   = corrH_au;
+    data.tc_gibbs      = corrG_au;
+    data.lowest_frequency = lf_cm;
+
+    // tc_energy = H_corr - RT  (H = U + RT for ideal gas, so U_corr = H_corr - RT)
+    // R in J/(mol·K), HARTREE_TO_KJ_MOL converts Hartree to kJ/mol
+    // Factor: R [J/(mol·K)] / (HARTREE_TO_KJ_MOL [kJ/mol/H] * 1000 [J/kJ]) = R/(H_to_J)
+    data.tc_energy = corrH_au - (R_CONSTANT / (HARTREE_TO_KJ_MOL * 1000.0)) * temperature_;
+
+    // Fields not handled by the thermo module — keep Gaussian string-matching for these.
+    data.scf_td_low    = extract_value_from_file(parent_file, "Total Energy, E\\(CIS", 5, -1, false);
+    data.entropy_total = extract_value_from_file(parent_file, "Total\\s+S",           2, -1, false);
+
+    // Determine final low-level electronic energy.
+    data.final_scf_low = (data.scf_td_low != 0.0) ? data.scf_td_low : data.scf_low;
+
+    // Temperature: user-supplied (use_input_temp_) or default; already set by extract_low_level_thermal_data
+    // when used as fallback above, so set it explicitly here for the happy path.
+    data.temperature = temperature_;
+
+    return true;
 }
 
 double HighLevelEnergyCalculator::calculate_phase_correction(double temp, double concentration_mol_m3)
@@ -1115,14 +1194,23 @@ void HighLevelEnergyCalculator::print_summary_info(const std::string& last_paren
 
     try
     {
-        double last_temp = extract_value_from_file(last_parent_file, "Kelvin\\.\\s+Pressure", 2, -1, false);
-        if (last_temp == 0.0)
+        double last_temp;
+        if (use_input_temp_)
+        {
             last_temp = temperature_;
+            out << "User-specified temperature: " << std::fixed << std::setprecision(3) << last_temp << " K" << std::endl;
+        }
+        else
+        {
+            last_temp = extract_value_from_file(last_parent_file, "Kelvin\\.\\s+Pressure", 2, -1, false);
+            if (last_temp == 0.0)
+                last_temp = temperature_;
+            out << "Temperature read from " << last_parent_file << ": " << std::fixed << std::setprecision(3) << last_temp
+                << " K. Make sure that temperature has been used in your input." << std::endl;
+        }
 
         double last_phase_corr = calculate_phase_correction(last_temp, concentration_mol_m3_);
 
-        out << "Temperature in " << last_parent_file << ": " << std::fixed << std::setprecision(3) << last_temp
-            << " K. Make sure that temperature has been used in your input." << std::endl;
         out << "The concentration for phase correction: " << concentration_m_
             << " M or " << concentration_mol_m3_ << " mol/m3" << std::endl;
         out << "Last Gibbs free correction for phase changing from 1 atm to " << concentration_m_ << " M: " << std::fixed << std::setprecision(6)

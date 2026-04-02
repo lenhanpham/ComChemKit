@@ -569,6 +569,31 @@ public:
     }
 
     /**
+     * @brief Set whether the user explicitly specified the temperature
+     * @param flag True if the user provided -t/--temp; false to read temperature from log files
+     *
+     * When true, the user-specified temperature (set via set_temperature) is used
+     * for all calculations and reported in the summary. When false, the temperature
+     * is read from each parent Gaussian log file (default behaviour).
+     */
+    void set_use_input_temp(bool flag)
+    {
+        use_input_temp_ = flag;
+    }
+
+    /**
+     * @brief Set whether the user explicitly specified the concentration
+     * @param flag True if the user provided -c/--conc; false to use default 1 M
+     *
+     * When true, the thermo module is invoked to recalculate thermal corrections
+     * at the given temperature (even if the temperature itself was not overridden).
+     */
+    void set_use_input_concentration(bool flag)
+    {
+        use_input_concentration_ = flag;
+    }
+
+    /**
      * @brief Set concentration for phase corrections
      * @param conc_m Concentration in mol/L (molarity)
      *
@@ -637,6 +662,8 @@ private:
     double concentration_mol_m3_;  ///< Concentration in mol/m³ (for calculations)
     int    sort_column_;           ///< Column for sorting results (visual column numbers)
     bool   is_au_format_;          ///< Whether using AU format (affects column mapping)
+    bool   use_input_temp_ = false;           ///< True when the user explicitly specified -t/--temp
+    bool   use_input_concentration_ = false;  ///< True when the user explicitly specified -c/--conc
 
     // Enhanced resource management
     std::shared_ptr<ProcessingContext> context_;      ///< Processing context with resource managers
@@ -679,6 +706,17 @@ private:
      * @return true if thermal data successfully extracted, false otherwise
      */
     bool extract_low_level_thermal_data(const std::string& parent_file, HighLevelEnergyData& data);
+
+    /**
+     * @brief Extract and recalculate thermal corrections via the thermo module
+     * @param parent_file Path to parent directory log file containing frequencies
+     * @param data Reference to HighLevelEnergyData to populate
+     * @return true if successful, false on failure (falls back to string-matching)
+     *
+     * Used when the user supplies -t or -c. Calls ThermoInterface::extract_basic_properties
+     * to recalculate tc_gibbs, tc_enthalpy, and zpe at the user-specified temperature.
+     */
+    bool extract_low_level_thermal_data_thermo(const std::string& parent_file, HighLevelEnergyData& data);
 
     /** @} */  // end of EnergyExtraction group
 
