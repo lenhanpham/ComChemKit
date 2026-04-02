@@ -55,6 +55,8 @@ private:
     bool        use_input_temp = false;
     bool        use_input_pressure = false;
     bool        use_input_concentration = false;
+    std::string low_vib_method = "grimme";  ///< Low-frequency treatment (harmonic/truhlar/grimme/minenkov/headgordon)
+    double      ravib = 100.0;              ///< Crossover frequency for quasi-RRHO methods (cm-1)
     size_t      memory_limit_mb = 0;
     bool        show_resource_info = false;
 };

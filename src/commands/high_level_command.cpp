@@ -200,6 +200,50 @@ void HighLevelCommand::parse_args(int argc, char* argv[], int& i, CommandContext
     {
         show_resource_info = true;
     }
+    else if (arg == "-lowvibmeth" && i + 1 < argc)
+    {
+        ++i;
+        std::string meth = argv[i];
+        // Normalise to lowercase for comparison
+        std::string meth_lc = meth;
+        for (auto& c : meth_lc) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        static const std::vector<std::string> valid_methods = {
+            "harmonic", "truhlar", "grimme", "minenkov", "headgordon"
+        };
+        bool found = false;
+        for (const auto& m : valid_methods)
+            if (meth_lc == m) { found = true; break; }
+        if (found)
+        {
+            low_vib_method = meth_lc;
+        }
+        else
+        {
+            context.warnings.push_back(
+                "Warning: Unknown -lowvibmeth value '" + meth + "'. Valid: harmonic, truhlar, grimme, minenkov, headgordon. Using grimme.");
+            low_vib_method = "grimme";
+        }
+    }
+    else if (arg == "-ravib" && i + 1 < argc)
+    {
+        ++i;
+        try
+        {
+            double v = std::stod(argv[i]);
+            if (v <= 0)
+            {
+                context.warnings.push_back("Warning: -ravib must be positive. Using default 100.0 cm-1.");
+            }
+            else
+            {
+                ravib = v;
+            }
+        }
+        catch (const std::exception&)
+        {
+            context.warnings.push_back("Warning: Invalid -ravib value. Using default 100.0 cm-1.");
+        }
+    }
     else if (!arg.empty() && arg.front() == '-')
     {
         context.warnings.push_back("Warning: Unknown argument '" + arg + "' ignored.");
@@ -329,6 +373,8 @@ int HighLevelCommand::execute_kj(const CommandContext& context)
             processing_context, temp, concentration_m, sort_column, false);
         calculator.set_use_input_temp(use_input_temp);
         calculator.set_use_input_concentration(use_input_concentration);
+        calculator.set_low_vib_method(low_vib_method);
+        calculator.set_ravib(ravib);
 
         // Use parallel processing for better performance
         std::vector<HighLevelEnergyData> results;
@@ -542,6 +588,8 @@ int HighLevelCommand::execute_au(const CommandContext& context)
             processing_context, temp, concentration_m, sort_column, true);
         calculator.set_use_input_temp(use_input_temp);
         calculator.set_use_input_concentration(use_input_concentration);
+        calculator.set_low_vib_method(low_vib_method);
+        calculator.set_ravib(ravib);
 
         // Use parallel processing for better performance
         std::vector<HighLevelEnergyData> results;

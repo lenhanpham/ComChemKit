@@ -113,6 +113,13 @@ namespace util
     void loadarguments(SystemData& sys, int argc, std::vector<std::string>& argv);
 
     /**
+     * @brief Parse a low-vibrational-frequency treatment name
+     * @param str Input string ("harmonic", "truhlar", "grimme", "minenkov", "headgordon", or integer 0-4)
+     * @return Corresponding LowVibTreatment enum value (defaults to Grimme on unknown input)
+     */
+    LowVibTreatment parseLowVibTreatment(const std::string& str);
+
+    /**
      * @brief Extract string value for a command-line option
      */
     void get_option_str(std::ifstream& file, const std::string& key, std::string& value);

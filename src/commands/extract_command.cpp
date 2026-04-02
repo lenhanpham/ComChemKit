@@ -199,6 +199,57 @@ void ExtractCommand::parse_args(int argc, char* argv[], int& i, CommandContext& 
     {
         show_resource_info = true;
     }
+    else if (arg == "-lowvibmeth")
+    {
+        if (++i < argc)
+        {
+            std::string method = argv[i];
+            static const std::vector<std::string> valid_methods = {
+                "harmonic", "truhlar", "grimme", "minenkov", "headgordon"
+            };
+            if (std::find(valid_methods.begin(), valid_methods.end(), method) != valid_methods.end())
+            {
+                low_vib_method = method;
+            }
+            else
+            {
+                context.warnings.push_back(
+                    "Warning: Unknown low-vib method '" + method +
+                    "'. Valid options: harmonic|truhlar|grimme|minenkov|headgordon. Using default 'grimme'.");
+                low_vib_method = "grimme";
+            }
+        }
+        else
+        {
+            context.warnings.push_back("Error: Method name required after -lowvibmeth.");
+        }
+    }
+    else if (arg == "-ravib")
+    {
+        if (++i < argc)
+        {
+            try
+            {
+                double rv = std::stod(argv[i]);
+                if (rv <= 0)
+                {
+                    context.warnings.push_back("Warning: Crossover frequency must be positive. Using default 100.0 cm-1.");
+                }
+                else
+                {
+                    ravib = rv;
+                }
+            }
+            catch (const std::exception& e)
+            {
+                context.warnings.push_back("Error: Invalid crossover frequency format. Using default 100.0 cm-1.");
+            }
+        }
+        else
+        {
+            context.warnings.push_back("Error: Frequency value required after -ravib.");
+        }
+    }
     else if (!arg.empty() && arg.front() == '-')
     {
         context.warnings.push_back("Warning: Unknown argument '" + arg + "' ignored.");
@@ -288,7 +339,9 @@ int ExtractCommand::execute(const CommandContext& context)
                                 memory_limit_mb,
                                 context.warnings,
                                 context.job_resources,
-                                context.batch_size);
+                                context.batch_size,
+                                low_vib_method,
+                                ravib);
 
         return 0;
     }

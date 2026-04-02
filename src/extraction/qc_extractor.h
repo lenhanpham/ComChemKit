@@ -547,6 +547,8 @@ struct ProcessingContext
     unsigned int                              requested_threads;  ///< Number of requested processing threads
     size_t                                    max_file_size_mb;   ///< Maximum individual file size in MB
     JobResources                              job_resources;      ///< Job scheduler resource information
+    std::string                               low_vib_method = "grimme"; ///< Low-frequency vibrational treatment method
+    double                                    ravib = 100.0;             ///< Crossover frequency for low-vib treatment (cm-1)
 
     /**
      * @brief Constructor with parameter validation and resource setup
@@ -693,7 +695,9 @@ void processAndOutputResults(double                          temp,
                              size_t                          memory_limit_mb,
                              const std::vector<std::string>& warnings,
                              const JobResources&             job_resources = JobResources{},
-                             size_t                          batch_size    = 0);
+                             size_t                          batch_size    = 0,
+                             const std::string&              low_vib_method = "grimme",
+                             double                          ravib          = 100.0);
 
 /** @} */  // end of CoreFunctions group
 
