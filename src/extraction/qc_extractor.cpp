@@ -919,7 +919,7 @@ Result extract(const std::string& file_name_param, const ProcessingContext& cont
         // Rule B: thermo module – all non-Gaussian programs, and Gaussian with any argument flag.
         int nfreq = 0;
         double corrG_au = 0.0, corrH_au = 0.0, zpe_au = 0.0, lf_cm = 0.0;
-        if (ThermoInterface::extract_basic_properties(file_name_param, temp, pressure, scf, corrG_au, corrH_au, zpe_au, lf_cm, nfreq, prog_name)) {
+        if (ThermoInterface::extract_basic_properties(file_name_param, temp, pressure, scf, corrG_au, corrH_au, zpe_au, lf_cm, nfreq, prog_name, context.low_vib_method, context.ravib)) {
             lf = lf_cm;
             if (nfreq > 0) {
                 zpe = zpe_au;
@@ -1348,7 +1348,9 @@ void processAndOutputResults(double                          temp,
                              size_t                          memory_limit_mb,
                              const std::vector<std::string>& warnings,
                              const JobResources&             job_resources,
-                             size_t                          batch_size)
+                             size_t                          batch_size,
+                             const std::string&              low_vib_method,
+                             double                          ravib)
 {
 
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -1497,6 +1499,8 @@ void processAndOutputResults(double                          temp,
         // Create processing context with job-aware memory limit
         ProcessingContext context(temp, pressure, C, use_input_temp, use_input_pressure, num_threads, extension, max_file_size_mb, job_resources);
         context.use_input_concentration = use_input_concentration;
+        context.low_vib_method = low_vib_method;
+        context.ravib = ravib;
 
         // Apply calculated memory limit
         context.memory_monitor->set_memory_limit(calculated_memory_limit);
@@ -1510,6 +1514,11 @@ void processAndOutputResults(double                          temp,
                           << formatMemorySize(final_job_resources.allocated_memory_mb * 1024 * 1024) << ")";
             }
             std::cout << std::endl;
+            if (use_input_temp || use_input_pressure || use_input_concentration)
+            {
+                std::cout << "Low-frequency vibrational treatment: " << low_vib_method << std::endl;
+                std::cout << "Quasi-RRHO crossover frequency (ravib): " << std::fixed << std::setprecision(1) << ravib << " cm-1" << std::endl;
+            }
         }
 
         // Thread-safe result collection
@@ -1635,6 +1644,11 @@ void processAndOutputResults(double                          temp,
         double representative_GphaseCorr = R * temp * std::log(C * R * temp / Po) * 0.0003808798033989866 / 1000;
         params << "Representative Gibbs free correction for phase changing at " << std::fixed << std::setprecision(3)
                << temp << " K: " << std::fixed << std::setprecision(6) << representative_GphaseCorr << " au\n";
+        if (use_input_temp || use_input_pressure || use_input_concentration)
+        {
+            params << "Low-frequency vibrational treatment: " << low_vib_method << "\n";
+            params << "Quasi-RRHO crossover frequency (ravib): " << std::fixed << std::setprecision(1) << ravib << " cm-1\n";
+        }
         params << "Using " << num_threads << " threads for processing.\n";
         params << "Successfully processed " << results.size() << "/" << log_files.size() << " files.\n";
 

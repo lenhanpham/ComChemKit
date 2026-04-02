@@ -1216,6 +1216,11 @@ void HighLevelEnergyCalculator::print_summary_info(const std::string& last_paren
             << " M or " << concentration_mol_m3_ << " mol/m3" << std::endl;
         out << "Last Gibbs free correction for phase changing from 1 atm to " << concentration_m_ << " M: " << std::fixed << std::setprecision(6)
             << last_phase_corr << " au" << std::endl;
+        if (use_input_temp_ || use_input_concentration_)
+        {
+            out << "Low-frequency vibrational treatment: " << low_vib_method_ << std::endl;
+            out << "Quasi-RRHO crossover frequency (ravib): " << std::fixed << std::setprecision(1) << ravib_ << " cm-1" << std::endl;
+        }
     }
     catch (const std::exception& e)
     {

@@ -43,6 +43,8 @@ private:
     bool        use_input_concentration = false;
     size_t      memory_limit_mb = 0;
     bool        show_resource_info = false;
+    std::string low_vib_method = "grimme";  ///< Low-frequency vibrational treatment method
+    double      ravib = 100.0;              ///< Crossover frequency for low-vib treatment (cm-1)
 };
 
 #endif // EXTRACT_COMMAND_H
