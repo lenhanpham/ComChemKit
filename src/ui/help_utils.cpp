@@ -68,6 +68,10 @@ namespace HelpUtils
                 std::cout
                     << "                        1=Name, 2=G kJ/mol, 3=G a.u, 4=G eV, 5=LowFQ, 6=Status, 7=PhCorr\n";
                 std::cout << "  --input-temp            Use temperature from input files\n";
+                std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
+                std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
+                std::cout << "                          Applied when -t, -p, or -c is specified\n";
+                std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n";
                 std::cout << "  --show-resources        Show system resource information\n";
                 std::cout << "  --memory-limit <MB>     Maximum memory usage in MB (default: auto)\n";
                 break;
@@ -114,7 +118,11 @@ namespace HelpUtils
                 std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
                 std::cout << "  -col, --column <N>      Sort column 1-7 (default: 2)\n";
                 std::cout
-                    << "                        1=Name, 2=G kJ/mol, 3=G a.u, 4=G eV, 5=LowFQ, 6=Status, 7=PhCorr\n\n";
+                    << "                        1=Name, 2=G kJ/mol, 3=G a.u, 4=G eV, 5=LowFQ, 6=Status, 7=PhCorr\n";
+                std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
+                std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
+                std::cout << "                          Applied when -t or -c is specified\n";
+                std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
                 break;
 
             case CommandType::HIGH_LEVEL_AU:
@@ -131,7 +139,11 @@ namespace HelpUtils
                 std::cout << "  -col, --column <N>      Sort column 1-10 (default: 2)\n";
                 std::cout
                     << "                          1=Name, 2=E high, 3=E low, 4=ZPE, 5=TC, 6=TS, 7=H, 8=G, 9=LowFQ, "
-                       "10=PhCorr\n\n";
+                       "10=PhCorr\n";
+                std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
+                std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
+                std::cout << "                          Applied when -t or -c is specified\n";
+                std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
                 break;
 
             case CommandType::EXTRACT_COORDS:
@@ -253,13 +265,26 @@ namespace HelpUtils
         std::cout << "  -v, --version         Show version information\n\n";
 
         std::cout << "Examples:\n";
-        if (command == CommandType::HIGH_LEVEL_KJ)
+        if (command == CommandType::EXTRACT)
+        {
+            std::cout << "  " << program_name << "                            # Basic usage (reads T from each log)\n";
+            std::cout << "  " << program_name << " -t 298.15                  # Force single temperature\n";
+            std::cout << "  " << program_name << " -t 253.15 -c 1             # Custom T and concentration\n";
+            std::cout << "  " << program_name << " -t 253.15 -c 1 -lowvibmeth harmonic\n";
+            std::cout << "  " << program_name << " -t 253.15 -lowvibmeth grimme -ravib 150\n";
+            std::cout << "  " << program_name << " -f csv -col 4              # CSV output, sort by G eV\n";
+        }
+        else if (command == CommandType::HIGH_LEVEL_KJ)
         {
             std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
             std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
             std::cout << "  " << program_name << " " << cmd_name << " -col 5       # Sort by frequency\n";
             std::cout << "  " << program_name << " " << cmd_name
                       << " -t 300 -col 2 -f csv  # Custom temp, sort by G kJ/mol, CSV\n";
+            std::cout << "  " << program_name << " " << cmd_name
+                      << " -t 253.15 -c 1 -lowvibmeth harmonic  # Harmonic treatment\n";
+            std::cout << "  " << program_name << " " << cmd_name
+                      << " -t 253.15 -lowvibmeth grimme -ravib 150  # Grimme with custom crossover\n";
         }
         else if (command == CommandType::HIGH_LEVEL_AU)
         {
@@ -268,6 +293,10 @@ namespace HelpUtils
             std::cout << "  " << program_name << " " << cmd_name << " -col 8       # Sort by Gibbs energy\n";
             std::cout << "  " << program_name << " " << cmd_name
                       << " -t 273 -col 4 -f csv  # Custom temp, sort by ZPE, CSV\n";
+            std::cout << "  " << program_name << " " << cmd_name
+                      << " -t 253.15 -c 1 -lowvibmeth harmonic  # Harmonic treatment\n";
+            std::cout << "  " << program_name << " " << cmd_name
+                      << " -t 253.15 -lowvibmeth grimme -ravib 150  # Grimme with custom crossover\n";
         }
         else if (command == CommandType::EXTRACT_COORDS)
         {

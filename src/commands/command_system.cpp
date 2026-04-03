@@ -73,14 +73,7 @@ CommandContext CommandParser::parse(int argc, char* argv[])
 
         if (arg == "-h" || arg == "--help")
         {
-            if (context.command == CommandType::EXTRACT)
-            {
-                HelpUtils::print_help();  // Use default parameter
-            }
-            else
-            {
-                HelpUtils::print_command_help(context.command, "cck", &context);
-            }
+            HelpUtils::print_command_help(context.command, "cck", &context);
             std::exit(0);
         }
 
