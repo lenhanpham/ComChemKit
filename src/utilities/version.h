@@ -85,7 +85,7 @@
 /**
  * @brief Brief description of the application's purpose
  */
-#define COMCHEMKIT_DESCRIPTION "High-performance Gaussian log file processor with job management"
+#define COMCHEMKIT_DESCRIPTION "Multi-function toolkit for computational chemistry: input creation, data extraction, thermodynamics calculation, and job management"
 
 /** @} */ // end of BuildInfo group
 
