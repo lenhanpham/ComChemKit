@@ -62,6 +62,14 @@ public:
     int getInt(const std::string& key, int default_value = 0) const;
 
     /**
+     * @brief Get a parameter value as double
+     * @param key Parameter name
+     * @param default_value Default value if parameter not found
+     * @return Parameter value or default
+     */
+    double getDouble(const std::string& key, double default_value = 0.0) const;
+
+    /**
      * @brief Get a parameter value as boolean
      * @param key Parameter name
      * @param default_value Default value if parameter not found

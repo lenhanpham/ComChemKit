@@ -327,6 +327,18 @@ public:
     void set_irc_stepsize(int stepsize);
 
     /**
+     * @brief Enable PCM fix mode for solvation discontinuity correction (SES surface)
+     * @param enable true to enable two-section SES+AllCheck input generation
+     */
+    void set_fix_pcm(bool enable);
+
+    /**
+     * @brief Set temperature for the frequency section of a PCM fix input
+     * @param temperature Temperature in Kelvin; pass -1.0 to leave unset
+     */
+    void set_temperature(double temperature);
+
+    /**
      * @brief Print summary of creation operation
      * @param summary Summary to print
      * @param operation Description of operation
@@ -370,6 +382,10 @@ private:
     int irc_maxcycle_;   ///< Override for IRC MaxCycle
     int irc_stepsize_;   ///< Override for IRC StepSize
     int opt_maxstep_;    ///< Override for OPT MaxStep (-1 = default: none for most types, 5 for TS_FREQ_FROM_CHK)
+
+    // PCM fix (SES surface) parameters
+    bool   fix_pcm_;      ///< Enable PCM fix (SES surface) two-section input mode
+    double temperature_;  ///< Temperature (K) for PCM fix section 2 route; -1.0 = unset
 
     /**
      * @brief Create input file from single XYZ file
@@ -420,6 +436,36 @@ private:
      * @return Route section string
      */
     std::string generate_route_for_single_section_calc_type(CalculationType type, const std::string& isomer_name);
+
+    /**
+     * @brief Validate requirements for PCM fix mode
+     * @throws std::runtime_error if fix_pcm_ is enabled but prerequisites are not met
+     */
+    void validate_pcm_fix_requirements() const;
+
+    /**
+     * @brief Generate route for PCM fix section 1 (SES geometry, scrf with read)
+     * @param type The calculation type
+     * @param isomer_name Name of the isomer
+     * @return Route string (no checkpoint prefix)
+     */
+    std::string generate_pcm_fix_s1_route(CalculationType type, const std::string& isomer_name);
+
+    /**
+     * @brief Generate route for PCM fix section 2 (full calc, Geom(Allcheck) Guess(Read))
+     * @param type The calculation type
+     * @param isomer_name Name of the isomer (unused but kept for symmetry)
+     * @return Route string (no checkpoint prefix)
+     */
+    std::string generate_pcm_fix_s2_route(CalculationType type, const std::string& isomer_name);
+
+    /**
+     * @brief Generate complete two-section Link1 content for PCM fix input
+     * @param isomer_name Isomer stem name
+     * @param coordinates Coordinate block string
+     * @return Complete Gaussian input file content
+     */
+    std::string generate_pcm_fix_content(const std::string& isomer_name, const std::string& coordinates);
 
     /**
      * @brief Read coordinates from XYZ file

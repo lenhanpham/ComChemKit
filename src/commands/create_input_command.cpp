@@ -218,6 +218,28 @@ void CreateInputCommand::parse_args(int argc, char* argv[], int& i, CommandConte
             context.warnings.push_back("Error: tddft-extra requires a value");
         }
     }
+    else if (arg == "--fix-pcm")
+    {
+        ci_fix_pcm = true;
+    }
+    else if (arg == "--temperature")
+    {
+        if (++i < argc)
+        {
+            try
+            {
+                ci_temperature = std::stod(argv[i]);
+            }
+            catch (const std::exception&)
+            {
+                context.warnings.push_back("Error: --temperature requires a numeric value (e.g. 253.15)");
+            }
+        }
+        else
+        {
+            context.warnings.push_back("Error: --temperature requires a value");
+        }
+    }
     else if (arg == "--charge")
     {
         if (++i < argc)
@@ -663,6 +685,12 @@ void CreateInputCommand::parse_args(int argc, char* argv[], int& i, CommandConte
             ci_tddft_nstates = parser.getInt("tddft_nstates", ci_tddft_nstates);
             ci_tddft_extra   = parser.getString("tddft_extra", ci_tddft_extra);
 
+            // Load PCM fix parameters
+            ci_fix_pcm    = parser.getBool("fix_pcm", ci_fix_pcm);
+            double loaded_temp = parser.getDouble("temperature", -1.0);
+            if (loaded_temp > 0.0)
+                ci_temperature = loaded_temp;
+
             std::cout << "Parameters loaded from: " << param_file << std::endl;
             if (!detected_calc_type.empty())
             {
@@ -864,6 +892,10 @@ int CreateInputCommand::execute(const CommandContext& context)
         creator.set_irc_stepsize(ci_irc_stepsize);
         creator.set_tddft_params(ci_tddft_method, ci_tddft_states, ci_tddft_nstates,
                                   ci_tddft_extra);
+        if (ci_fix_pcm)
+            creator.set_fix_pcm(true);
+        if (ci_temperature > 0.0)
+            creator.set_temperature(ci_temperature);
 
         // Execute the creation (with batch processing if enabled)
         CreateSummary total_summary;

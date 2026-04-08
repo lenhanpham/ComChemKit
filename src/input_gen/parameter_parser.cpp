@@ -118,6 +118,23 @@ int ParameterParser::getInt(const std::string& key, int default_value) const
     return default_value;
 }
 
+double ParameterParser::getDouble(const std::string& key, double default_value) const
+{
+    auto it = parameters_.find(key);
+    if (it != parameters_.end())
+    {
+        try
+        {
+            return std::stod(it->second);
+        }
+        catch (const std::exception&)
+        {
+            return default_value;
+        }
+    }
+    return default_value;
+}
+
 bool ParameterParser::getBool(const std::string& key, bool default_value) const
 {
     auto it = parameters_.find(key);
@@ -499,6 +516,14 @@ std::string ParameterParser::createTemplateContent(const std::string& calc_type)
     }
     content << "\n";
 
+    // PCM fix parameters (not applicable for tddft/irc)
+    if (calc_type != "tddft" && calc_type.find("irc") == std::string::npos)
+    {
+        content << "# PCM fix: two-section SES surface input for solvation discontinuity correction\n";
+        content << "# fix_pcm = false\n";
+        content << "# temperature = 298.15   # Temperature (K) for section 2 route (e.g. 253.15)\n\n";
+    }
+
     // Multi-line tail example (only for calc types that support GEN/GENECP)
     if (calc_type == "sp" || calc_type == "opt_freq" || calc_type == "ts_freq" || calc_type == "oss_ts_freq" ||
         calc_type == "oss_check_sp" || calc_type == "modre_ts_freq" || calc_type == "modre_opt" ||
@@ -563,8 +588,8 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "# SOLVENT PARAMETERS (optional)\n";
     content << "# ==========================================\n";
     content << "# solvent = water\n";
-    content << "# solvent_model = smd\\n";
-    content << "# solvent_extra = read   # Optional: extra SCRF keyword appended after solvent= (e.g. read)\\n\\n";
+    content << "# solvent_model = smd\n";
+    content << "# solvent_extra = read   # Optional: extra SCRF keyword appended after solvent= (e.g. read)\n\n";
 
     // TD-DFT parameters
     content << "# ==========================================\n";
@@ -623,6 +648,14 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "# irc_recalc = 10\n";
     content << "# irc_maxcycle = 350\n";
     content << "# irc_stepsize = 10\n\n";
+
+    // PCM fix parameters
+    content << "# ==========================================\n";
+    content << "# PCM FIX (SES surface, solvation discontinuity correction)\n";
+    content << "# Not applicable for tddft and irc calculation types\n";
+    content << "# ==========================================\n";
+    content << "# fix_pcm = false\n";
+    content << "# temperature = 298.15   # Temperature (K) added to section 2 (freq) route (e.g. 253.15)\n\n";
 
     // Multi-line tail example
     content << "# ==========================================\n";
