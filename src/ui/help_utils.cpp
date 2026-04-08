@@ -213,7 +213,10 @@ namespace HelpUtils
                 std::cout << "  --tddft-method <m>       TD-DFT method: td or tda (default: tda)\n";
                 std::cout << "  --tddft-states <s>       States: singlets|triplets|50-50|empty (default: both)\n";
                 std::cout << "  --tddft-nstates <n>      Number of excited states (default: 15)\n";
-                std::cout << "  --tddft-extra <kw>       Extra keywords inside td/tda() e.g. Root=5,Read,IVOGuess\n\n";
+                std::cout << "  --tddft-extra <kw>       Extra keywords inside td/tda() e.g. Root=5,Read,IVOGuess\n";
+                std::cout << "  --fix-pcm                Enable two-section SES surface input to fix PCM\n";
+                std::cout << "                           discontinuity errors (requires --solvent; not for irc/tddft)\n";
+                std::cout << "  --temperature <K>        Temperature (e.g. 253.15)\n\n";
 
                 std::cout << "Generation of Gaussian keywords (template parameter file):\n";
                 std::cout << "  --genci-params [type] [dir]  Generate parameter template for input creation\n";

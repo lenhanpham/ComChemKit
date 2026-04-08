@@ -59,6 +59,8 @@ private:
     std::string ci_tddft_states = "";
     int         ci_tddft_nstates = 15;
     std::string ci_tddft_extra = "";
+    bool        ci_fix_pcm = false;
+    double      ci_temperature = -1.0;
 };
 
 #endif // CREATE_INPUT_COMMAND_H

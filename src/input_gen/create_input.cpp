@@ -30,7 +30,7 @@ CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, bool quiet)
       mult_(1), tail_(""), modre_(""), extra_keyword_section_(""), extension_(".gau"), tschk_path_(""),
       tddft_method_("tda"), tddft_states_(""), tddft_nstates_(15), tddft_extra_(""),
       freeze_atoms_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
-      irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1)
+      irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1), fix_pcm_(false), temperature_(-1.0)
 {}
 
 std::string CreateInput::select_basis_for_calculation() const
@@ -191,6 +191,197 @@ void CreateInput::validate_solvent_tail_requirements() const
     }
 }
 
+void CreateInput::validate_pcm_fix_requirements() const
+{
+    if (!fix_pcm_)
+        return;
+
+    if (solvent_.empty())
+    {
+        throw std::runtime_error(
+            "Error: --fix-pcm requires a solvent to be set.\n"
+            "Please specify a solvent with --solvent <name> or solvent = <name> in the parameter file.");
+    }
+
+    if (calc_type_ == CalculationType::IRC_FORWARD || calc_type_ == CalculationType::IRC_REVERSE ||
+        calc_type_ == CalculationType::IRC || calc_type_ == CalculationType::TDDFT)
+    {
+        throw std::runtime_error(
+            "Error: --fix-pcm is not supported for IRC or TDDFT calculation types.\n"
+            "The SES surface fix is only applicable to ground-state geometry/energy calculations.");
+    }
+
+    if (calc_type_ == CalculationType::HIGH_SP || calc_type_ == CalculationType::OSS_TS_FREQ ||
+        calc_type_ == CalculationType::MODRE_TS_FREQ)
+    {
+        throw std::runtime_error(
+            "Error: --fix-pcm is not yet implemented for HIGH_SP, OSS_TS_FREQ, or MODRE_TS_FREQ.\n"
+            "Supported types: sp, opt_freq, ts_freq, oss_check_sp, modre_opt.");
+    }
+}
+
+std::string CreateInput::generate_pcm_fix_s1_route(CalculationType type, const std::string& /*isomer_name*/)
+{
+    std::ostringstream route;
+
+    std::string pound = print_level_.empty() ? "#"
+                        : (print_level_ == "N" || print_level_ == "P" || print_level_ == "T")
+                            ? "#" + print_level_
+                            : "#" + print_level_ + " ";
+
+    int scf_mc = (scf_maxcycle_ != -1) ? scf_maxcycle_ : 300;
+    int opt_mc = (opt_maxcycles_ != -1) ? opt_maxcycles_ : 300;
+
+    route << pound;
+
+    switch (type)
+    {
+        case CalculationType::SP:
+            route << " scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            break;
+        case CalculationType::OPT_FREQ:
+            route << " opt(maxcycles=" << opt_mc;
+            if (opt_maxstep_ > 0)
+                route << ",MaxStep=" << opt_maxstep_;
+            route << ") scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            break;
+        case CalculationType::TS_FREQ: {
+            std::string basis_to_use = select_basis_for_calculation();
+            route << " opt(maxcycles=" << opt_mc << ",ts,noeigen,calcfc";
+            if (opt_maxstep_ > 0)
+                route << ",MaxStep=" << opt_maxstep_;
+            route << ") scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_to_use;
+            break;
+        }
+        case CalculationType::OSS_CHECK_SP:
+            route << " Stable=Opt scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            break;
+        case CalculationType::MODRE_OPT:
+            route << " opt(maxcycles=" << opt_mc << ",modredundant";
+            if (opt_maxstep_ > 0)
+                route << ",MaxStep=" << opt_maxstep_;
+            route << ") scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            break;
+        default:
+            break;
+    }
+
+    // Section 1 always uses scrf with ",read" — ignores solvent_extra_ intentionally
+    route << " scrf(" << solvent_model_ << ",solvent=" << solvent_ << ",read)";
+
+    if (!extra_keywords_.empty())
+        route << " " << extra_keywords_;
+
+    return route.str();
+}
+
+std::string CreateInput::generate_pcm_fix_s2_route(CalculationType type, const std::string& /*isomer_name*/)
+{
+    std::ostringstream route;
+
+    std::string pound = print_level_.empty() ? "#"
+                        : (print_level_ == "N" || print_level_ == "P" || print_level_ == "T")
+                            ? "#" + print_level_
+                            : "#" + print_level_ + " ";
+
+    int scf_mc = (scf_maxcycle_ != -1) ? scf_maxcycle_ : 300;
+    int opt_mc = (opt_maxcycles_ != -1) ? opt_maxcycles_ : 300;
+
+    route << pound;
+
+    switch (type)
+    {
+        case CalculationType::SP:
+            route << " scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            break;
+        case CalculationType::OPT_FREQ:
+            route << " opt(maxcycles=" << opt_mc;
+            if (opt_maxstep_ > 0)
+                route << ",MaxStep=" << opt_maxstep_;
+            route << ") freq scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            break;
+        case CalculationType::TS_FREQ: {
+            std::string basis_to_use = select_basis_for_calculation();
+            route << " opt(maxcycles=" << opt_mc << ",ts,noeigen,calcfc";
+            if (opt_maxstep_ > 0)
+                route << ",MaxStep=" << opt_maxstep_;
+            route << ") freq scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_to_use;
+            break;
+        }
+        case CalculationType::OSS_CHECK_SP:
+            route << " Stable=Opt scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            break;
+        case CalculationType::MODRE_OPT:
+            route << " opt(maxcycles=" << opt_mc << ",modredundant";
+            if (opt_maxstep_ > 0)
+                route << ",MaxStep=" << opt_maxstep_;
+            route << ") scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            break;
+        default:
+            break;
+    }
+
+    // Section 2 uses normal scrf (no ",read") — respects solvent_extra_ if set
+    route << " scrf(" << solvent_model_ << ",solvent=" << solvent_;
+    if (!solvent_extra_.empty())
+        route << "," << solvent_extra_;
+    route << ")";
+
+    if (!extra_keywords_.empty())
+        route << " " << extra_keywords_;
+
+    route << " Guess(Read) Geom(Allcheck)";
+
+    if (temperature_ > 0.0)
+        route << " Temperature=" << temperature_;
+
+    return route.str();
+}
+
+std::string CreateInput::generate_pcm_fix_content(const std::string& isomer_name, const std::string& coordinates)
+{
+    std::ostringstream content;
+
+    // ── Section 1: SES geometry step ──────────────────────────────────────
+    content << "%chk=" << isomer_name << "-ses.chk\n";
+    content << generate_pcm_fix_s1_route(calc_type_, isomer_name) << "\n";
+    content << "\n";
+    content << generate_title(calc_type_) << "\n";
+    content << "\n";
+    content << charge_ << " " << mult_ << "\n";
+    content << coordinates;  // already ends with \n
+    content << "\n";
+
+    // For MODRE_OPT, write constraints before the surface keyword
+    if (calc_type_ == CalculationType::MODRE_OPT)
+    {
+        if (!modre_.empty())
+        {
+            content << modre_;
+        }
+        else if (freeze_atoms_.first != 0 && freeze_atoms_.second != 0)
+        {
+            content << "B " << freeze_atoms_.first << " " << freeze_atoms_.second << " F\n";
+        }
+        content << "\n";
+    }
+
+    content << "surface=ses AddSph\n";
+    content << "\n";
+
+    // ── Separator ─────────────────────────────────────────────────────────
+    content << "--Link1--\n";
+
+    // ── Section 2: full calculation using SES checkpoint ─────────────────
+    content << "%Oldchk=" << isomer_name << "-ses.chk\n";
+    content << "%Chk=" << isomer_name << ".chk\n";
+    content << generate_pcm_fix_s2_route(calc_type_, isomer_name) << "\n";
+    content << "\n";
+    content << "\n";
+
+    return content.str();
+}
+
 
 CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, const std::string& param_file, bool quiet)
     : context(ctx), quiet_mode(quiet), calc_type_(CalculationType::SP), functional_("UwB97XD"), basis_("Def2SVPP"),
@@ -198,7 +389,7 @@ CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, const std::stri
       mult_(1), tail_(""), modre_(""), extra_keyword_section_(""), extension_(".gau"), tschk_path_(""),
       tddft_method_("tda"), tddft_states_(""), tddft_nstates_(15), tddft_extra_(""),
       freeze_atoms_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
-      irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1)
+      irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1), fix_pcm_(false), temperature_(-1.0)
 {
     if (!loadParameters(param_file))
     {
@@ -321,6 +512,12 @@ bool CreateInput::loadParameters(const std::string& param_file)
     irc_maxcycle_  = parser.getInt("irc_maxcycle", -1);
     irc_stepsize_  = parser.getInt("irc_stepsize", -1);
     opt_maxstep_   = parser.getInt("opt_maxstep", -1);
+
+    // PCM fix parameters
+    fix_pcm_ = parser.getBool("fix_pcm", false);
+    double temp = parser.getDouble("temperature", -1.0);
+    if (temp > 0.0)
+        temperature_ = temp;
 
     return true;
 }
@@ -772,6 +969,12 @@ std::string CreateInput::generate_input_content(const std::string& isomer_name, 
     validate_gen_basis_requirements();
     validate_modre_requirements();
     validate_solvent_tail_requirements();
+    validate_pcm_fix_requirements();
+
+    if (fix_pcm_)
+    {
+        return generate_pcm_fix_content(isomer_name, coordinates);
+    }
 
     std::ostringstream content;
 
@@ -1162,6 +1365,16 @@ void CreateInput::set_irc_maxcycle(int maxcycle)
 void CreateInput::set_irc_stepsize(int stepsize)
 {
     irc_stepsize_ = stepsize;
+}
+
+void CreateInput::set_fix_pcm(bool enable)
+{
+    fix_pcm_ = enable;
+}
+
+void CreateInput::set_temperature(double temperature)
+{
+    temperature_ = temperature;
 }
 
 /**

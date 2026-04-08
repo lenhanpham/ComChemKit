@@ -414,6 +414,13 @@ Phase correction converts gas-phase energies to solution-phase:
    # Solvent calculation
    cck ci --calc-type opt_freq --solvent water --solvent-model smd
 
+   # Fix PCM solvation discontinuity (SES -> normal surface, two-section Link1)
+   # Supported calc types: sp, opt_freq, ts_freq, oss_check_sp, modre_opt
+   cck ci --calc-type opt_freq --solvent water --solvent-model smd --fix-pcm
+
+   # PCM fix with explicit temperature for thermochemical corrections
+   cck ci --calc-type opt_freq --solvent water --solvent-model smd --fix-pcm --temperature 373.15
+
    # IRC from transition state
    cck ci --calc-type irc --tschk-path ../ts_checkpoints
 
@@ -1103,6 +1110,10 @@ Command Reference
 | ``--genci-params``  | Generate parameter template      |
 +---------------------+----------------------------------+
 | ``--param-file``    | Use parameter file               |
++---------------------+----------------------------------+
+| ``--fix-pcm``       | Fix PCM solvation discontinuity  |
++---------------------+----------------------------------+
+| ``--temperature``   | Temperature (K) for section 2    |
 +---------------------+----------------------------------+
 
 

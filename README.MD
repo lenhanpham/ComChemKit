@@ -188,20 +188,20 @@ cck -e out                  # Process .out files instead of .log
 
 #### Command-Line Options
 
-| Option            | Description        | Values            | Default           |
-| ----------------- | ------------------ | ----------------- | ----------------- |
-| `-t, --temp`      | Temperature (K)    | Positive number   | 298.15            |
-| `-c, -C, --cm, --conc` | Concentration (M) | Positive value | 1 (Enables PCorr) |
-| `-col, --column`  | Sort column        | 2-10              | 2 (ETG kJ/mol)  |
-| `-e, --ext`       | File extension     | log, out          | log             |
-| `-f, --format`    | Output format      | text, csv         | text            |
-| `-nt, --threads`  | Thread count       | number, half, max | half            |
-| `-q, --quiet`     | Quiet mode         | -                 | false           |
-| `--max-file-size` | Max file size (MB) | Positive integer  | 100             |
-| `--memory-limit`  | Memory limit (MB)  | Positive integer  | Auto-calculated |
-| `--batch-size`    | Batch size         | Positive integer  | false           |
-| `--resource-info` | Show resources     | -                 | false           |
-| `-h, --help`      | Show help          | -                 | false           |
+| Option                 | Description        | Values            | Default           |
+| ---------------------- | ------------------ | ----------------- | ----------------- |
+| `-t, --temp`           | Temperature (K)    | Positive number   | 298.15            |
+| `-c, -C, --cm, --conc` | Concentration (M)  | Positive value    | 1 (Enables PCorr) |
+| `-col, --column`       | Sort column        | 2-10              | 2 (ETG kJ/mol)    |
+| `-e, --ext`            | File extension     | log, out          | log               |
+| `-f, --format`         | Output format      | text, csv         | text              |
+| `-nt, --threads`       | Thread count       | number, half, max | half              |
+| `-q, --quiet`          | Quiet mode         | -                 | false             |
+| `--max-file-size`      | Max file size (MB) | Positive integer  | 100               |
+| `--memory-limit`       | Memory limit (MB)  | Positive integer  | Auto-calculated   |
+| `--batch-size`         | Batch size         | Positive integer  | false             |
+| `--resource-info`      | Show resources     | -                 | false             |
+| `-h, --help`           | Show help          | -                 | false             |
 
 #### Sorting Options
 
@@ -363,31 +363,31 @@ cck thermo molecule.log -T 273 373 50 -P 0.5 2.0 0.5
 
 #### Command-Line Options
 
-| Option                        | Description                       | Values                                      | Default   |
-| ----------------------------- | --------------------------------- | ------------------------------------------- | --------- |
-| `-T <T>` or `-T <T1 T2 step>` | Temperature (K)                   | number or range                             | 298.15    |
-| `-P <P>` or `-P <P1 P2 step>` | Pressure (atm)                    | number or range                             | 1.0       |
-| `-sclZPE <factor>`            | ZPE frequency scaling             | decimal                                     | 1.0       |
-| `-sclheat <factor>`           | Thermal energy scaling            | decimal                                     | 1.0       |
-| `-sclS <factor>`              | Entropy scaling                   | decimal                                     | 1.0       |
-| `-sclCV <factor>`             | Heat capacity scaling             | decimal                                     | 1.0       |
-| `-lowvibmeth <mode>`          | Low-frequency treatment           | 0/Harmonic, 1/Truhlar, 2/Grimme, 3/Minenkov, 4/HeadGordon | 2 |
-| `-ravib <value>`              | Truhlar raising threshold (cm⁻¹)  | decimal                                     | 100.0     |
-| `-intpvib <value>`            | Interpolation threshold (cm⁻¹)    | decimal                                     | 100.0     |
-| `-hgEntropy <0|1>`            | Head-Gordon entropy interpolation | 0=no, 1=yes                                 | 1         |
-| `-bav <preset>`               | Head-Gordon Bav preset            | grimme, qchem, auto                         | auto      |
-| `-ipmode <mode>`              | Phase mode                        | 0=gas, 1=condensed                          | 0         |
-| `-imagreal <value>`           | Imaginary freq threshold (cm⁻¹)   | decimal                                     | 0.0       |
-| `-massmod <type>`             | Mass assignment                   | 1=average, 2=isotope, 3=file                | 3         |
-| `-PGname <name>`              | Point group                       | string or "?"                               | "?"       |
-| `-conc <string>`              | Concentration (mol/L)             | decimal                                     | 0         |
-| `-prtlevel <0-3>`             | Output verbosity level            | 0=minimal, 1=default, 2=verbose, 3=full     | 1         |
-| `-prtvib <mode>`              | Vibrational contributions         | 0=no, 1=screen, -1=file                     | 0         |
-| `-outotm <mode>`              | Output .otm file                  | 0=no, 1=yes                                 | 0         |
-| `-omp-threads <threads>`      | OpenMP parallelization threads    | positive integer, 0=auto                    | 0         |
-| `-nt <threads>`               | Legacy file-processing thread count | number, half, max                         | half      |
-| `-memory-limit <MB>`          | Memory limit                      | positive integer                            | auto      |
-| `-E <value>`                  | Electronic energy override (a.u.) | decimal                                     | from file |
+| Option                        | Description                         | Values                                                    | Default     |
+| ----------------------------- | ----------------------------------- | --------------------------------------------------------- | ----------- |
+| `-T <T>` or `-T <T1 T2 step>` | Temperature (K)                     | number or range                                           | 298.15      |
+| `-P <P>` or `-P <P1 P2 step>` | Pressure (atm)                      | number or range                                           | 1.0         |
+| `-sclZPE <factor>`            | ZPE frequency scaling               | decimal                                                   | 1.0         |
+| `-sclheat <factor>`           | Thermal energy scaling              | decimal                                                   | 1.0         |
+| `-sclS <factor>`              | Entropy scaling                     | decimal                                                   | 1.0         |
+| `-sclCV <factor>`             | Heat capacity scaling               | decimal                                                   | 1.0         |
+| `-lowvibmeth <mode>`          | Low-frequency treatment             | 0/Harmonic, 1/Truhlar, 2/Grimme, 3/Minenkov, 4/HeadGordon | 2           |
+| `-ravib <value>`              | Truhlar raising threshold (cm⁻¹)    | decimal                                                   | 100.0       |
+| `-intpvib <value>`            | Interpolation threshold (cm⁻¹)      | decimal                                                   | 100.0       |
+| `-hgEntropy <0                | 1>`                                 | Head-Gordon entropy interpolation                         | 0=no, 1=yes |
+| `-bav <preset>`               | Head-Gordon Bav preset              | grimme, qchem, auto                                       | auto        |
+| `-ipmode <mode>`              | Phase mode                          | 0=gas, 1=condensed                                        | 0           |
+| `-imagreal <value>`           | Imaginary freq threshold (cm⁻¹)     | decimal                                                   | 0.0         |
+| `-massmod <type>`             | Mass assignment                     | 1=average, 2=isotope, 3=file                              | 3           |
+| `-PGname <name>`              | Point group                         | string or "?"                                             | "?"         |
+| `-conc <string>`              | Concentration (mol/L)               | decimal                                                   | 0           |
+| `-prtlevel <0-3>`             | Output verbosity level              | 0=minimal, 1=default, 2=verbose, 3=full                   | 1           |
+| `-prtvib <mode>`              | Vibrational contributions           | 0=no, 1=screen, -1=file                                   | 0           |
+| `-outotm <mode>`              | Output .otm file                    | 0=no, 1=yes                                               | 0           |
+| `-omp-threads <threads>`      | OpenMP parallelization threads      | positive integer, 0=auto                                  | 0           |
+| `-nt <threads>`               | Legacy file-processing thread count | number, half, max                                         | half        |
+| `-memory-limit <MB>`          | Memory limit                        | positive integer                                          | auto        |
+| `-E <value>`                  | Electronic energy override (a.u.)   | decimal                                                   | from file   |
 
 #### Calculation Methods
 
@@ -489,29 +489,31 @@ cck ci --calc-type ts_freq
 
 #### Command-Line Options
 
-| Option               | Description                   | Values                      | Default   |
-| -------------------- | ----------------------------- | --------------------------- | --------- |
-| `--calc-type`        | Calculation type              | sp, opt_freq, ts_freq, etc. | sp        |
-| `--functional`       | DFT functional                | UWB97XD, B3LYP, etc.        | UWB97XD   |
-| `--basis`            | Basis set                     | def2-SVPP, 6-31G*, etc.     | def2-SVPP |
-| `--large-basis`      | Large basis for TS/high-level | def2-TZVPP, etc.            | -         |
-| `--solvent`          | Solvent name                  | water, ethanol, etc.        | gas phase |
-| `--solvent-model`    | Solvent model                 | smd, cpcm, iefpcm           | smd       |
-| `--charge`           | Molecular charge              | integer                     | 0         |
-| `--mult`             | Multiplicity                  | integer                     | 1         |
-| `--freeze-atoms`     | Freeze bond for TS            | atom1 atom2                 | -         |
-| `--print-level`      | Route modifier                | N, P, T                     | -         |
-| `--extra-keywords`   | Additional keywords           | any Gaussian keywords       | -         |
-| `--extension`        | Output extension              | .gau, .com, etc.            | .gau      |
-| `--tschk-path`       | TS checkpoint path            | directory path              | -         |
-| `--solvent-extra`    | Extra SCRF keyword            | e.g. read                   | -         |
-| `--tddft-method`     | TD-DFT method                 | td, tda                     | tda       |
-| `--tddft-states`     | States to calculate           | singlets, triplets, 50-50   | both      |
-| `--tddft-nstates`    | Number of excited states      | integer                     | 15        |
-| `--tddft-extra`      | Extra keywords in td/tda()    | e.g. Root=5,Read,IVOGuess   | -         |
-| `--genci-params`     | Generate parameter template   | calculation type            | -         |
-| `--genci-all-params` | Generate all templates        | directory path              | -         |
-| `--param-file`       | Load parameters from file     | file path                   | -         |
+| Option               | Description                                                   | Values                      | Default   |
+| -------------------- | ------------------------------------------------------------- | --------------------------- | --------- |
+| `--calc-type`        | Calculation type                                              | sp, opt_freq, ts_freq, etc. | sp        |
+| `--functional`       | DFT functional                                                | UWB97XD, B3LYP, etc.        | UWB97XD   |
+| `--basis`            | Basis set                                                     | def2-SVPP, 6-31G*, etc.     | def2-SVPP |
+| `--large-basis`      | Large basis for TS/high-level                                 | def2-TZVPP, etc.            | -         |
+| `--solvent`          | Solvent name                                                  | water, ethanol, etc.        | gas phase |
+| `--solvent-model`    | Solvent model                                                 | smd, cpcm, iefpcm           | smd       |
+| `--charge`           | Molecular charge                                              | integer                     | 0         |
+| `--mult`             | Multiplicity                                                  | integer                     | 1         |
+| `--freeze-atoms`     | Freeze bond for TS                                            | atom1 atom2                 | -         |
+| `--print-level`      | Route modifier                                                | N, P, T                     | -         |
+| `--extra-keywords`   | Additional keywords                                           | any Gaussian keywords       | -         |
+| `--extension`        | Output extension                                              | .gau, .com, etc.            | .gau      |
+| `--tschk-path`       | TS checkpoint path                                            | directory path              | -         |
+| `--solvent-extra`    | Extra SCRF keyword                                            | e.g. read                   | -         |
+| `--tddft-method`     | TD-DFT method                                                 | td, tda                     | tda       |
+| `--tddft-states`     | States to calculate                                           | singlets, triplets, 50-50   | both      |
+| `--tddft-nstates`    | Number of excited states                                      | integer                     | 15        |
+| `--tddft-extra`      | Extra keywords in td/tda()                                    | e.g. Root=5,Read,IVOGuess   | -         |
+| `--fix-pcm`          | Fix PCM solvation discontinuity (SES→normal, 2-section Link1) | (flag)                      | false     |
+| `--temperature`      | Temperature (K)                                               | e.g. 298.15                 | 298.15    |
+| `--genci-params`     | Generate parameter template                                   | calculation type            | -         |
+| `--genci-all-params` | Generate all templates                                        | directory path              | -         |
+| `--param-file`       | Load parameters from file                                     | file path                   | -         |
 
 #### Advanced Examples
 
@@ -531,6 +533,15 @@ cck ci --calc-type high_sp --functional B3LYP --basis 6-311+G** --large-basis de
 
 ```bash
 cck ci --calc-type opt_freq --solvent water --solvent-model smd
+```
+
+**Fix PCM solvation discontinuity (SES surface → normal surface):**
+
+```bash
+# Generates a two-section Link1 input: section 1 relaxes geometry on SES surface,
+# section 2 performs the full calculation reading from the SES checkpoint.
+# Supported calc types: sp, opt_freq, ts_freq, oss_check_sp, modre_opt
+cck ci --calc-type opt_freq --solvent water --solvent-model smd --fix-pcm
 ```
 
 **IRC calculation from transition state:**
@@ -1174,6 +1185,7 @@ The thermo module implements advanced parallel processing specifically designed 
 
 ## Version History
 
+- **v0.000.7** Pre-release version
 - **v0.000.6** Pre-release version
 - **v0.000.5** Pre-release version
 - **v0.000.4** Pre-release version

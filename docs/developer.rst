@@ -76,6 +76,8 @@ New Modules in v0.5.0
     - Generate Gaussian input files from XYZ coordinates
     - Template system for reusable parameter sets
     - Support for multiple calculation types (SP, OPT, TS, IRC)
+    - Two-section Link1 PCM fix mode (``--fix-pcm``) to resolve solvation discontinuity
+      errors by relaxing geometry on an SES surface before the main calculation
 
 **High-Level Energy Calculations (high_level_energy.h/.cpp)**
     - Combine high-level electronic energies with low-level thermal corrections
