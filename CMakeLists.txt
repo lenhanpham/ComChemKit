@@ -1,7 +1,7 @@
 # CMake configuration for ComChemKit
 cmake_minimum_required(VERSION 3.16)
 project(ComChemKit
-    VERSION 0.000.1
+    VERSION 0.000.7
     DESCRIPTION "High-performance Computational Kit"
     LANGUAGES CXX
 )

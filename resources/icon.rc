@@ -8,8 +8,8 @@ IDI_APP_ICON ICON "app_icon.ico"
 
 // Optional: Version information
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,5,0,4
- PRODUCTVERSION 0,5,0,4
+ FILEVERSION 0,0,0,7
+ PRODUCTVERSION 0,0,0,7
  FILEFLAGSMASK 0x3fL
  FILEFLAGS 0x0L
  FILEOS 0x40004L
@@ -20,14 +20,14 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "Gaussian Extractor Project"
-            VALUE "FileDescription", "High-performance Gaussian log file processor"
-            VALUE "FileVersion", "0.5.0.4"
-            VALUE "InternalName", "gaussian_extractor"
-            VALUE "LegalCopyright", "Copyright (C) 2025"
-            VALUE "OriginalFilename", "gaussian_extractor.exe"
-            VALUE "ProductName", "Gaussian Extractor"
-            VALUE "ProductVersion", "0.5.0.4"
+            VALUE "CompanyName", "ComChemKit Project"
+            VALUE "FileDescription", "Multi-function toolkit for computational chemistry: input creation, data extraction, thermodynamics calculation, and job management"
+            VALUE "FileVersion", "0.0.0.7"
+            VALUE "InternalName", "cck"
+            VALUE "LegalCopyright", "Copyright (C) 2026"
+            VALUE "OriginalFilename", "cck.exe"
+            VALUE "ProductName", "ComChemKit"
+            VALUE "ProductVersion", "0.0.0.7"
         END
     END
     BLOCK "VarFileInfo"
