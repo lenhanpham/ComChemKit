@@ -572,9 +572,7 @@ void LoadFile::loadgau(SystemData& sys)
                    "system"
                 << "\n"
                 << "Mismatch in thermochemical data may happen due to different type of atomic masses are used \n";
-            std::cerr << "Press ENTER button to exit program" << "\n";
-            std::cin.get();
-            exit(1);
+            throw std::runtime_error("Unable to find atomic mass data from quantum chemical output file");
         }
     }
 
@@ -699,10 +697,7 @@ void LoadFile::loadGaugeom(std::ifstream& file, SystemData& sys)
             // No geometry found with this orientation
             if (itime == 2)
             {
-                std::cerr << "Error: Failed to load geometry from this file!" << '\n';
-                std::cerr << "Press ENTER button to exit" << '\n';
-                std::cin.get();
-                exit(1);
+                throw std::runtime_error("Failed to load geometry from file: " + sys.inputfile);
             }
         }
     }
@@ -848,11 +843,9 @@ void LoadFile::loadCP2K(SystemData& sys)
     {
         if (sys.Eexter == 0)
         {
-            std::cout << "Warning: Unable to find \"Electronic energy (U)\" from the input file, electronic energy is "
+            std::cerr << "Warning: Unable to find \"Electronic energy (U)\" from the input file, electronic energy is "
                          "thus set to zero. "
                       << "You should directly specify it via \"E\" parameter in settings.ini" << '\n';
-            std::cout << "Press ENTER button to continue" << '\n';
-            std::cin.get();
         }
         sys.E = 0;
     }
@@ -883,12 +876,8 @@ void LoadFile::loadCP2K(SystemData& sys)
 
     if (!foundAtoms)
     {
-        std::cerr << "Error: Unable to find atom information! Please make sure that PRINT_LEVEL has been set to MEDIUM "
-                     "or higher."
-                  << '\n';
-        std::cerr << "Press ENTER to exit..." << '\n';
-        std::cin.get();
-        exit(1);
+        throw std::runtime_error(
+            "Unable to find atom information in CP2K output. Please make sure PRINT_LEVEL is set to MEDIUM or higher.");
     }
 
     // Skip header line
@@ -2044,55 +2033,9 @@ void LoadFile::loadxtb(SystemData& sys)
     // Load energy
     if (sys.Eexter == 0)
     {
-        std::cout << "\nNOTE: This file does not contain electronic energy, and you also did not explicitly set \"E\" "
-                     "in settings.ini. "
-                  << "If you want to let OpenThermo load electronic energy from a xtb output file, "
-                  << "input its path now, e.g. D:\\ltwd\\xtb.out. If you press ENTER button directly, then electronic "
-                     "energy will simply be set to 0"
-                  << '\n';
-
-        while (true)
-        {
-            std::string c200tmp;
-            std::getline(std::cin, c200tmp);
-
-            if (c200tmp.empty())
-            {
-                sys.E = 0;
-                break;
-            }
-            else
-            {
-                std::ifstream xtbfile(c200tmp);
-                if (xtbfile.is_open())
-                {
-                    int ncount;
-                    if (loclabelfinal(xtbfile, "total energy", ncount) && ncount > 0)
-                    {
-                        std::string line;
-                        std::getline(xtbfile, line);
-                        if (line.length() > 36)
-                        {
-                            sys.E = std::stod(line.substr(36));
-                            std::cout << "Loaded electronic energy: " << std::fixed << std::setprecision(10) << sys.E
-                                      << " Hartree" << '\n';
-                        }
-                        xtbfile.close();
-                        break;
-                    }
-                    else
-                    {
-                        std::cout << "Error: Unable to locate \"total energy\"! Input again" << '\n';
-                        xtbfile.close();
-                        continue;
-                    }
-                }
-                else
-                {
-                    std::cout << "Cannot find the file, input again!" << '\n';
-                }
-            }
-        }
+        std::cerr << "Warning: xTB file does not contain electronic energy and \"E\" is not set in settings.ini. "
+                  << "Electronic energy will be set to 0 for " << sys.inputfile << '\n';
+        sys.E = 0;
     }
     else
     {

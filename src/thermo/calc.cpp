@@ -111,10 +111,7 @@ namespace calc
             sys.inputfile = filelist[ifile];
             if (!file_exists(sys.inputfile))
             {
-                std::cerr << "Error: Unable to find " << sys.inputfile << "\n";
-                std::cerr << "Press ENTER button to exit program" << "\n";
-                std::cin.get();
-                std::exit(1);
+                throw std::runtime_error("Unable to find " + sys.inputfile);
             }
 
             std::cout << "Processing " << sys.inputfile << "... (" << (ifile + 1) << " of " << nfile << " )" << "\n";
