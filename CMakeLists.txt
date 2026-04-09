@@ -64,6 +64,9 @@ set(SOURCES
     src/commands/extract_coords_command.cpp
     src/commands/create_input_command.cpp
     src/commands/thermo_command.cpp
+    src/ivcoord/gaussian_ivcoord_parser.cpp
+    src/ivcoord/ivcoord_runner.cpp
+    src/commands/ivcoord_command.cpp
 )
 
 # Add Windows resource file if building on Windows
@@ -107,6 +110,11 @@ set(HEADERS
     src/commands/extract_coords_command.h
     src/commands/create_input_command.h
     src/commands/thermo_command.h
+    src/ivcoord/ivcoord_data.h
+    src/ivcoord/ivcoord_parser_base.h
+    src/ivcoord/gaussian_ivcoord_parser.h
+    src/ivcoord/ivcoord_runner.h
+    src/commands/ivcoord_command.h
 )
 
 # Create the executable

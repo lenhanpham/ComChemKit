@@ -23,6 +23,7 @@ ComChemKit provides a comprehensive suite of tools for computational chemistry w
 * **Energy Calculations**: Extract thermodynamic data and calculate high-level energies
 * **Coordinate Processing**: Extract and organize molecular coordinates
 * **Input Generation**: Create Gaussian input files from XYZ coordinate files
+* **Imaginary Mode Displacement**: Displace geometries along imaginary normal modes (QRC) to generate reactant/product guesses from transition states
 * **Input prarameters template**: Generate and reuse parameter templates for different calculation types
 * **Windows interactive mode**: Windows users can use all features plus popular linux commands in the interactive mode 
 
@@ -126,6 +127,7 @@ Current Version: **v0.000.7**
 - **v0.000.5**: Thermal correction for high-level of theory
 - **v0.000.6**: Print low-frequency vibrational treatment info in results
 - **v0.000.7**: Add support for fixing PCM solvation discontinuity error
+- **v0.000.8**: Support extracting coordinates with displacement of imaginary modes from geometrical optimization containing imaginary modes
 
 .. note::
     This documentation is for ComChemKit v0.000.6. For older versions, please refer to the archived documentation.

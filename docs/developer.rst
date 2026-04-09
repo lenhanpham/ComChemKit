@@ -27,6 +27,13 @@ ComChemKit is a C++20 application designed for high-performance processing of co
 │   │   ├── create_input.h
 │   │   ├── parameter_parser.cpp
 │   │   └── parameter_parser.h
+│   ├── ivcoord/
+│   │   ├── ivcoord_data.h
+│   │   ├── ivcoord_parser_base.h
+│   │   ├── gaussian_ivcoord_parser.h
+│   │   ├── gaussian_ivcoord_parser.cpp
+│   │   ├── ivcoord_runner.h
+│   │   └── ivcoord_runner.cpp
 │   ├── job_management/
 │   │   ├── job_checker.cpp
 │   │   ├── job_checker.h
@@ -98,6 +105,13 @@ New Modules in v0.5.0
     - Template parameter file parsing
     - Configuration file format support
     - Validation and error reporting
+
+**IVCoord Module (ivcoord/)**
+    - Displace molecular geometry along imaginary normal modes (QRC method)
+    - Abstract parser interface (``IIVCoordParser``) for extensibility to multiple QC programs
+    - Gaussian implementation (``GaussianIVCoordParser``): parses last orientation block and first imaginary frequency displacement vectors
+    - Runner (``IVCoordRunner``): applies displacement, writes ``_p.xyz`` / ``_m.xyz`` output files
+    - Output organised in ``<parent_basename>_ivcoord/`` directories
 
 Key Design Principles
 ---------------------

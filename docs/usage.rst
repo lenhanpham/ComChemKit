@@ -49,6 +49,8 @@ ComChemKit supports the following commands:
 +------------------+--------------------------------------------------+
 | ``ci``           | Create Gaussian input files from XYZ             |
 +------------------+--------------------------------------------------+
+| ``ivcoord``      | Displace geometry along imaginary modes (QRC)    |
++------------------+--------------------------------------------------+
 | ``interactive``  | Launch interactive mode (Windows)                |
 +------------------+--------------------------------------------------+
 
@@ -637,6 +639,101 @@ Phase correction converts gas-phase energies to solution-phase:
    - Smoothed damping for entropic contributions of low vibrational modes
    - Supported by Q-Chem inspired free rotor references (``-bav qchem``)
    - Fully supports interpolating entropy (``-hgEntropy 1``)
+
+7. IVCoord — Imaginary Mode Coordinate Displacement
+-----------------------------------------------------
+
+**Purpose:** Displace molecular geometries along the imaginary vibrational mode of a transition state to generate reactant and product guess structures. This implements the Quick Reaction Coordinate (QRC) method.
+
+.. note::
+   Currently only Gaussian output files are supported. Support for additional quantum chemistry programs is planned.
+
+**Basic Usage:**
+
+.. code-block:: bash
+
+   # Displace all TS log files (positive direction by default)
+   cck ivcoord *.log
+
+   # Both + and − directions
+   cck ivcoord *.log --idirection 0
+
+   # Custom displacement amplitude
+   cck ivcoord *.log --iamp 2.0
+
+   # Specify files explicitly
+   cck ivcoord ts1.log ts2.log
+
+**Options:**
+
+.. table:: IVCoord Options
+
+   +---------------------------+--------------------------------------------+---------------------------+---------+
+   | Option                    | Description                                | Values                    | Default |
+   +===========================+============================================+===========================+=========+
+   | ``--iamp <value>``        | Displacement amplitude                     | positive decimal          | 1.0     |
+   +---------------------------+--------------------------------------------+---------------------------+---------+
+   | ``--idirection <value>``  | Direction(s) to generate                   | 1=plus, -1=minus, 0=both  | 1       |
+   +---------------------------+--------------------------------------------+---------------------------+---------+
+   | ``--param-file <path>``   | Load parameters from file                  | file path                 | -       |
+   +---------------------------+--------------------------------------------+---------------------------+---------+
+   | ``--gen-ivcoord-params``  | Generate parameter template file           | (flag)                    | -       |
+   +---------------------------+--------------------------------------------+---------------------------+---------+
+
+**Output Files:**
+
+For each input file ``<name>.log``, outputs are written to a new ``<parent_basename>_ivcoord/`` directory:
+
+- ``<name>_p.xyz`` — geometry displaced in the positive direction (``--idirection 1`` or ``0``)
+- ``<name>_m.xyz`` — geometry displaced in the negative direction (``--idirection -1`` or ``0``)
+
+**Example:** ``ts_calcs/mol.log`` → ``ts_calcs_ivcoord/mol_p.xyz`` (and/or ``mol_m.xyz``)
+
+**Parameter File:**
+
+Generate a reusable parameter template:
+
+.. code-block:: bash
+
+   cck ivcoord --gen-ivcoord-params
+   # Creates: ivcoord_parameters.params
+
+Template contents:
+
+.. code-block::
+
+   # IVCoord parameters
+   # iamp: displacement amplitude (default: 1.0)
+   # idirection: 1=plus only, -1=minus only, 0=both
+   iamp = 1.0
+   idirection = 1
+
+Use the template:
+
+.. code-block:: bash
+
+   cck ivcoord *.log --param-file ivcoord_parameters.params
+
+**Transition State Workflow:**
+
+.. code-block:: bash
+
+   # 1. Run TS frequency calculation with ComChemKit input creation
+   cck ci --calc-type ts_freq
+
+   # ... submit and wait for jobs to complete ...
+
+   # 2. Identify TS candidates (imaginary frequency jobs)
+   cck imode
+
+   # 3. Displace TS geometry along imaginary mode (both directions)
+   cck ivcoord *_imode/*.log --idirection 0
+
+   # 4. Create optimization inputs from displaced structures
+   cck ci --calc-type opt_freq
+
+   # 5. Analyze thermochemistry of products
+   cck thermo *.log -T 298.15 -lowvibmeth 2
 
 Configuration and Customization
 ===============================

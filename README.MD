@@ -30,6 +30,7 @@
 * **Automatic Sorting**: Results sorted by energy values for easy analysis
 * **Extract coordinates**: Coordinates of quantum chemistry outputs can be extracted
 * **Create Input Files**: Generate Gaussian input files from XYZ coordinate files with customizable calculation parameters
+* **Imaginary mode coordinate displacement (ivcoord)**: Displace molecular geometry along imaginary normal modes (Quick Reaction Coordinate method) to generate reactant/product guess structures for transition state searches
 
 **Windows interactive mode**: Windows users can use all features plus popular linux commands in the interactive mode
 
@@ -664,6 +665,91 @@ cck xyz -f file1.log file2.log
 - Outputs in standard XYZ format
 - Supports multiple file processing with parallel extraction
 
+### 3.7 IVCoord Module — Imaginary Mode Coordinate Displacement
+
+Displace molecular geometries along imaginary vibrational modes to generate reactant and product guess structures from a transition state. This implements the Quick Reaction Coordinate (QRC) approach.
+
+***Note: currently, only outputs from Gaussian are supported. Other quantum chemistry programs will be supported soon.***
+
+#### Basic Usage
+
+```bash
+# Displace all TS log files along the imaginary mode (+direction by default)
+cck ivcoord *.log
+
+# Specify files explicitly
+cck ivcoord ts1.log ts2.log
+
+# Both + and − directions
+cck ivcoord *.log --idirection 0
+
+# Custom displacement amplitude
+cck ivcoord *.log --iamp 2.0
+
+# Generate parameter template
+cck ivcoord --gen-ivcoord-params
+
+# Use a parameter file
+cck ivcoord *.log --param-file ivcoord_parameters.params
+```
+
+#### Options
+
+| Option                 | Description                      | Values                   | Default |
+| ---------------------- | -------------------------------- | ------------------------ | ------- |
+| `--iamp <value>`       | Displacement amplitude           | positive decimal         | 1.0     |
+| `--idirection <value>` | Direction(s) to displace         | 1=plus, -1=minus, 0=both | 1       |
+| `--param-file <path>`  | Load parameters from file        | file path                | -       |
+| `--gen-ivcoord-params` | Generate parameter template file | (flag)                   | -       |
+
+#### Output
+
+For each input file `<name>.log`, output(s) are written under `<parent_basename>_ivcoord/`:
+
+- `<name>_p.xyz` — geometry displaced in the positive direction (`--idirection 1` or `0`)
+- `<name>_m.xyz` — geometry displaced in the negative direction (`--idirection -1` or `0`)
+
+Example: `ts_calcs/mol.log` → `ts_calcs_ivcoord/mol_p.xyz` (and/or `mol_m.xyz`)
+
+#### Parameter File
+
+Generate and edit a reusable template:
+
+```bash
+cck ivcoord --gen-ivcoord-params
+# Creates: ivcoord_parameters.params
+```
+
+Template contents:
+
+```
+# IVCoord parameters
+# iamp: displacement amplitude (default: 1.0)
+# idirection: 1=plus only, -1=minus only, 0=both
+iamp = 1.0
+idirection = 1
+```
+
+#### Workflow to remove imaginary mode with IVCoord
+
+```bash
+# 1. Run geometrical optimization with frequency calculation
+cck ci --calc-type opt_freq
+# ... submit and wait ...
+
+# 2. Identify outputs containing imaginary modes
+cck imode
+
+# 3. Displace the geometry along imaginary mode
+cck ivcoord *_imode/*.log --idirection 0
+
+# 4. Create optimization inputs from displaced geometries
+cck ci --calc-type opt_freq 
+
+# 5. Analyze thermochemistry of products
+cck thermo *.log -T 298.15 -lowvibmeth 2
+```
+
 ## Parallel Processing & Resource Management
 
 ### Thread Control
@@ -820,6 +906,12 @@ cck thermo ts_candidates.log -imagreal 100 -lowvibmeth 1 -ravib 50
 # Filter and organize
 cck imode
 cck done
+
+# Displace TS geometry along imaginary mode to generate reactant/product guesses
+cck ivcoord *_imode/*.log --idirection 0
+
+# Create optimization inputs from displaced structures
+cck ci --calc-type opt_freq
 ```
 
 ### Batch Processing Workflows
@@ -1187,6 +1279,7 @@ The thermo module implements advanced parallel processing specifically designed 
 
 ## Version History
 
+- **v0.000.8** Pre-release version
 - **v0.000.7** Pre-release version
 - **v0.000.6** Pre-release version
 - **v0.000.5** Pre-release version

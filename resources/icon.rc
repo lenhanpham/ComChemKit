@@ -8,8 +8,8 @@ IDI_APP_ICON ICON "app_icon.ico"
 
 // Optional: Version information
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,0,0,7
- PRODUCTVERSION 0,0,0,7
+ FILEVERSION 0,0,0,8
+ PRODUCTVERSION 0,0,0,8
  FILEFLAGSMASK 0x3fL
  FILEFLAGS 0x0L
  FILEOS 0x40004L
@@ -22,12 +22,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "ComChemKit Project"
             VALUE "FileDescription", "Multi-function toolkit for computational chemistry: input creation, data extraction, thermodynamics calculation, and job management"
-            VALUE "FileVersion", "0.0.0.7"
+            VALUE "FileVersion", "0.0.0.8"
             VALUE "InternalName", "cck"
             VALUE "LegalCopyright", "Copyright (C) 2026"
             VALUE "OriginalFilename", "cck.exe"
             VALUE "ProductName", "ComChemKit"
-            VALUE "ProductVersion", "0.0.0.7"
+            VALUE "ProductVersion", "0.0.0.8"
         END
     END
     BLOCK "VarFileInfo"
