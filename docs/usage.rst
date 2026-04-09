@@ -714,19 +714,19 @@ Use the template:
 
    cck ivcoord *.log --param-file ivcoord_parameters.params
 
-**Transition State Workflow:**
+**Workflow to remove imaginary mode with IVCoord:**
 
 .. code-block:: bash
 
-   # 1. Run TS frequency calculation with ComChemKit input creation
-   cck ci --calc-type ts_freq
+   # 1. Run geometrical optimization with frequency calculation
+   cck ci --calc-type opt_freq
 
    # ... submit and wait for jobs to complete ...
 
-   # 2. Identify TS candidates (imaginary frequency jobs)
+   # 2. Identify outputs containing imaginary modes
    cck imode
 
-   # 3. Displace TS geometry along imaginary mode (both directions)
+   # 3. Displace TS geometry along imaginary mode (both directions or one direction)
    cck ivcoord *_imode/*.log --idirection 0
 
    # 4. Create optimization inputs from displaced structures
