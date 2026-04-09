@@ -18,6 +18,8 @@
 #include <unordered_map>
 #include <vector>
 
+extern std::atomic<bool> g_shutdown_requested;
+
 // System-specific headers for memory detection
 #ifdef _WIN32
     #include <windows.h>
@@ -2203,6 +2205,9 @@ HighLevelEnergyCalculator::process_files_with_thread_pool(const std::vector<std:
     auto worker = [&]() {
         while (true)
         {
+            if (g_shutdown_requested.load())
+                break;
+
             size_t idx = file_index.fetch_add(1);
             if (idx >= files.size())
                 break;
@@ -2232,7 +2237,7 @@ HighLevelEnergyCalculator::process_files_with_thread_pool(const std::vector<std:
     if (!quiet && files.size() > 5)
     {
         monitor_thread = std::thread([&]() {
-            while (!should_stop.load() && progress_counter.load() < files.size())
+            while (!should_stop.load() && !g_shutdown_requested.load() && progress_counter.load() < files.size())
             {
                 monitor_progress(files.size(), progress_counter, start_time, quiet);
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
