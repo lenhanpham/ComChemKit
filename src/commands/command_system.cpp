@@ -287,6 +287,8 @@ CommandType CommandParser::parse_command(const std::string& cmd)
         return CommandType::CREATE_INPUT;
     if (cmd == "thermo" || cmd == "--thermo")
         return CommandType::THERMO;
+    if (cmd == "ivcoord")
+        return CommandType::IVCOORD;
 
     // If it starts with '-', it's probably an option, not a command
     if (!cmd.empty() && cmd.front() == '-')
@@ -320,6 +322,8 @@ std::string CommandParser::get_command_name(CommandType command)
             return std::string("xyz");
         case CommandType::CREATE_INPUT:
             return std::string("ci");
+        case CommandType::IVCOORD:
+            return std::string("ivcoord");
         case CommandType::THERMO:
             return std::string("thermo");
         default:

@@ -62,7 +62,8 @@ enum class CommandType
     HIGH_LEVEL_AU,    ///< Calculate high-level energies with detailed output in atomic units
     EXTRACT_COORDS,   ///< Extract coordinates from log files and organize XYZ files
     CREATE_INPUT,     ///< Create Gaussian input files from XYZ files
-    THERMO            ///< Advanced thermodynamic analysis for multiple quantum chemistry programs
+    THERMO,           ///< Advanced thermodynamic analysis for multiple quantum chemistry programs
+    IVCOORD           ///< Displace geometry along imaginary normal modes and write XYZ files
 };
 ;
 

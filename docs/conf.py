@@ -15,8 +15,8 @@ sys.path.insert(0, os.path.abspath('../src'))
 project = 'ComChemKit'
 copyright = '2026, Le Nhan Pham'
 author = 'Le Nhan Pham'
-release = '0.000.7'
-version = '0.000.7'
+release = '0.000.8'
+version = '0.000.8'
 
 # -- General configuration ---------------------------------------------------
 

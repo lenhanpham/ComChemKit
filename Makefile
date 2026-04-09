@@ -85,7 +85,10 @@ SOURCES = $(SRC_DIR)/main.cpp \
           $(SRC_DIR)/commands/high_level_command.cpp \
           $(SRC_DIR)/commands/extract_coords_command.cpp \
           $(SRC_DIR)/commands/create_input_command.cpp \
-          $(SRC_DIR)/commands/thermo_command.cpp
+          $(SRC_DIR)/commands/thermo_command.cpp \
+          $(SRC_DIR)/commands/ivcoord_command.cpp \
+          $(SRC_DIR)/ivcoord/gaussian_ivcoord_parser.cpp \
+          $(SRC_DIR)/ivcoord/ivcoord_runner.cpp
 
 HEADERS = $(SRC_DIR)/commands/signal_handler.h \
           $(SRC_DIR)/extraction/qc_extractor.h \
@@ -117,7 +120,12 @@ HEADERS = $(SRC_DIR)/commands/signal_handler.h \
           $(SRC_DIR)/commands/high_level_command.h \
           $(SRC_DIR)/commands/extract_coords_command.h \
           $(SRC_DIR)/commands/create_input_command.h \
-          $(SRC_DIR)/commands/thermo_command.h
+          $(SRC_DIR)/commands/thermo_command.h \
+          $(SRC_DIR)/commands/ivcoord_command.h \
+          $(SRC_DIR)/ivcoord/ivcoord_data.h \
+          $(SRC_DIR)/ivcoord/ivcoord_parser_base.h \
+          $(SRC_DIR)/ivcoord/gaussian_ivcoord_parser.h \
+          $(SRC_DIR)/ivcoord/ivcoord_runner.h
 
 OBJECTS = $(SOURCES:%.cpp=$(BUILD_DIR)/%.o)
 TARGET = $(BUILD_DIR)/bin/cck
@@ -134,6 +142,7 @@ $(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/ui))
 $(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/utilities))
 $(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/thermo))
 $(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/commands))
+$(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/ivcoord))
 
 # Default target
 all: $(TARGET)

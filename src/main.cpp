@@ -31,6 +31,7 @@
 #include "commands/high_level_command.h"
 #include "commands/extract_coords_command.h"
 #include "commands/create_input_command.h"
+#include "commands/ivcoord_command.h"
 #include <atomic>
 #include <csignal>
 #include <iostream>
@@ -137,6 +138,7 @@ int main(int argc, char* argv[])
     registry.register_command(std::make_unique<HighLevelCommand>(CommandType::HIGH_LEVEL_AU, "high-au", "High-level energies in atomic units"));
     registry.register_command(std::make_unique<ExtractCoordsCommand>());
     registry.register_command(std::make_unique<CreateInputCommand>());
+    registry.register_command(std::make_unique<IVCoordCommand>());
 
     // Install signal handlers for graceful shutdown
     std::signal(SIGINT, signalHandler);
