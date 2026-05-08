@@ -162,8 +162,8 @@ void IVCoordCommand::parse_args(int argc, char* argv[], int& i, CommandContext& 
             if (ivc_direction < -1 || ivc_direction > 1)
             {
                 context.warnings.push_back(
-                    "Warning: idirection in param file should be -1, 0, or +1; reset to 1");
-                ivc_direction = 1;
+                    "Warning: idirection in param file should be -1, 0, or +1; reset to 0");
+                ivc_direction = 0;
             }
         }
         else
@@ -181,8 +181,8 @@ void IVCoordCommand::parse_args(int argc, char* argv[], int& i, CommandContext& 
             out << "# Displace geometry along imaginary normal modes\n\n";
             out << "# Displacement amplitude (default: 1.0)\n";
             out << "iamp = 1.0\n\n";
-            out << "# Direction: +1 = plus only, -1 = minus only, 0 = both (default: 1)\n";
-            out << "idirection = 1\n";
+            out << "# Direction: +1 = plus only, -1 = minus only, 0 = both (default: 0)\n";
+            out << "idirection = 0\n";
             out.close();
             std::cout << "Generated parameter template: " << filename << std::endl;
             std::cout << "Use with: cck ivcoord --param-file " << filename << std::endl;
