@@ -34,7 +34,7 @@ public:
 
 private:
     double ivc_amp       = 1.0;  ///< Displacement amplitude
-    int    ivc_direction = 1;    ///< +1 = plus, -1 = minus, 0 = both
+    int    ivc_direction = 0;    ///< +1 = plus, -1 = minus, 0 = both
 };
 
 #endif  // IVCOORD_COMMAND_H
