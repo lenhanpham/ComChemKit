@@ -21,7 +21,6 @@
 #include <vector>
 #include <cstdint>
 
-
 namespace util
 {
     /**
@@ -94,7 +93,6 @@ namespace util
     // */
     // void readaftersign_int(std::istream& file, const std::string& sign, int& val);
 
-
     /**
      * @brief Sort a double array from small to large (bubble sort).
      * @param array Array to sort.
@@ -153,11 +151,6 @@ namespace util
      * @brief Output molecular data to .otm format file
      */
     void outotmfile(SystemData& sys);
-
-    /**
-     * @brief Create a default settings.ini file with all default parameters
-     */
-    void create_default_settings_file();
 
 }  // namespace util
 
