@@ -247,13 +247,10 @@ namespace HelpUtils
                 std::cout << "Output filenames: <stem>_p.xyz (plus direction) and/or <stem>_m.xyz (minus).\n\n";
                 std::cout << "Options:\n";
                 std::cout << "  --iamp <float>         Displacement amplitude (default: 1.0)\n";
-                std::cout << "  --idirection <int>     +1 = plus only, -1 = minus only, 0 = both (default: 1)\n";
-                std::cout << "  --param-file [path]    Load ivcoord_parameters.params\n";
-                std::cout << "  --gen-ivcoord-params   Write a template ivcoord_parameters.params and exit\n\n";
+                std::cout << "  --idirection <int>     +1 = plus only, -1 = minus only, 0 = both (default: 0)\n\n";
                 std::cout << "Examples:\n";
                 std::cout << "  " << program_name << " ivcoord *.log\n";
                 std::cout << "  " << program_name << " ivcoord --idirection 0 --iamp 0.5 ts.log\n";
-                std::cout << "  " << program_name << " ivcoord --param-file ivcoord_parameters.params *.log\n";
                 break;
         }
 
