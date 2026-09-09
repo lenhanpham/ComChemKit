@@ -17,9 +17,7 @@
  *
  * Options:
  *   --iamp <float>          Displacement amplitude (default: 1.0)
- *   --idirection <int>      +1 = plus only, -1 = minus only, 0 = both (default: 1)
- *   --param-file [path]     Load ivcoord_parameters.params
- *   --gen-ivcoord-params    Write a template ivcoord_parameters.params and exit
+ *   --idirection <int>      +1 = plus only, -1 = minus only, 0 = both (default: 0)
  *
  * Output is written to <parent_dir_basename>_ivcoord/ inside the parent directory
  * of each input file. Output filenames: <stem>_p.xyz and/or <stem>_m.xyz.
