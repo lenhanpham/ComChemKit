@@ -21,7 +21,7 @@ namespace ThermoHelpUtils
         std::cout << "ComChemKit thermo module: Calculation of Thermochemical Properties\n"
                   << "Version " << ComChemKit::get_full_version() << "\n"
                   << "Developer: " << COMCHEMKIT_AUTHOR << "\n\n";
-        std::cout << "Usage: " << program_name << " [input_file] [options]\n\n";
+        std::cout << "Usage: " << program_name << " thermo [input_file] [options]\n\n";
         std::cout << "Description:\n";
         std::cout << "  OpenThermo calculates thermochemical properties from quantum chemistry output files.\n";
         std::cout << "  It supports various input formats and provides comprehensive thermodynamic analysis\n";
@@ -72,11 +72,11 @@ namespace ThermoHelpUtils
         std::cout << "  <basename>.vibcon    Individual vibration contributions (if requested)\n";
         std::cout << "  *.otm                OpenThermo format file (if -outotm 1)\n\n";
         std::cout << "Examples:\n";
-        std::cout << "  " << program_name << " molecule.log\n";
-        std::cout << "  " << program_name << " molecule.otm -T 300 -P 2.0\n";
-        std::cout << "  " << program_name << " molecule.out -T 273 373 10 -lowvibmeth 2\n";
-        std::cout << "  " << program_name << " --help-input\n";
-        std::cout << "  " << program_name << " --help-T\n\n";
+        std::cout << "  " << program_name << " thermo molecule.log\n";
+        std::cout << "  " << program_name << " thermo molecule.otm -T 300 -P 2.0\n";
+        std::cout << "  " << program_name << " thermo molecule.out -T 273 373 10 -lowvibmeth 2\n";
+        std::cout << "  " << program_name << " thermo --help-input\n";
+        std::cout << "  " << program_name << " thermo --help-T\n\n";
         std::cout << "For more detailed help on specific topics, use --help-<topic>\n";
     }
 
