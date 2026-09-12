@@ -483,6 +483,7 @@ cck ci --calc-type ts_freq
 - **ts_freq**: Transition state search + frequency analysis
 - **oss_ts_freq**: Openshell singlet TS search + frequency analysis
 - **modre_ts_freq**: Modredundant TS search + frequency analysis
+- **modre_opt**: Modredundant optimization
 - **oss_check_sp**: Openshell singlet stability check
 - **high_sp**: High-level single point with larger basis set
 - **irc_forward**: IRC calculation in forward direction
@@ -497,7 +498,7 @@ cck ci --calc-type ts_freq
 | `--calc-type`        | Calculation type                                              | sp, opt_freq, ts_freq, etc. | sp        |
 | `--functional`       | DFT functional                                                | UWB97XD, B3LYP, etc.        | UWB97XD   |
 | `--basis`            | Basis set                                                     | def2-SVPP, 6-31G*, etc.     | def2-SVPP |
-| `--large-basis`      | Large basis for TS/high-level                                 | def2-TZVPP, etc.            | -         |
+| `--large-basis`      | Large basis for high_sp only                                  | def2-TZVPP, etc.            | -         |
 | `--solvent`          | Solvent name                                                  | water, ethanol, etc.        | gas phase |
 | `--solvent-model`    | Solvent model                                                 | smd, cpcm, iefpcm           | smd       |
 | `--charge`           | Molecular charge                                              | integer                     | 0         |
@@ -513,10 +514,42 @@ cck ci --calc-type ts_freq
 | `--tddft-nstates`    | Number of excited states                                      | integer                     | 15        |
 | `--tddft-extra`      | Extra keywords in td/tda()                                    | e.g. Root=5,Read,IVOGuess   | -         |
 | `--fix-pcm`          | Fix PCM solvation discontinuity (SES→normal, 2-section Link1) | (flag)                      | false     |
-| `--temperature`      | Temperature (K)                                               | e.g. 298.15                 | 298.15    |
+| `--temperature`      | Temperature (K)                                               | e.g. 298.15                 | -         |
 | `--genci-params`     | Generate parameter template                                   | calculation type            | -         |
 | `--genci-all-params` | Generate all templates                                        | directory path              | -         |
 | `--param-file`       | Load parameters from file                                     | file path                   | -         |
+
+#### Parameter File Keys (summary)
+
+The parameter file uses `name = value` lines (`#` = comment); keys present in the file override CLI flags. Full reference with per-type routes: `docs/usage.rst` (section 5. Create Input Files (ci)).
+
+| Key | Default | Notes |
+| --- | ------- | ----- |
+| `calc_type` | `sp` | sp, opt_freq, ts_freq, oss_ts_freq, modre_ts_freq, modre_opt, oss_check_sp, high_sp, irc_forward, irc_reverse, irc, tddft (`irc` valid, no template; `ts_freq_from_chk` internal-only) |
+| `functional` / `basis` | `UWB97XD` / `Def2SVPP` | Uppercased; `GEN`/`GENECP` requires `tail` |
+| `large_basis` | (empty) | Route basis for `high_sp` only (template also suggests it for TS types) |
+| `charge` / `mult` | `0` / `1` | Molecule spec |
+| `solvent` / `solvent_model` / `solvent_extra` | (empty) / `smd` / (empty) | Adds `scrf(model,solvent=X)`; model is smd, cpcm or iefpcm |
+| `print_level` | (empty) | `#`, `#P`/`#T`/`#N`, else `#<value>` |
+| `route_extra_keywords` | (empty) | Extra route tokens; separators: space, vertical bar, comma, semicolon |
+| `scf_maxcycle` / `scf_options` / `scf_restart` | `300` / (empty) / `false` | Param-file-only; inside `scf(...)`; `true`/`yes`/`1` appends one `restart` (deduped) |
+| `opt_maxcycles` / `opt_options` / `opt_restart` | `300` / (empty) / `false` | Param-file-only; inside `opt(...)`; same restart rule |
+| `opt_maxstep` | (unset; `5` in `ts_freq_from_chk` sections) | Adds `,MaxStep=N` |
+| `irc_maxpoints` / `irc_recalc` / `irc_maxcycle` / `irc_stepsize` | `50` / `10` / `350` / `10` | Param-file-only; IRC types ignore `opt_*`/`scf_*` |
+| `freeze_atoms` (`freeze_atom1/2` fallback) / `modre` | - | One of them required for `oss_ts_freq`/`modre_ts_freq`; `modre` also valid for `modre_opt` |
+| `tschk_path` | parent dir | For `high_sp`, `irc_forward`/`irc_reverse` |
+| `tddft_method` / `tddft_states` / `tddft_nstates` / `tddft_extra` | `tda` / both / `15` / (empty) | `singlets` writes `-singlets.gau`, `triplets` writes `-triplets.gau`, `50-50` writes one file, empty writes both |
+| `fix_pcm` / `temperature` | `false` / (unset) | Two-section Link1 SES job; not valid for high_sp, oss_ts_freq, modre_ts_freq, tddft, irc |
+| `tail` / `extra_options` | (empty) | `tail` carries GEN/GENECP basis; `extra_options` appends an extra section (param-file-only) |
+
+Restart example (param file):
+
+```bash
+scf_options = restart,Conver=8
+opt_options = restart,ModRedundant
+scf_restart = false   # true gives scf(maxcycle=300,xqc,restart)
+opt_restart = false   # true gives opt(maxcycles=300,restart)
+```
 
 #### Advanced Examples
 
@@ -556,7 +589,7 @@ cck ci --calc-type irc --tschk-path ../ts_checkpoints
 **Custom keywords and settings:**
 
 ```bash
-cck ci --calc-type opt_freq --extra-keywords "Int=UltraFine SCF=Conver=8" --pound-sign P
+cck ci --calc-type opt_freq --extra-keywords "Int=UltraFine SCF=Conver=8" --print-level P
 ```
 
 #### Parameter Templates

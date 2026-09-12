@@ -377,6 +377,8 @@ Phase correction converts gas-phase energies to solution-phase:
 +------------------+--------------------------------------------------+
 | ``modre_ts_freq``| Modredundant TS + frequency                      |
 +------------------+--------------------------------------------------+
+| ``modre_opt``    | Modredundant optimization                        |
++------------------+--------------------------------------------------+
 | ``oss_check_sp`` | Open-shell singlet stability check               |
 +------------------+--------------------------------------------------+
 | ``high_sp``      | High-level single point                          |
@@ -485,7 +487,7 @@ Phase correction converts gas-phase energies to solution-phase:
       solvent = chloroform
       charge = 1
       mult = 2
-      extra_keywords = Int=UltraFine
+      route_extra_keywords = Int=UltraFine
 
 3. **Use Template:**
 
@@ -510,6 +512,205 @@ Restart and extra opt/scf sub-options (param-file only):
    in ``*_options``); defaults (``""``/``false``) leave current routes unchanged;
    ``opt_*`` applies to opt_freq/ts_freq/modre types, ``scf_*`` also applies to
    sp/tddft/high_sp/oss_check_sp; IRC types ignore both.
+
+**Parameter File Keys:**
+
+Every key is written as ``name = value`` (one per line; ``#`` starts a comment).
+CLI flags set starting values; any key present in the parameter file overrides them.
+Keys marked *param-file-only* have no CLI flag.
+
+Basic keys:
+
+- ``calc_type`` (string, default ``sp``) — calculation type; see the table above.
+  ``irc`` is valid but has no template file; ``ts_freq_from_chk`` is internal-only
+  (it is generated as the second section of ``oss_ts_freq`` / ``modre_ts_freq``).
+- ``functional`` (string, default ``UWB97XD``, uppercased) — DFT functional, e.g. ``B3LYP``.
+- ``basis`` (string, default ``Def2SVPP``, uppercased) — basis set. ``GEN`` / ``GENECP``
+  requires a ``tail`` block carrying the custom basis.
+- ``large_basis`` (string, default empty) — basis of the ``high_sp`` single point
+  (the template also recommends setting it for TS/high-level types, but only the
+  ``high_sp`` route consumes it; all other routes use ``basis``).
+- ``charge`` (integer, default ``0``), ``mult`` (integer, default ``1``) — molecule spec.
+- ``extension`` (string, default ``.gau``) — output file extension.
+
+Solvent keys:
+
+- ``solvent`` (string, default empty = gas phase), e.g. ``water`` — adds ``scrf(model,solvent=X)``.
+- ``solvent_model`` (string, default ``smd``) — ``smd``, ``cpcm`` or ``iefpcm``.
+- ``solvent_extra`` (string, default empty) — appended after ``solvent=``, e.g. ``read``.
+  Ignored in section 1 of ``fix_pcm`` inputs, which always use ``,read``.
+
+Route-control keys:
+
+- ``print_level`` (string, default empty) — route prefix: ``#``, ``#P`` / ``#T`` / ``#N``,
+  anything else gives ``#<value> ``.
+- ``route_extra_keywords`` (string, default empty) — extra route tokens; separators may be
+  spaces, ``|``, ``,`` or ``;``. Example: ``route_extra_keywords = Int=UltraFine SCF=Conver=8``.
+
+SCF / OPT tuning keys (param-file-only):
+
+- ``scf_maxcycle`` (integer, default ``300``) — ``scf(maxcycle=N,xqc ...)``.
+- ``scf_options`` (string, default empty) — extra tokens inside ``scf(...)``,
+  e.g. ``scf_options = restart,Conver=8``.
+- ``scf_restart`` (boolean, default ``false``) — ``true`` / ``yes`` / ``1`` appends a single
+  ``restart``: ``scf(maxcycle=300,xqc,restart)``.
+- ``opt_maxcycles`` (integer, default ``300``) — ``opt(maxcycles=N ...)``.
+- ``opt_options`` (string, default empty) — extra tokens inside ``opt(...)``.
+- ``opt_restart`` (boolean, default ``false``) — appends a single ``restart``:
+  ``opt(maxcycles=300,restart)``.
+- ``opt_maxstep`` (integer, default unset; ``ts_freq_from_chk`` sections default to ``5``) —
+  adds ``,MaxStep=N``.
+- ``opt_*`` keys apply to types emitting ``opt(...)``; ``scf_*`` keys additionally apply to
+  ``sp``, ``tddft``, ``high_sp`` and ``oss_check_sp``; ``irc`` types ignore both groups.
+  ``*_restart`` is merged with ``*_options`` and deduped case-insensitively.
+
+IRC keys (param-file-only):
+
+- ``irc_maxpoints`` (default ``50``), ``irc_recalc`` (default ``10``),
+  ``irc_maxcycle`` (default ``350``), ``irc_stepsize`` (default ``10``).
+
+TS-constraint keys:
+
+- ``freeze_atoms = 1,2`` (comma- or space-separated; ``freeze_atom1`` / ``freeze_atom2`` are the
+  fallback) — required for ``oss_ts_freq`` / ``modre_ts_freq`` unless ``modre`` is given.
+- ``modre`` (multiline) — ModRedundant section; wrap lines in ``(`` ... ``)`` to preserve
+  blank lines.
+
+Checkpoint and TDDFT keys:
+
+- ``tschk_path`` (string, default: parent directory) — TS checkpoint location for ``high_sp``
+  and ``irc_forward`` / ``irc_reverse``.
+- ``tddft_method`` (default ``tda``) — ``td`` or ``tda``.
+- ``tddft_states`` (default empty = both files) — ``singlets``, ``triplets``, ``50-50`` or empty.
+  ``singlets`` / ``triplets`` write ``stem-singlets.gau`` / ``stem-triplets.gau``.
+- ``tddft_nstates`` (integer, default ``15``) — ``nstates=N``.
+- ``tddft_extra`` (string, default empty) — tokens inside ``tda(...)``,
+  e.g. ``tddft_extra = Root=5,Read,IVOGuess``.
+
+PCM-fix and custom-content keys:
+
+- ``fix_pcm`` (boolean, default ``false``) — two-section Link1 SES input for solvation
+  discontinuity correction. Not valid for ``high_sp``, ``oss_ts_freq``, ``modre_ts_freq``,
+  ``tddft`` or ``irc`` types.
+- ``temperature`` (number, unset) — ``Temperature=K`` added to the section-2 route.
+- ``tail`` (multiline, default empty) — appended at the end of the file (custom basis / ECP).
+- ``extra_options`` (multiline, param-file-only) — extra section appended after the
+  route/molecule content.
+
+**Calculation Types in Detail:**
+
+Each type below shows a minimal parameter file and the exact route line it generates
+(all routes verified against the implementation).
+
+- ``sp`` — single point. ``calc_type = sp`` gives::
+
+     # scf(maxcycle=300,xqc) UWB97XD/DEF2SVPP
+
+- ``opt_freq`` — optimization + frequency. Minimal file::
+
+     calc_type = opt_freq
+     functional = UWB97XD
+     basis = def2SVPP
+     charge = 0
+     mult = 1
+
+  gives::
+
+     # opt(maxcycles=300) freq scf(maxcycle=300,xqc) UWB97XD/DEF2SVPP
+
+- ``ts_freq`` — TS search + frequency. The template suggests ``large_basis`` for TS/high-level types, but
+  the route itself uses ``basis``::
+
+     calc_type = ts_freq
+     functional = UWB97XD
+     basis = def2SVPP
+     large_basis = def2TZVPP
+
+  gives::
+
+     # opt(maxcycles=300,ts,noeigen,calcfc) freq scf(maxcycle=300,xqc) UWB97XD/DEF2SVPP
+
+- ``modre_opt`` — optimization with ModRedundant constraints. Requires ``freeze_atoms``
+  (or ``modre``)::
+
+     calc_type = modre_opt
+     freeze_atoms = 1,2
+
+  gives::
+
+     # opt(maxcycles=300,modredundant) scf(maxcycle=300,xqc) UWB97XD/DEF2SVPP
+
+- ``oss_check_sp`` — open-shell singlet stability check::
+
+     # Stable=Opt scf(maxcycle=300,xqc) UWB97XD/DEF2SVPP
+
+- ``high_sp`` — high-level single point reusing the TS checkpoint (``Guess(Read)
+  Geom(AllCheck)``). ``large_basis`` selects the route basis::
+
+     calc_type = high_sp
+     large_basis = def2TZVPP
+
+  gives::
+
+     # scf(maxcycle=300,xqc) UWB97XD/DEF2TZVPP Guess(Read) Geom(AllCheck)
+
+- ``irc_forward`` / ``irc_reverse`` — needs the TS ``.chk`` (via ``tschk_path`` or the
+  parent directory); writes ``stemR.gau`` / ``stemF.gau``::
+
+     # irc=(Forward,RCFC,MaxPoints=50,Recalc=10,MaxCycle=350,StepSize=10,loose,LQA,nogradstop) UWB97XD/DEF2SVPP Guess(Read) Geom(AllCheck)
+
+- ``irc`` — writes both ``stemF.gau`` and ``stemR.gau`` (Forward + Reverse sections,
+  ``MaxPoints=50`` each).
+- ``tddft`` — ``tddft_states = singlets`` writes ``stem-singlets.gau``::
+
+     # tda(singlets,nstates=15) scf(maxcycle=300,xqc) UWB97XD/DEF2SVPP
+
+  ``tddft_states = 50-50`` writes a single ``stem.gau`` with ``tda(50-50,nstates=15)``;
+  empty ``tddft_states`` writes both files.
+- ``oss_ts_freq`` / ``modre_ts_freq`` — multi-section Link1 jobs (stability check, then
+  constrained optimization, then TS-from-checkpoint with ``MaxStep=5``). Example
+  ``modre_ts_freq`` routes::
+
+     # opt(maxcycles=300,modredundant) scf(maxcycle=300,xqc) UWB97XD/DEF2SVPP
+     # opt(maxcycles=300,ts,noeigen,calcfc,NoFreeze,MaxStep=5) freq scf(maxcycle=300,xqc) UWB97XD/DEF2SVPP Guess(Read) Geom(AllCheck)
+
+- ``fix_pcm = true`` (with ``solvent``) — wraps ``sp`` / ``opt_freq`` / ``ts_freq`` /
+  ``oss_check_sp`` / ``modre_opt`` in a two-section Link1 job; section 1 uses
+  ``scrf(...,read)``, section 2 adds ``Guess(Read) Geom(Allcheck)`` and ``Temperature=``::
+
+     # opt(maxcycles=300) scf(maxcycle=300,xqc) UWB97XD/DEF2SVPP scrf(smd,solvent=water,read)
+     # opt(maxcycles=300) freq scf(maxcycle=300,xqc) UWB97XD/DEF2SVPP scrf(smd,solvent=water) Guess(Read) Geom(Allcheck) Temperature=298.15
+
+- ``GEN`` / ``GENECP`` basis — ``basis = GENECP`` plus a ``tail`` block::
+
+     # scf(maxcycle=300,xqc) UWB97XD/GENECP
+
+  with the ``tail`` content (e.g. ``C H 0`` / ``6-31G*`` / ``****``) appended at file end.
+
+**CLI Flags vs Parameter Keys:**
+
+Each CLI flag seeds a default that the parameter file overrides. These map one-to-one:
+``--calc-type`` / ``--functional`` / ``--basis`` / ``--large-basis`` / ``--solvent`` /
+``--solvent-model`` / ``--solvent-extra`` / ``--charge`` / ``--mult`` / ``--print-level`` /
+``--extra-keywords`` (→ ``route_extra_keywords``) / ``--tail`` / ``--extension`` /
+``--tschk-path`` / ``--freeze-atoms`` / ``--tddft-method`` / ``--tddft-states`` /
+``--tddft-nstates`` / ``--tddft-extra`` / ``--fix-pcm`` / ``--temperature``.
+
+Param-file-only keys (no CLI flag): ``scf_maxcycle``, ``scf_options``, ``scf_restart``,
+``opt_maxcycles``, ``opt_options``, ``opt_restart``, ``opt_maxstep``, ``irc_maxpoints``,
+``irc_recalc``, ``irc_maxcycle``, ``irc_stepsize``, ``freeze_atom1`` / ``freeze_atom2``,
+``modre``, ``extra_options``.
+
+**Troubleshooting:**
+
+- ``GEN/GENECP basis requires tail`` — add a ``tail`` block with the custom basis/ECP.
+- ``freeze_atoms or modre required`` for ``oss_ts_freq`` / ``modre_ts_freq`` — set one of them.
+- ``--fix-pcm is not yet implemented`` for ``high_sp`` / ``oss_ts_freq`` / ``modre_ts_freq``
+  (also not valid for ``tddft`` / ``irc``) — run without ``fix_pcm``.
+- ``TS checkpoint file not found`` for ``high_sp`` / ``irc`` — set ``tschk_path`` or place the
+  ``.chk`` in the parent directory.
+- ``opt_*`` / ``scf_*`` keys silently do nothing on ``irc`` types (no ``opt(...)`` / ``scf(...)``
+  in IRC routes).
 
 **Generated Input File Example:**
 
