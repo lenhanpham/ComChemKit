@@ -80,12 +80,10 @@ namespace ThermoInterface
 
             // Process CLI arguments via util::loadarguments so settings.ini overrides work
             // util::loadarguments expects argv[0] = program name, argv[1] = input file, argv[2...] = options
-            std::vector<std::string> args = {"cck thermo"};
-            if (!input_file.empty()) {
-                args.push_back(input_file);
-            } else {
-                args.push_back("");
-            }
+            std::vector<std::string> args;
+            args.reserve(2 + settings.cli_args.size());
+            args.push_back("cck thermo");
+            args.push_back(input_file);
             if (!settings.cli_args.empty()) {
                 args.insert(args.end(), settings.cli_args.begin(), settings.cli_args.end());
             }
