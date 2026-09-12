@@ -493,6 +493,24 @@ Phase correction converts gas-phase energies to solution-phase:
 
       cck ci --param-file opt_freq.params
 
+Restart and extra opt/scf sub-options (param-file only):
+
+   .. code-block::
+
+      # Extra tokens appended inside the parentheses (comma-separated;
+      # ';' and '|' are also accepted as commas)
+      scf_options = restart,Conver=8
+      opt_options = restart,ModRedundant
+      # Restart-only shortcuts (default false; true/yes/1 activates)
+      scf_restart = false   # true -> scf(maxcycle=300,xqc,restart)
+      opt_restart = false   # true -> opt(maxcycles=300,restart)
+
+   Notes: ``*_options`` are appended inside ``scf(...)``/``opt(...)``;
+   ``*_restart=true`` appends a single ``restart`` (deduped if already listed
+   in ``*_options``); defaults (``""``/``false``) leave current routes unchanged;
+   ``opt_*`` applies to opt_freq/ts_freq/modre types, ``scf_*`` also applies to
+   sp/tddft/high_sp/oss_check_sp; IRC types ignore both.
+
 **Generated Input File Example:**
 
 .. code-block::

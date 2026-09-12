@@ -51,6 +51,10 @@ private:
     int         ci_scf_maxcycle = -1;
     int         ci_opt_maxcycles = -1;
     int         ci_opt_maxstep = -1;
+    std::string ci_opt_options = "";
+    std::string ci_scf_options = "";
+    bool        ci_opt_restart = false;
+    bool        ci_scf_restart = false;
     int         ci_irc_maxpoints = -1;
     int         ci_irc_recalc = -1;
     int         ci_irc_maxcycle = -1;

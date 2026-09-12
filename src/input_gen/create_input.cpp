@@ -12,6 +12,7 @@
 #include "input_gen/parameter_parser.h"
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -30,7 +31,8 @@ CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, bool quiet)
       mult_(1), tail_(""), modre_(""), extra_keyword_section_(""), extension_(".gau"), tschk_path_(""),
       tddft_method_("tda"), tddft_states_(""), tddft_nstates_(15), tddft_extra_(""),
       freeze_atoms_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
-      irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1), fix_pcm_(false), temperature_(-1.0)
+      irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1), fix_pcm_(false), temperature_(-1.0),
+      opt_options_(""), scf_options_(""), opt_restart_(false), scf_restart_(false)
 {}
 
 std::string CreateInput::select_basis_for_calculation() const
@@ -231,36 +233,38 @@ std::string CreateInput::generate_pcm_fix_s1_route(CalculationType type, const s
 
     int scf_mc = (scf_maxcycle_ != -1) ? scf_maxcycle_ : 300;
     int opt_mc = (opt_maxcycles_ != -1) ? opt_maxcycles_ : 300;
+    std::string opt_extra = buildOptExtra();
+    std::string scf_extra = buildScfExtra();
 
     route << pound;
 
     switch (type)
     {
         case CalculationType::SP:
-            route << " scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            route << " scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_;
             break;
         case CalculationType::OPT_FREQ:
             route << " opt(maxcycles=" << opt_mc;
             if (opt_maxstep_ > 0)
                 route << ",MaxStep=" << opt_maxstep_;
-            route << ") scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            route << opt_extra << ") scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_;
             break;
         case CalculationType::TS_FREQ: {
             std::string basis_to_use = select_basis_for_calculation();
             route << " opt(maxcycles=" << opt_mc << ",ts,noeigen,calcfc";
             if (opt_maxstep_ > 0)
                 route << ",MaxStep=" << opt_maxstep_;
-            route << ") scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_to_use;
+            route << opt_extra << ") scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_to_use;
             break;
         }
         case CalculationType::OSS_CHECK_SP:
-            route << " Stable=Opt scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            route << " Stable=Opt scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_;
             break;
         case CalculationType::MODRE_OPT:
             route << " opt(maxcycles=" << opt_mc << ",modredundant";
             if (opt_maxstep_ > 0)
                 route << ",MaxStep=" << opt_maxstep_;
-            route << ") scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            route << opt_extra << ") scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_;
             break;
         default:
             break;
@@ -286,36 +290,38 @@ std::string CreateInput::generate_pcm_fix_s2_route(CalculationType type, const s
 
     int scf_mc = (scf_maxcycle_ != -1) ? scf_maxcycle_ : 300;
     int opt_mc = (opt_maxcycles_ != -1) ? opt_maxcycles_ : 300;
+    std::string opt_extra = buildOptExtra();
+    std::string scf_extra = buildScfExtra();
 
     route << pound;
 
     switch (type)
     {
         case CalculationType::SP:
-            route << " scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            route << " scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_;
             break;
         case CalculationType::OPT_FREQ:
             route << " opt(maxcycles=" << opt_mc;
             if (opt_maxstep_ > 0)
                 route << ",MaxStep=" << opt_maxstep_;
-            route << ") freq scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            route << opt_extra << ") freq scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_;
             break;
         case CalculationType::TS_FREQ: {
             std::string basis_to_use = select_basis_for_calculation();
             route << " opt(maxcycles=" << opt_mc << ",ts,noeigen,calcfc";
             if (opt_maxstep_ > 0)
                 route << ",MaxStep=" << opt_maxstep_;
-            route << ") freq scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_to_use;
+            route << opt_extra << ") freq scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_to_use;
             break;
         }
         case CalculationType::OSS_CHECK_SP:
-            route << " Stable=Opt scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            route << " Stable=Opt scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_;
             break;
         case CalculationType::MODRE_OPT:
             route << " opt(maxcycles=" << opt_mc << ",modredundant";
             if (opt_maxstep_ > 0)
                 route << ",MaxStep=" << opt_maxstep_;
-            route << ") scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            route << opt_extra << ") scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_;
             break;
         default:
             break;
@@ -389,7 +395,8 @@ CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, const std::stri
       mult_(1), tail_(""), modre_(""), extra_keyword_section_(""), extension_(".gau"), tschk_path_(""),
       tddft_method_("tda"), tddft_states_(""), tddft_nstates_(15), tddft_extra_(""),
       freeze_atoms_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
-      irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1), fix_pcm_(false), temperature_(-1.0)
+      irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1), fix_pcm_(false), temperature_(-1.0),
+      opt_options_(""), scf_options_(""), opt_restart_(false), scf_restart_(false)
 {
     if (!loadParameters(param_file))
     {
@@ -512,6 +519,10 @@ bool CreateInput::loadParameters(const std::string& param_file)
     irc_maxcycle_  = parser.getInt("irc_maxcycle", -1);
     irc_stepsize_  = parser.getInt("irc_stepsize", -1);
     opt_maxstep_   = parser.getInt("opt_maxstep", -1);
+    opt_options_ = parser.getString("opt_options", "");
+    scf_options_ = parser.getString("scf_options", "");
+    opt_restart_ = parser.getBool("opt_restart", false);
+    scf_restart_ = parser.getBool("scf_restart", false);
 
     // PCM fix parameters
     fix_pcm_ = parser.getBool("fix_pcm", false);
@@ -859,6 +870,8 @@ std::string CreateInput::generate_route_for_single_section_calc_type(Calculation
     // Generate route based on type
     int scf_mc = (scf_maxcycle_ != -1) ? scf_maxcycle_ : 300;
     int opt_mc = (opt_maxcycles_ != -1) ? opt_maxcycles_ : 300;
+    std::string opt_extra = buildOptExtra();
+    std::string scf_extra = buildScfExtra();
 
     route << pound;
 
@@ -866,50 +879,50 @@ std::string CreateInput::generate_route_for_single_section_calc_type(Calculation
     switch (type)
     {
         case CalculationType::SP:
-            route << " scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            route << " scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_;
             break;
         case CalculationType::TDDFT: {
             std::string states = tddft_states_.empty() ? "singlets" : tddft_states_;
             route << " " << tddft_method_ << "(" << states << ",nstates=" << tddft_nstates_;
             if (!tddft_extra_.empty())
                 route << "," << tddft_extra_;
-            route << ") scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            route << ") scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_;
             break;
         }
         case CalculationType::OPT_FREQ:
             route << " opt(maxcycles=" << opt_mc;
             if (opt_maxstep_ > 0)
                 route << ",MaxStep=" << opt_maxstep_;
-            route << ") freq scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            route << opt_extra << ") freq scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_;
             break;
         case CalculationType::TS_FREQ: {
             std::string basis_to_use = select_basis_for_calculation();
             route << " opt(maxcycles=" << opt_mc << ",ts,noeigen,calcfc";
             if (opt_maxstep_ > 0)
                 route << ",MaxStep=" << opt_maxstep_;
-            route << ") freq scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_to_use;
+            route << opt_extra << ") freq scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_to_use;
             break;
         }
         case CalculationType::TS_FREQ_FROM_CHK: {
             std::string basis_to_use   = select_basis_for_calculation();
             int         maxstep_to_use = (opt_maxstep_ > 0) ? opt_maxstep_ : 5;  // Default to 5 if not specified
             route << " opt(maxcycles=" << opt_mc << ",ts,noeigen,calcfc,NoFreeze,MaxStep=" << maxstep_to_use
-                  << ") freq scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_to_use
+                  << opt_extra << ") freq scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_to_use
                   << " Guess(Read) Geom(AllCheck)";
         }
         break;
         case CalculationType::OSS_CHECK_SP:
-            route << " Stable=Opt scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            route << " Stable=Opt scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_;
             break;
         case CalculationType::MODRE_OPT:
             route << " opt(maxcycles=" << opt_mc << ",modredundant";
             if (opt_maxstep_ > 0)
                 route << ",MaxStep=" << opt_maxstep_;
-            route << ") scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_;
+            route << opt_extra << ") scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_;
             break;
         case CalculationType::HIGH_SP: {
             std::string basis_to_use = select_basis_for_calculation();
-            route << " scf(maxcycle=" << scf_mc << ",xqc) " << functional_ << "/" << basis_to_use
+            route << " scf(maxcycle=" << scf_mc << ",xqc" << scf_extra << ") " << functional_ << "/" << basis_to_use
                   << " Guess(Read) Geom(AllCheck)";
         }
         break;
@@ -1342,6 +1355,26 @@ void CreateInput::set_opt_maxcycles(int maxcycles)
     opt_maxcycles_ = maxcycles;
 }
 
+void CreateInput::set_opt_options(const std::string& options)
+{
+    opt_options_ = options;
+}
+
+void CreateInput::set_scf_options(const std::string& options)
+{
+    scf_options_ = options;
+}
+
+void CreateInput::set_opt_restart(bool restart)
+{
+    opt_restart_ = restart;
+}
+
+void CreateInput::set_scf_restart(bool restart)
+{
+    scf_restart_ = restart;
+}
+
 void CreateInput::set_opt_maxstep(int maxstep)
 {
     opt_maxstep_ = maxstep;
@@ -1507,4 +1540,75 @@ std::vector<int> CreateInput::parseFreezeAtomsString(const std::string& freeze_s
     }
 
     return atoms;
+}
+
+std::vector<std::string> CreateInput::parseOptionsList(const std::string& raw) const
+{
+    std::string norm = raw;
+    for (char& c : norm)
+        if (c == ';' || c == '|')
+            c = ',';
+    std::vector<std::string> out;
+    std::string cur;
+    auto flush = [&]() {
+        size_t a = cur.find_first_not_of(" \t\r\n");
+        size_t b = cur.find_last_not_of(" \t\r\n");
+        if (a != std::string::npos)
+            out.push_back(cur.substr(a, b - a + 1));
+        cur.clear();
+    };
+    for (char c : norm)
+    {
+        if (c == ',')
+            flush();
+        else
+            cur.push_back(c);
+    }
+    flush();
+    return out;
+}
+
+bool CreateInput::optionsContainRestart(const std::vector<std::string>& opts) const
+{
+    for (const auto& o : opts)
+    {
+        std::string l = o;
+        for (char& c : l)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (l == "restart")
+            return true;
+    }
+    return false;
+}
+
+std::string CreateInput::buildOptExtra() const
+{
+    auto opts = parseOptionsList(opt_options_);
+    if (opt_restart_ && !optionsContainRestart(opts))
+        opts.push_back("restart");
+    if (opts.empty())
+        return "";
+    std::string s;
+    for (const auto& o : opts)
+    {
+        s.push_back(',');
+        s += o;
+    }
+    return s;
+}
+
+std::string CreateInput::buildScfExtra() const
+{
+    auto opts = parseOptionsList(scf_options_);
+    if (scf_restart_ && !optionsContainRestart(opts))
+        opts.push_back("restart");
+    if (opts.empty())
+        return "";
+    std::string s;
+    for (const auto& o : opts)
+    {
+        s.push_back(',');
+        s += o;
+    }
+    return s;
 }

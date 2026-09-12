@@ -294,6 +294,10 @@ public:
      * @param maxcycles OPT maxcycles value (-1 for default)
      */
     void set_opt_maxcycles(int maxcycles);
+    void set_opt_options(const std::string& options);
+    void set_scf_options(const std::string& options);
+    void set_opt_restart(bool restart);
+    void set_scf_restart(bool restart);
 
     /**
      * @brief Set OPT maxstep override
@@ -382,6 +386,10 @@ private:
     int irc_maxcycle_;   ///< Override for IRC MaxCycle
     int irc_stepsize_;   ///< Override for IRC StepSize
     int opt_maxstep_;    ///< Override for OPT MaxStep (-1 = default: none for most types, 5 for TS_FREQ_FROM_CHK)
+    std::string opt_options_;  ///< Extra tokens appended inside opt(...) comma-joined
+    std::string scf_options_;  ///< Extra tokens appended inside scf(...) comma-joined
+    bool opt_restart_;         ///< Convenience flag appending restart inside opt(...)
+    bool scf_restart_;         ///< Convenience flag appending restart inside scf(...)
 
     // PCM fix (SES surface) parameters
     bool   fix_pcm_;      ///< Enable PCM fix (SES surface) two-section input mode
@@ -514,6 +522,10 @@ private:
      * @return Parsed keywords string with single spaces between keywords
      */
     std::string parseExtraKeywords(const std::string& keywords_str);
+    std::vector<std::string> parseOptionsList(const std::string& raw) const;
+    bool optionsContainRestart(const std::vector<std::string>& opts) const;
+    std::string buildOptExtra() const;
+    std::string buildScfExtra() const;
 
     /**
      * @brief Parse freeze atoms string into vector of atom indices

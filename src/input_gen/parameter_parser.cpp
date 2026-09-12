@@ -500,10 +500,14 @@ std::string ParameterParser::createTemplateContent(const std::string& calc_type)
     content << "# Custom cycle and optimization parameters (optional)\n";
     content << "# Override defaults for SCF, OPT, IRC keywords\n";
     content << "# scf_maxcycle = 300\n";
+    content << "# scf_options = restart,Conver=8  # Extra tokens inside scf(...), e.g. restart or Conver=N\n";
+    content << "# scf_restart = false             # Shortcut for restart-only: true/yes/1 adds restart to scf(...)\n";
     if (calc_type == "opt_freq" || calc_type == "ts_freq" || calc_type == "oss_ts_freq" ||
         calc_type == "modre_ts_freq" || calc_type == "modre_opt")
     {
         content << "# opt_maxcycles = 300\n";
+        content << "# opt_options = restart           # Extra tokens inside opt(...), e.g. restart,ModRedundant\n";
+        content << "# opt_restart = false             # Shortcut for restart-only: true/yes/1 adds restart to opt(...)\n";
         content << "# opt_maxstep = -1  # MaxStep for opt keyword (-1 = default: none for most types, 5 for "
                    "TS_FREQ_FROM_CHK)\n";
     }
@@ -642,6 +646,10 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "# Override defaults for SCF, OPT, IRC keywords\n";
     content << "# scf_maxcycle = 300  # Default 300 for SP/OPT_FREQ/HIGH_SP, 300 for others\n";
     content << "# opt_maxcycles = 300\n";
+    content << "# scf_options = restart,Conver=8  # Extra tokens inside scf(...) for SP/OPT/TS/MODRE/TDDFT/HIGH_SP\n";
+    content << "# scf_restart = false             # true/yes/1 -> scf(maxcycle=300,xqc,restart)\n";
+    content << "# opt_options = restart           # Extra tokens inside opt(...) for OPT/TS/MODRE types\n";
+    content << "# opt_restart = false             # true/yes/1 -> opt(maxcycles=300,restart)\n";
     content << "# opt_maxstep = -1  # MaxStep for opt keyword (-1 = default: none for most types, 5 for "
                "TS_FREQ_FROM_CHK)\n";
     content << "# irc_maxpoints = 50\n";
