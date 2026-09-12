@@ -31,8 +31,8 @@ CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, bool quiet)
       mult_(1), tail_(""), modre_(""), extra_keyword_section_(""), extension_(".gau"), tschk_path_(""),
       tddft_method_("tda"), tddft_states_(""), tddft_nstates_(15), tddft_extra_(""),
       freeze_atoms_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
-      irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1), fix_pcm_(false), temperature_(-1.0),
-      opt_options_(""), scf_options_(""), opt_restart_(false), scf_restart_(false)
+      irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1), opt_options_(""), scf_options_(""), opt_restart_(false), scf_restart_(false),
+      fix_pcm_(false), temperature_(-1.0)
 {}
 
 std::string CreateInput::select_basis_for_calculation() const
@@ -395,8 +395,8 @@ CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, const std::stri
       mult_(1), tail_(""), modre_(""), extra_keyword_section_(""), extension_(".gau"), tschk_path_(""),
       tddft_method_("tda"), tddft_states_(""), tddft_nstates_(15), tddft_extra_(""),
       freeze_atoms_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
-      irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1), fix_pcm_(false), temperature_(-1.0),
-      opt_options_(""), scf_options_(""), opt_restart_(false), scf_restart_(false)
+      irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1), opt_options_(""), scf_options_(""), opt_restart_(false), scf_restart_(false),
+      fix_pcm_(false), temperature_(-1.0)
 {
     if (!loadParameters(param_file))
     {
