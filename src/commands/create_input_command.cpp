@@ -674,6 +674,10 @@ void CreateInputCommand::parse_args(int argc, char* argv[], int& i, CommandConte
             ci_scf_maxcycle  = parser.getInt("scf_maxcycle", ci_scf_maxcycle);
             ci_opt_maxcycles = parser.getInt("opt_maxcycles", ci_opt_maxcycles);
             ci_opt_maxstep   = parser.getInt("opt_maxstep", ci_opt_maxstep);
+            ci_opt_options = parser.getString("opt_options", ci_opt_options);
+            ci_scf_options = parser.getString("scf_options", ci_scf_options);
+            ci_opt_restart = parser.getBool("opt_restart", ci_opt_restart);
+            ci_scf_restart = parser.getBool("scf_restart", ci_scf_restart);
             ci_irc_maxpoints = parser.getInt("irc_maxpoints", ci_irc_maxpoints);
             ci_irc_recalc    = parser.getInt("irc_recalc", ci_irc_recalc);
             ci_irc_maxcycle  = parser.getInt("irc_maxcycle", ci_irc_maxcycle);
@@ -886,6 +890,10 @@ int CreateInputCommand::execute(const CommandContext& context)
         creator.set_scf_maxcycle(ci_scf_maxcycle);
         creator.set_opt_maxcycles(ci_opt_maxcycles);
         creator.set_opt_maxstep(ci_opt_maxstep);
+        creator.set_opt_options(ci_opt_options);
+        creator.set_scf_options(ci_scf_options);
+        creator.set_opt_restart(ci_opt_restart);
+        creator.set_scf_restart(ci_scf_restart);
         creator.set_irc_maxpoints(ci_irc_maxpoints);
         creator.set_irc_recalc(ci_irc_recalc);
         creator.set_irc_maxcycle(ci_irc_maxcycle);

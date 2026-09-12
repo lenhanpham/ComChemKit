@@ -215,6 +215,12 @@ namespace HelpUtils
                 std::cout << "  --tddft-states <s>       States: singlets|triplets|50-50|empty (default: both)\n";
                 std::cout << "  --tddft-nstates <n>      Number of excited states (default: 15)\n";
                 std::cout << "  --tddft-extra <kw>       Extra keywords inside td/tda() e.g. Root=5,Read,IVOGuess\n";
+                std::cout << "  Param-file only: scf_maxcycle | opt_maxcycles | opt_maxstep (integers)\n";
+                std::cout << "  Param-file only: scf_options | opt_options (extra tokens inside scf(...)/opt(...))\n";
+                std::cout << "                   e.g. scf_options = restart,Conver=8; opt_options = restart,ModRedundant\n";
+                std::cout << "  Param-file only: scf_restart | opt_restart (restart-only shortcut, default false)\n";
+                std::cout << "                   e.g. opt_restart = true -> opt(maxcycles=300,restart)\n";
+                std::cout << "                   e.g. scf_restart = true -> scf(maxcycle=300,xqc,restart)\n";
                 std::cout << "  --fix-pcm                Enable two-section SES surface input to fix PCM\n";
                 std::cout << "                           discontinuity errors (requires --solvent; not for irc/tddft)\n";
                 std::cout << "  --temperature <K>        Temperature (e.g. 253.15)\n\n";
