@@ -128,6 +128,7 @@ Current Version: **v0.000.8**
 - **v0.000.6**: Print low-frequency vibrational treatment info in results
 - **v0.000.7**: Add support for fixing PCM solvation discontinuity error
 - **v0.000.8**: Support extracting coordinates with displacement of imaginary modes from geometrical optimization containing imaginary modes
+- **v0.1.1**: Improved accuracy of symmetry submodule and fixed bugs in CI module
 
 .. note::
-    This documentation is for ComChemKit v0.000.6. For older versions, please refer to the archived documentation.
+    This documentation is for ComChemKit v0.1.1. For older versions, please refer to the archived documentation.
