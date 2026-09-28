@@ -359,11 +359,24 @@ std::string CreateInput::generate_pcm_fix_content(const std::string& isomer_name
     content << "\n";
 
     // For MODRE_OPT, write constraints before the surface keyword
+    // Blank line required between coordinates and modredundant section.
     if (calc_type_ == CalculationType::MODRE_OPT)
     {
         if (!modre_.empty())
         {
-            content << modre_;
+            std::string modre_block = modre_;
+            size_t      first       = modre_block.find_first_not_of("\r\n");
+            if (first == std::string::npos)
+                modre_block.clear();
+            else
+                modre_block = modre_block.substr(first);
+            size_t last = modre_block.find_last_not_of("\r\n");
+            if (last == std::string::npos)
+                modre_block.clear();
+            else
+                modre_block = modre_block.substr(0, last + 1);
+            content << "\n";
+            content << modre_block << "\n";
         }
         else if (freeze_atoms_.first != 0 && freeze_atoms_.second != 0)
         {
@@ -804,11 +817,26 @@ std::string CreateInput::generate_single_section_calc_type(CalculationType    ty
         content << generate_molecule_section(coordinates);
 
         // Add modre content for MODRE_OPT
+        // Gaussian requires a blank line between coordinates and modredundant
+        // section, and a blank line after it. Normalize trailing newlines so
+        // both plain and ( ... ) parameter forms behave identically.
         if (type == CalculationType::MODRE_OPT)
         {
             if (!modre_.empty())
             {
-                content << modre_;
+                std::string modre_block = modre_;
+                size_t      first       = modre_block.find_first_not_of("\r\n");
+                if (first == std::string::npos)
+                    modre_block.clear();
+                else
+                    modre_block = modre_block.substr(first);
+                size_t last = modre_block.find_last_not_of("\r\n");
+                if (last == std::string::npos)
+                    modre_block.clear();
+                else
+                    modre_block = modre_block.substr(0, last + 1);
+                content << "\n";
+                content << modre_block << "\n";
             }
             else if (freeze_atoms_.first != 0 && freeze_atoms_.second != 0)
             {
