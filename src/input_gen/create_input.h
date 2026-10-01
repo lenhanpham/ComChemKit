@@ -167,7 +167,7 @@ public:
     /**
      * @brief Validates requirements for MODRE_TS_FREQ and OSS_TS_FREQ calculations
      * @throws
-     * std::runtime_error if neither freeze_atoms nor modre is provided
+     * std::runtime_error if neither freeze_bond nor modre is provided
      */
     void validate_modre_requirements() const;
 
@@ -277,11 +277,11 @@ public:
     void set_tschk_path(const std::string& path);
 
     /**
-     * @brief Set atoms to freeze for OSS TS calculations
+     * @brief Set bond to freeze for OSS TS calculations
      * @param atom1 First atom index (1-based)
      * @param atom2 Second atom index (1-based)
      */
-    void set_freeze_atoms(int atom1, int atom2);
+    void set_freeze_bond(int atom1, int atom2);
 
     /**
      * @brief Set SCF maxcycle override
@@ -376,7 +376,7 @@ private:
     std::string         tddft_states_;  ///< State type: "singlets", "triplets", "50-50", or empty (both)
     int                 tddft_nstates_; ///< Number of excited states
     std::string         tddft_extra_;   ///< Extra keywords appended inside td/tda parentheses
-    std::pair<int, int> freeze_atoms_;           ///< Atoms to freeze (1-based indices)
+    std::pair<int, int> freeze_bond_;            ///< Atoms defining the bond to freeze (1-based indices)
 
     // Configurable cycle and optimization parameters (-1 means use default)
     int scf_maxcycle_;   ///< Override for SCF MaxCycle
@@ -528,11 +528,11 @@ private:
     std::string buildScfExtra() const;
 
     /**
-     * @brief Parse freeze atoms string into vector of atom indices
-     * @param freeze_str String containing atom indices (comma or space separated)
+     * @brief Parse freeze bond string into vector of bond-atom indices
+     * @param freeze_str String containing bond-atom indices (comma or space separated)
      * @return Vector of parsed atom indices
      */
-    std::vector<int> parseFreezeAtomsString(const std::string& freeze_str);
+    std::vector<int> parseFreezeBondString(const std::string& freeze_str);
 };
 
 #endif  // CREATE_INPUT_H

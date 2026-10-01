@@ -331,30 +331,30 @@ void CreateInputCommand::parse_args(int argc, char* argv[], int& i, CommandConte
             context.warnings.push_back("Error: tschk-path requires a value");
         }
     }
-    else if (arg == "--freeze-atoms")
+    else if (arg == "--freeze-bond" || arg == "--freeze-atoms")  // --freeze-atoms: deprecated alias
     {
         if (++i < argc)
         {
             try
             {
-                ci_freeze_atom1 = std::stoi(argv[i]);
+                ci_freeze_bond_atom1 = std::stoi(argv[i]);
                 if (++i < argc)
                 {
-                    ci_freeze_atom2 = std::stoi(argv[i]);
+                    ci_freeze_bond_atom2 = std::stoi(argv[i]);
                 }
                 else
                 {
-                    context.warnings.push_back("Error: freeze-atoms requires two values");
+                    context.warnings.push_back("Error: freeze-bond requires two values");
                 }
             }
             catch (const std::exception& e)
             {
-                context.warnings.push_back("Error: freeze-atoms requires integer values");
+                context.warnings.push_back("Error: freeze-bond requires integer values");
             }
         }
         else
         {
-            context.warnings.push_back("Error: freeze-atoms requires values");
+            context.warnings.push_back("Error: freeze-bond requires values");
         }
     }
     else if (arg == "--genci-params")
@@ -597,13 +597,14 @@ void CreateInputCommand::parse_args(int argc, char* argv[], int& i, CommandConte
             ci_modre      = parser.getString("modre", ci_modre);
             ci_extension  = parser.getString("extension", ci_extension);
             ci_tschk_path = parser.getString("tschk_path", ci_tschk_path);
-            // Handle freeze atoms - try freeze_atoms first, then fall back to separate parameters
-            std::string freeze_atoms_str = parser.getString("freeze_atoms", "");
-            if (!freeze_atoms_str.empty())
+            // Handle freeze bond - try freeze_bond (legacy freeze_atoms) first,
+            // then fall back to separate endpoint parameters
+            std::string freeze_bond_str = parser.getString("freeze_bond", parser.getString("freeze_atoms", ""));
+            if (!freeze_bond_str.empty())
             {
-                // Parse freeze_atoms string (comma or space separated)
+                // Parse freeze bond string (comma or space separated)
                 std::vector<int> atoms;
-                std::string      cleaned_str = freeze_atoms_str;
+                std::string      cleaned_str = freeze_bond_str;
                 // Remove leading/trailing whitespace
                 cleaned_str.erase(cleaned_str.begin(),
                                   std::find_if(cleaned_str.begin(), cleaned_str.end(), [](unsigned char ch) {
@@ -659,15 +660,17 @@ void CreateInputCommand::parse_args(int argc, char* argv[], int& i, CommandConte
 
                 if (atoms.size() >= 2)
                 {
-                    ci_freeze_atom1 = atoms[0];
-                    ci_freeze_atom2 = atoms[1];
+                    ci_freeze_bond_atom1 = atoms[0];
+                    ci_freeze_bond_atom2 = atoms[1];
                 }
             }
             else
             {
-                // Fall back to separate freeze_atom1 and freeze_atom2 parameters
-                ci_freeze_atom1 = parser.getInt("freeze_atom1", ci_freeze_atom1);
-                ci_freeze_atom2 = parser.getInt("freeze_atom2", ci_freeze_atom2);
+                // Fall back to separate freeze_bond_atom1/2 (legacy freeze_atom1/2) parameters
+                ci_freeze_bond_atom1 =
+                    parser.getInt("freeze_bond_atom1", parser.getInt("freeze_atom1", ci_freeze_bond_atom1));
+                ci_freeze_bond_atom2 =
+                    parser.getInt("freeze_bond_atom2", parser.getInt("freeze_atom2", ci_freeze_bond_atom2));
             }
 
             // Load custom cycle and optimization parameters (always loaded)
@@ -847,19 +850,19 @@ int CreateInputCommand::execute(const CommandContext& context)
         }
         // Default is SP for any other value
 
-        // Validate freeze atoms or modre for OSS_TS_FREQ and MODRE_TS_FREQ
+        // Validate freeze bond or modre for OSS_TS_FREQ and MODRE_TS_FREQ
         if (calc_type == CalculationType::OSS_TS_FREQ || calc_type == CalculationType::MODRE_TS_FREQ)
         {
-            bool has_freeze_atoms = (ci_freeze_atom1 != 0 && ci_freeze_atom2 != 0);
-            bool has_modre        = !ci_modre.empty();
+            bool has_freeze_bond = (ci_freeze_bond_atom1 != 0 && ci_freeze_bond_atom2 != 0);
+            bool has_modre       = !ci_modre.empty();
 
-            if (!has_freeze_atoms && !has_modre)
+            if (!has_freeze_bond && !has_modre)
             {
                 std::string calc_type_name =
                     (calc_type == CalculationType::OSS_TS_FREQ) ? "oss_ts_freq" : "modre_ts_freq";
-                std::cerr << "Error: --freeze-atoms or modre parameter is required for " << calc_type_name
+                std::cerr << "Error: --freeze-bond or modre parameter is required for " << calc_type_name
                           << " calculation type." << std::endl;
-                std::cerr << "Please specify --freeze-atoms 1 2 or provide modre in the parameter file." << std::endl;
+                std::cerr << "Please specify --freeze-bond 1 2 or provide modre in the parameter file." << std::endl;
                 return 1;
             }
         }
@@ -883,9 +886,9 @@ int CreateInputCommand::execute(const CommandContext& context)
         creator.set_modre(ci_modre);
         creator.set_extension(ci_extension);
         creator.set_tschk_path(ci_tschk_path);
-        if (ci_freeze_atom1 != 0 && ci_freeze_atom2 != 0)
+        if (ci_freeze_bond_atom1 != 0 && ci_freeze_bond_atom2 != 0)
         {
-            creator.set_freeze_atoms(ci_freeze_atom1, ci_freeze_atom2);
+            creator.set_freeze_bond(ci_freeze_bond_atom1, ci_freeze_bond_atom2);
         }
         creator.set_scf_maxcycle(ci_scf_maxcycle);
         creator.set_opt_maxcycles(ci_opt_maxcycles);

@@ -410,7 +410,7 @@ Phase correction converts gas-phase energies to solution-phase:
 .. code-block:: bash
 
    # Transition state with frozen bond
-   cck ci --calc-type modre_ts_freq --freeze-atoms 1 2
+   cck ci --calc-type modre_ts_freq --freeze-bond 1 2
 
    # High-level single point with custom functional
    cck ci --calc-type high_sp --functional B3LYP --basis 6-311+G**
@@ -571,8 +571,10 @@ IRC keys (param-file-only):
 
 TS-constraint keys:
 
-- ``freeze_atoms = 1,2`` (comma- or space-separated; ``freeze_atom1`` / ``freeze_atom2`` are the
-  fallback) — required for ``oss_ts_freq`` / ``modre_ts_freq`` unless ``modre`` is given.
+- ``freeze_bond = 1,2`` (comma- or space-separated; ``freeze_bond_atom1`` / ``freeze_bond_atom2``
+  are the fallback) — required for ``oss_ts_freq`` / ``modre_ts_freq`` unless ``modre`` is given.
+  The former names ``freeze_atoms`` / ``freeze_atom1`` / ``freeze_atom2`` are still accepted
+  but deprecated.
 - ``modre`` (multiline) — ModRedundant section; wrap lines in ``(`` ... ``)`` to preserve
   blank lines.
 
@@ -630,11 +632,11 @@ Each type below shows a minimal parameter file and the exact route line it gener
 
      # opt(maxcycles=300,ts,noeigen,calcfc) freq scf(maxcycle=300,xqc) UWB97XD/DEF2SVPP
 
-- ``modre_opt`` — optimization with ModRedundant constraints. Requires ``freeze_atoms``
+- ``modre_opt`` — optimization with ModRedundant constraints. Requires ``freeze_bond``
   (or ``modre``)::
 
      calc_type = modre_opt
-     freeze_atoms = 1,2
+     freeze_bond = 1,2
 
   gives::
 
@@ -693,18 +695,18 @@ Each CLI flag seeds a default that the parameter file overrides. These map one-t
 ``--calc-type`` / ``--functional`` / ``--basis`` / ``--large-basis`` / ``--solvent`` /
 ``--solvent-model`` / ``--solvent-extra`` / ``--charge`` / ``--mult`` / ``--print-level`` /
 ``--extra-keywords`` (→ ``route_extra_keywords``) / ``--tail`` / ``--extension`` /
-``--tschk-path`` / ``--freeze-atoms`` / ``--tddft-method`` / ``--tddft-states`` /
+``--tschk-path`` / ``--freeze-bond`` / ``--tddft-method`` / ``--tddft-states`` /
 ``--tddft-nstates`` / ``--tddft-extra`` / ``--fix-pcm`` / ``--temperature``.
 
 Param-file-only keys (no CLI flag): ``scf_maxcycle``, ``scf_options``, ``scf_restart``,
 ``opt_maxcycles``, ``opt_options``, ``opt_restart``, ``opt_maxstep``, ``irc_maxpoints``,
-``irc_recalc``, ``irc_maxcycle``, ``irc_stepsize``, ``freeze_atom1`` / ``freeze_atom2``,
+``irc_recalc``, ``irc_maxcycle``, ``irc_stepsize``, ``freeze_bond_atom1`` / ``freeze_bond_atom2``,
 ``modre``, ``extra_options``.
 
 **Troubleshooting:**
 
 - ``GEN/GENECP basis requires tail`` — add a ``tail`` block with the custom basis/ECP.
-- ``freeze_atoms or modre required`` for ``oss_ts_freq`` / ``modre_ts_freq`` — set one of them.
+- ``freeze_bond or modre required`` for ``oss_ts_freq`` / ``modre_ts_freq`` — set one of them.
 - ``--fix-pcm is not yet implemented`` for ``high_sp`` / ``oss_ts_freq`` / ``modre_ts_freq``
   (also not valid for ``tddft`` / ``irc``) — run without ``fix_pcm``.
 - ``TS checkpoint file not found`` for ``high_sp`` / ``irc`` — set ``tschk_path`` or place the
@@ -1421,7 +1423,7 @@ Command Reference
 +---------------------+----------------------------------+
 | ``--mult``          | Multiplicity                     |
 +---------------------+----------------------------------+
-| ``--freeze-atoms``  | Atoms to freeze for TS           |
+| ``--freeze-bond``   | Bond atoms to freeze for TS      |
 +---------------------+----------------------------------+
 | ``--genci-params``  | Generate parameter template      |
 +---------------------+----------------------------------+

@@ -46,8 +46,8 @@ private:
     std::string ci_modre = "";
     std::string ci_extension = ".gau";
     std::string ci_tschk_path = "";
-    int         ci_freeze_atom1 = 0;
-    int         ci_freeze_atom2 = 0;
+    int         ci_freeze_bond_atom1 = 0;
+    int         ci_freeze_bond_atom2 = 0;
     int         ci_scf_maxcycle = -1;
     int         ci_opt_maxcycles = -1;
     int         ci_opt_maxstep = -1;

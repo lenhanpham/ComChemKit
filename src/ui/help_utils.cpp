@@ -205,7 +205,8 @@ namespace HelpUtils
                 std::cout << "  --solvent-model <model>  Solvent model: smd|cpcm|iefpcm (default: smd)\n";
                 std::cout << "  --charge <num>           Molecular charge (default: 0)\n";
                 std::cout << "  --mult <num>             Multiplicity (default: 1)\n";
-                std::cout << "  --freeze-atoms <a1> <a2> Freeze bond between atoms (for TS calculations)\n";
+                std::cout << "  --freeze-bond  <a1> <a2> Freeze bond between atoms (for TS calculations)\n";
+                std::cout << "                           (legacy alias: --freeze-atoms, deprecated)\n";
                 std::cout << "  --print-level <sign>     Route section modifier: N|P|T (Gaussian versions)\n";
                 std::cout << "  --extra-keywords <kw>    Additional Gaussian keywords\n";
                 std::cout << "  --extension <ext>        Output file extension (default: .gau)\n";
@@ -330,7 +331,7 @@ namespace HelpUtils
             std::cout << "  " << program_name << " " << cmd_name
                       << " --calc-type opt_freq                  # Optimization + frequency\n";
             std::cout << "  " << program_name << " " << cmd_name
-                      << " --calc-type modre_ts_freq --freeze-atoms 1 2  # TS search\n";
+                      << " --calc-type modre_ts_freq --freeze-bond 1 2  # TS search\n";
             std::cout << "  " << program_name << " " << cmd_name
                       << " --calc-type high_sp --tschk-path ../ts/       # High-level SP\n";
             std::cout << "  " << program_name << " " << cmd_name

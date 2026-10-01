@@ -30,7 +30,7 @@ CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, bool quiet)
       large_basis_(""), solvent_(""), solvent_model_("smd"), solvent_extra_(""), print_level_(""), extra_keywords_(""), charge_(0),
       mult_(1), tail_(""), modre_(""), extra_keyword_section_(""), extension_(".gau"), tschk_path_(""),
       tddft_method_("tda"), tddft_states_(""), tddft_nstates_(15), tddft_extra_(""),
-      freeze_atoms_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
+      freeze_bond_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
       irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1), opt_options_(""), scf_options_(""), opt_restart_(false), scf_restart_(false),
       fix_pcm_(false), temperature_(-1.0)
 {}
@@ -136,21 +136,21 @@ void CreateInput::validate_gen_basis_requirements() const
 
 void CreateInput::validate_modre_requirements() const
 {
-    // For MODRE_TS_FREQ and OSS_TS_FREQ, either freeze_atoms or modre must be provided
+    // For MODRE_TS_FREQ and OSS_TS_FREQ, either freeze_bond or modre must be provided
     if (calc_type_ == CalculationType::MODRE_TS_FREQ || calc_type_ == CalculationType::OSS_TS_FREQ ||
         calc_type_ == CalculationType::MODRE_OPT)
     {
-        bool has_freeze_atoms = (freeze_atoms_.first != 0 && freeze_atoms_.second != 0);
-        bool has_modre        = !modre_.empty();
+        bool has_freeze_bond = (freeze_bond_.first != 0 && freeze_bond_.second != 0);
+        bool has_modre       = !modre_.empty();
 
-        if (!has_freeze_atoms && !has_modre)
+        if (!has_freeze_bond && !has_modre)
         {
             std::string calc_type_name =
                 (calc_type_ == CalculationType::MODRE_TS_FREQ) ? "MODRE_TS_FREQ" : "OSS_TS_FREQ";
             throw std::runtime_error("Error: " + calc_type_name +
-                                     " calculation requires either freeze_atoms or modre parameter.\n"
-                                     "Please specify --freeze-atoms 1 2 or provide modre in the parameter file.\n"
-                                     "Example freeze_atoms: freeze_atoms = 1,2\n"
+                                     " calculation requires either freeze_bond or modre parameter.\n"
+                                     "Please specify --freeze-bond 1 2 or provide modre in the parameter file.\n"
+                                     "Example freeze_bond: freeze_bond = 1,2\n"
                                      "Example modre:\n"
                                      "modre =\n"
                                      "B 1 2 F\n"
@@ -378,9 +378,9 @@ std::string CreateInput::generate_pcm_fix_content(const std::string& isomer_name
             content << "\n";
             content << modre_block << "\n";
         }
-        else if (freeze_atoms_.first != 0 && freeze_atoms_.second != 0)
+        else if (freeze_bond_.first != 0 && freeze_bond_.second != 0)
         {
-            content << "B " << freeze_atoms_.first << " " << freeze_atoms_.second << " F\n";
+            content << "B " << freeze_bond_.first << " " << freeze_bond_.second << " F\n";
         }
         content << "\n";
     }
@@ -407,7 +407,7 @@ CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, const std::stri
       large_basis_(""), solvent_(""), solvent_model_("smd"), solvent_extra_(""), print_level_(""), extra_keywords_(""), charge_(0),
       mult_(1), tail_(""), modre_(""), extra_keyword_section_(""), extension_(".gau"), tschk_path_(""),
       tddft_method_("tda"), tddft_states_(""), tddft_nstates_(15), tddft_extra_(""),
-      freeze_atoms_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
+      freeze_bond_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
       irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1), opt_options_(""), scf_options_(""), opt_restart_(false), scf_restart_(false),
       fix_pcm_(false), temperature_(-1.0)
 {
@@ -469,26 +469,26 @@ bool CreateInput::loadParameters(const std::string& param_file)
     std::transform(large_basis_.begin(), large_basis_.end(), large_basis_.begin(), ::toupper);
     tschk_path_ = parser.getString("tschk_path", "");
 
-    // Freeze atoms for TS calculations
-    // First try to parse freeze_atoms parameter (supports comma-separated, space-separated, etc.)
-    std::string freeze_atoms_str = parser.getString("freeze_atoms", "");
-    if (!freeze_atoms_str.empty())
+    // Freeze bond for TS calculations
+    // Try freeze_bond first; legacy freeze_atoms is accepted as a deprecated alias
+    std::string freeze_bond_str = parser.getString("freeze_bond", parser.getString("freeze_atoms", ""));
+    if (!freeze_bond_str.empty())
     {
-        // Parse freeze_atoms string to extract atom indices
-        std::vector<int> atoms = parseFreezeAtomsString(freeze_atoms_str);
+        // Parse frozen-bond string to extract the two bond-atom indices
+        std::vector<int> atoms = parseFreezeBondString(freeze_bond_str);
         if (atoms.size() >= 2)
         {
-            freeze_atoms_ = {atoms[0], atoms[1]};
+            freeze_bond_ = {atoms[0], atoms[1]};
         }
     }
     else
     {
-        // Fall back to separate freeze_atom1 and freeze_atom2 parameters
-        int freeze1 = parser.getInt("freeze_atom1", 0);
-        int freeze2 = parser.getInt("freeze_atom2", 0);
+        // Fall back to separate endpoint parameters (legacy freeze_atom1/2 accepted)
+        int freeze1 = parser.getInt("freeze_bond_atom1", parser.getInt("freeze_atom1", 0));
+        int freeze2 = parser.getInt("freeze_bond_atom2", parser.getInt("freeze_atom2", 0));
         if (freeze1 != 0 && freeze2 != 0)
         {
-            freeze_atoms_ = {freeze1, freeze2};
+            freeze_bond_ = {freeze1, freeze2};
         }
     }
 
@@ -838,10 +838,10 @@ std::string CreateInput::generate_single_section_calc_type(CalculationType    ty
                 content << "\n";
                 content << modre_block << "\n";
             }
-            else if (freeze_atoms_.first != 0 && freeze_atoms_.second != 0)
+            else if (freeze_bond_.first != 0 && freeze_bond_.second != 0)
             {
                 content << "\n";
-                content << "B " << freeze_atoms_.first << " " << freeze_atoms_.second << " F";
+                content << "B " << freeze_bond_.first << " " << freeze_bond_.second << " F";
                 content << "\n";
             }
         }
@@ -1368,9 +1368,9 @@ void CreateInput::set_tschk_path(const std::string& path)
     tschk_path_ = path;
 }
 
-void CreateInput::set_freeze_atoms(int atom1, int atom2)
+void CreateInput::set_freeze_bond(int atom1, int atom2)
 {
-    freeze_atoms_ = {atom1, atom2};
+    freeze_bond_ = {atom1, atom2};
 }
 
 void CreateInput::set_scf_maxcycle(int maxcycle)
@@ -1509,7 +1509,7 @@ std::string CreateInput::parseExtraKeywords(const std::string& keywords_str)
     return result;
 }
 
-std::vector<int> CreateInput::parseFreezeAtomsString(const std::string& freeze_str)
+std::vector<int> CreateInput::parseFreezeBondString(const std::string& freeze_str)
 {
     std::vector<int> atoms;
     std::string      cleaned_str = freeze_str;
