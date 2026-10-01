@@ -25,9 +25,9 @@ extension = .gau
 # (used by ts_freq, oss_ts_freq, modre_ts_freq)
 # ==========================================
 #large_basis = Gen
-# freeze_atoms = 6, 8 
-# freeze_atom1 = 1
-# freeze_atom2 = 2
+# freeze_bond = 6, 8 
+# freeze_bond_atom1 = 1
+# freeze_bond_atom2 = 2
  modre =
  B 1 27 F
  B 1 39 F

@@ -451,9 +451,13 @@ std::string ParameterParser::createTemplateContent(const std::string& calc_type)
 
     if (calc_type == "oss_ts_freq" || calc_type == "modre_ts_freq" || calc_type == "modre_opt")
     {
-        content << "# Freeze atoms for TS (1-based indices)\n";
-        content << "# freeze_atoms = 1,2\n\n";
-        content << "# Modredundant section (alternative to freeze_atoms)\n";
+        content << "# Freeze bond for TS (1-based atom indices forming the bond)\n";
+        content << "# freeze_bond = 1,2\n";
+        content << "# Or specify the two endpoints separately:\n";
+        content << "# freeze_bond_atom1 = 1\n";
+        content << "# freeze_bond_atom2 = 2\n";
+        content << "# (legacy aliases freeze_atoms / freeze_atom1 / freeze_atom2 are deprecated)\n\n";
+        content << "# Modredundant section (alternative to freeze_bond)\n";
         content << "# modre =\n";
         content << "# B 1 2 F\n";
         content << "# A 1 2 3 F\n";
@@ -610,9 +614,10 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "# (used by ts_freq, oss_ts_freq, modre_ts_freq)\n";
     content << "# ==========================================\n";
     content << "# large_basis = def2TZVPP\n";
-    content << "# freeze_atoms = 1,2\n";
-    content << "# freeze_atom1 = 1\n";
-    content << "# freeze_atom2 = 2\n";
+    content << "# freeze_bond = 1,2\n";
+    content << "# freeze_bond_atom1 = 1\n";
+    content << "# freeze_bond_atom2 = 2\n";
+    content << "# (legacy aliases freeze_atoms / freeze_atom1 / freeze_atom2 are deprecated)\n";
     content << "# modre =\n";
     content << "# B 1 2 F\n";
     content << "# A 1 2 3 F\n";
