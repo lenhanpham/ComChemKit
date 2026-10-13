@@ -67,6 +67,17 @@ set(SOURCES
     src/ivcoord/gaussian_ivcoord_parser.cpp
     src/ivcoord/ivcoord_runner.cpp
     src/commands/ivcoord_command.cpp
+    src/rmsd/elements.cpp
+    src/rmsd/linalg.cpp
+    src/rmsd/geom.cpp
+    src/rmsd/inertia.cpp
+    src/rmsd/reorder.cpp
+    src/rmsd/reflect.cpp
+    src/rmsd/rmsd_io.cpp
+    src/rmsd/pipeline.cpp
+    src/rmsd/struct_list.cpp
+    src/rmsd/matrix.cpp
+    src/commands/rmsd_command.cpp
 )
 
 # Add Windows resource file if building on Windows
@@ -115,6 +126,18 @@ set(HEADERS
     src/ivcoord/gaussian_ivcoord_parser.h
     src/ivcoord/ivcoord_runner.h
     src/commands/ivcoord_command.h
+    src/commands/rmsd_command.h
+    src/rmsd/rmsd_types.h
+    src/rmsd/elements.h
+    src/rmsd/linalg.h
+    src/rmsd/geom.h
+    src/rmsd/inertia.h
+    src/rmsd/reorder.h
+    src/rmsd/reflect.h
+    src/rmsd/rmsd_io.h
+    src/rmsd/pipeline.h
+    src/rmsd/struct_list.h
+    src/rmsd/matrix.h
 )
 
 # Create the executable
@@ -186,6 +209,12 @@ target_link_libraries(cck
     PRIVATE
         Threads::Threads
 )
+
+find_package(ZLIB)
+if(ZLIB_FOUND)
+    target_link_libraries(cck PRIVATE ZLIB::ZLIB)
+    target_compile_definitions(cck PRIVATE RMSD_HAVE_ZLIB)
+endif()
 
 # Link stdc++fs for non-MSVC compilers if needed for std::filesystem
 # Note: stdc++fs is not needed for GCC 9+ and Clang 9+ as std::filesystem is in libstdc++

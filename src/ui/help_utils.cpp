@@ -37,6 +37,7 @@ namespace HelpUtils
         std::cout << "  xyz               Extract final coordinates to XYZ format\n";
         std::cout << "  ci                Create inputs from xyz coordinate files\n";
         std::cout << "  ivcoord           Displace geometry along imaginary normal modes\n";
+        std::cout << "  rmsd              Calculate RMSD between molecular structures (XYZ/PDB)\n";
         std::cout << "  thermo            Advanced thermodynamic analysis for multiple quantum chemistry programs\n";
         std::cout << "\nOptions:\n";
         std::cout << "  -h, --help        Show this help message\n";
@@ -252,6 +253,44 @@ namespace HelpUtils
                 std::cout << "Examples:\n";
                 std::cout << "  " << program_name << " ivcoord *.log\n";
                 std::cout << "  " << program_name << " ivcoord --idirection 0 --iamp 0.5 ts.log\n";
+                break;
+            case CommandType::RMSD:
+                std::cout << "Usage: " << program_name << " rmsd FILE_A FILE_B [options]\n";
+                std::cout << "       " << program_name << " rmsd --from-list LIST [options]\n";
+                std::cout << "       " << program_name << " rmsd LIST (single positional = list file)\n";
+                std::cout << "       " << program_name << " rmsd --merge-csv OUT PART...\n\n";
+                std::cout << "Calculate root-mean-square deviation after centering, optimal\n";
+                std::cout << "rotation, optional atom reordering and reflection search.\n\n";
+                std::cout << "Pair Options:\n";
+                std::cout << "  -r, --rotation <m>      kabsch|quaternion|none (default: kabsch)\n";
+                std::cout << "  --reorder               Enable atom reordering (needs --reorder-method)\n";
+                std::cout << "                          (no -e short flag: -e means --ext globally)\n";
+                std::cout << "  --reorder-method <m>    none|hungarian|inertia-hungarian|distance|brute\n";
+                std::cout << "                          (default: inertia-hungarian)\n";
+                std::cout << "  --use-reflections       Scan 48 axis swap x reflection trials\n";
+                std::cout << "  --use-reflections-keep-stereo  Same, skipping enantiomeric trials\n";
+                std::cout << "  --only-alpha-carbons    PDB alpha carbons only (PDB-only)\n";
+                std::cout << "  -n, --ignore-hydrogen   Ignore hydrogen atoms\n";
+                std::cout << "  --remove-idx I...       Drop atom indices (space/comma separated)\n";
+                std::cout << "  --add-idx I...          Keep only atom indices (space/comma separated)\n";
+                std::cout << "  --format <fmt>          xyz|pdb (default: auto-detect, .gz transparent)\n";
+                std::cout << "  -p, --print             Print rotated structure B as XYZ (pair mode only)\n";
+                std::cout << "  --print-only-rmsd-atoms With filtering, print only RMSD atoms\n\n";
+                std::cout << "Matrix Options:\n";
+                std::cout << "  --from-list LIST        Structure list (one/line, whitespace or comma separated)\n";
+                std::cout << "  --rows S:E              Row range chunk for queue jobs (0-based, END-exclusive)\n";
+                std::cout << "  --out CSV               Output CSV (default: beside list file)\n";
+                std::cout << "  --overwrite             Discard existing output, recompute from scratch\n";
+                std::cout << "  --max-mem <size>        Matrix memory budget, e.g. 4GB (default: auto, extract scheme)\n";
+                std::cout << "  --memory-limit <MB>     Same budget in MB (0 = auto)\n";
+                std::cout << "  --merge-csv OUT PART... Merge partial matrix CSVs\n\n";
+                std::cout << "Threads/memory follow the extract scheme: -nt half default with headnode\n";
+                std::cout << "caps, memory auto (30-60% system RAM, 1-32GB clamp, 5% job reserve).\n\n";
+                std::cout << "Examples:\n";
+                std::cout << "  " << program_name << " rmsd a.xyz b.xyz\n";
+                std::cout << "  " << program_name << " rmsd --reorder --reorder-method hungarian a.xyz b.xyz\n";
+                std::cout << "  " << program_name << " rmsd --from-list list.txt\n";
+                std::cout << "  " << program_name << " rmsd --from-list big.txt --rows 0:250 --out part-0.csv\n";
                 break;
         }
 

@@ -34,6 +34,18 @@ ComChemKit is a C++20 application designed for high-performance processing of co
 │   │   ├── gaussian_ivcoord_parser.cpp
 │   │   ├── ivcoord_runner.h
 │   │   └── ivcoord_runner.cpp
+│   ├── rmsd/
+│   │   ├── rmsd_types.h
+│   │   ├── elements.h / elements.cpp
+│   │   ├── linalg.h / linalg.cpp
+│   │   ├── geom.h / geom.cpp
+│   │   ├── inertia.h / inertia.cpp
+│   │   ├── reorder.h / reorder.cpp
+│   │   ├── reflect.h / reflect.cpp
+│   │   ├── rmsd_io.h / rmsd_io.cpp
+│   │   ├── pipeline.h / pipeline.cpp
+│   │   ├── struct_list.h / struct_list.cpp
+│   │   └── matrix.h / matrix.cpp
 │   ├── job_management/
 │   │   ├── job_checker.cpp
 │   │   ├── job_checker.h
@@ -112,6 +124,14 @@ New Modules in v0.5.0
     - Gaussian implementation (``GaussianIVCoordParser``): parses last orientation block and first imaginary frequency displacement vectors
     - Runner (``IVCoordRunner``): applies displacement, writes ``_p.xyz`` / ``_m.xyz`` output files
     - Output organised in ``<parent_basename>_ivcoord/`` directories
+
+**RMSD Module (rmsd/)**
+    - Port of the Rust ``rmsd`` tool: RMSD between XYZ/PDB structures, pair and matrix modes
+    - Zero-dependency C++ math (``linalg``: cyclic-Jacobi eigen + eigen-based SVD3, no LAPACK)
+    - ``geom`` (centroid, Kabsch plain/weighted, Horn quaternion), ``inertia`` (COM, tensor, principal axis)
+    - ``reorder`` (built-in Munkres Hungarian, distance, inertia-hungarian, brute), ``reflect`` (48 swap x reflection trials)
+    - ``rmsd_io`` (XYZ/PDB readers incl. ``.gz`` via zlib, XYZ writer), ``pipeline`` (filter -> center -> reorder/reflect -> RMSD), ``struct_list`` + ``matrix`` (parallel pairwise CSV, resume, ``--rows`` chunking, ``--merge-csv``)
+    - Threads/memory reuse the extract scheme (``calculateSafeThreadCount`` / ``calculateSafeMemoryLimit``); fixtures + ``test_rmsd.sh`` in ``tests/rmsd/``
 
 Key Design Principles
 ---------------------

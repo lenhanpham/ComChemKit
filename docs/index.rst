@@ -24,6 +24,7 @@ ComChemKit provides a comprehensive suite of tools for computational chemistry w
 * **Coordinate Processing**: Extract and organize molecular coordinates
 * **Input Generation**: Create Gaussian input files from XYZ coordinate files
 * **Imaginary Mode Displacement**: Displace geometries along imaginary normal modes (QRC) to generate reactant/product guesses from transition states
+* **RMSD Calculation**: Compare molecular structures (XYZ/PDB) with optimal alignment, atom reordering, reflection search, and pairwise matrix mode
 * **Input prarameters template**: Generate and reuse parameter templates for different calculation types
 * **Windows interactive mode**: Windows users can use all features plus popular linux commands in the interactive mode 
 
@@ -35,6 +36,7 @@ Key Features
    - Check and organize job statuses (completed, failed, errors)
    - Calculate high-level energies combining different theory levels
    - Process coordinates and generate input files
+    - Compare structures via RMSD (pairwise values and matrices)
 
  **Performance & Safety**
    - Multi-threaded processing with automatic resource detection

@@ -51,6 +51,15 @@ else
 endif
 ifeq ($(UNAME_S),Linux)
     LDFLAGS += -lrt -lstdc++fs
+    # zlib (.gz support in rmsd): auto-detect link capability once CXX is known
+    HAS_ZLIB := $(shell echo 'int main(){return 0;}' | $(CXX) -x c++ - -lz -o /dev/null 2>/dev/null && echo yes || echo no)
+    ifeq ($(HAS_ZLIB),yes)
+        LDFLAGS += -lz
+        CXXFLAGS += -DRMSD_HAVE_ZLIB
+        $(info zlib detected: enabling .gz support in rmsd.)
+    else
+        $(info zlib not found: rmsd .gz inputs will report a clear error.)
+    endif
 endif
 ifeq ($(UNAME_S),Darwin)
     # macOS specific flags if needed
@@ -87,8 +96,19 @@ SOURCES = $(SRC_DIR)/main.cpp \
           $(SRC_DIR)/commands/create_input_command.cpp \
           $(SRC_DIR)/commands/thermo_command.cpp \
           $(SRC_DIR)/commands/ivcoord_command.cpp \
+          $(SRC_DIR)/commands/rmsd_command.cpp \
           $(SRC_DIR)/ivcoord/gaussian_ivcoord_parser.cpp \
-          $(SRC_DIR)/ivcoord/ivcoord_runner.cpp
+          $(SRC_DIR)/ivcoord/ivcoord_runner.cpp \
+          $(SRC_DIR)/rmsd/elements.cpp \
+          $(SRC_DIR)/rmsd/linalg.cpp \
+          $(SRC_DIR)/rmsd/geom.cpp \
+          $(SRC_DIR)/rmsd/inertia.cpp \
+          $(SRC_DIR)/rmsd/reorder.cpp \
+          $(SRC_DIR)/rmsd/reflect.cpp \
+          $(SRC_DIR)/rmsd/rmsd_io.cpp \
+          $(SRC_DIR)/rmsd/pipeline.cpp \
+          $(SRC_DIR)/rmsd/struct_list.cpp \
+          $(SRC_DIR)/rmsd/matrix.cpp
 
 HEADERS = $(SRC_DIR)/commands/signal_handler.h \
           $(SRC_DIR)/extraction/qc_extractor.h \
@@ -122,6 +142,18 @@ HEADERS = $(SRC_DIR)/commands/signal_handler.h \
           $(SRC_DIR)/commands/create_input_command.h \
           $(SRC_DIR)/commands/thermo_command.h \
           $(SRC_DIR)/commands/ivcoord_command.h \
+          $(SRC_DIR)/commands/rmsd_command.h \
+          $(SRC_DIR)/rmsd/rmsd_types.h \
+          $(SRC_DIR)/rmsd/elements.h \
+          $(SRC_DIR)/rmsd/linalg.h \
+          $(SRC_DIR)/rmsd/geom.h \
+          $(SRC_DIR)/rmsd/inertia.h \
+          $(SRC_DIR)/rmsd/reorder.h \
+          $(SRC_DIR)/rmsd/reflect.h \
+          $(SRC_DIR)/rmsd/rmsd_io.h \
+          $(SRC_DIR)/rmsd/pipeline.h \
+          $(SRC_DIR)/rmsd/struct_list.h \
+          $(SRC_DIR)/rmsd/matrix.h \
           $(SRC_DIR)/ivcoord/ivcoord_data.h \
           $(SRC_DIR)/ivcoord/ivcoord_parser_base.h \
           $(SRC_DIR)/ivcoord/gaussian_ivcoord_parser.h \
@@ -143,6 +175,7 @@ $(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/utilities))
 $(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/thermo))
 $(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/commands))
 $(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/ivcoord))
+$(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/rmsd))
 
 # Default target
 all: $(TARGET)

@@ -80,6 +80,7 @@ Here is the functional breakdown of the `src/` directory.
     *   `checker_command.cpp`: Dispatches to `job_checker`.
     *   `high_level_command.cpp`: Dispatches to `high_level_energy`.
     *   `extract_coords_command.cpp`: Dispatches to `coord_extractor`.
+    *   `rmsd_command.cpp`: Dispatches to the `rmsd` structure-comparison module.
 
 > [!TIP]
 > **To add a new feature to the CLI**:
@@ -114,6 +115,15 @@ Here is the functional breakdown of the `src/` directory.
 *Specialized energy calculators combining calculations.*
 
 *   **`high_level_energy.*`**: Implements composite logic (like deriving absolute zero point energies combined from external high-level electronic energy sp calculations).
+
+### `src/rmsd/` (Structure Comparison)
+*A dependency-free port of the Rust `rmsd` tool.*
+
+*   **`rmsd_types.*`**: Shared `Coord`/`Mat3`/`Mat4`/`Molecule` types, `Rotation`/`Reflections`/`ReorderMethod`/`Filter` enums, `RmsdException`.
+*   **`linalg.*`**: Minimal linear algebra replacing nalgebra — cyclic-Jacobi symmetric eigensolvers (3x3/4x4) and an eigen-based 3x3 SVD with null-space completion plus a conditional Gram-Schmidt polish for ill-conditioned inputs.
+*   **`geom.*`**: Centroid, plain RMSD, Kabsch (plain/weighted/fit), Horn quaternion rotation.
+*   **`inertia.*` / `reorder.*` / `reflect.*`**: Center of mass, inertia tensor; Hungarian (built-in Munkres), distance, inertia-Hungarian and brute-force reordering; 48-trial axis-swap x reflection search.
+*   **`rmsd_io.*` / `pipeline.*` / `struct_list.*` / `matrix.*`**: XYZ/PDB readers (transparent `.gz` via zlib) and XYZ writer; filter → center → reorder/reflect → RMSD pipeline with rotated-structure output; list-file handling; threaded pairwise matrix with CSV output, resume, `--rows` chunking and `--merge-csv` merging. Threads/memory reuse the extract scheme (`calculateSafeThreadCount`/`calculateSafeMemoryLimit`).
 
 ### `src/ui/` (Interactive Interfaces)
 *User-facing presentation logic.*
