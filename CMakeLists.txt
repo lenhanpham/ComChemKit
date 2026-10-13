@@ -1,5 +1,27 @@
 # CMake configuration for ComChemKit
 cmake_minimum_required(VERSION 3.16)
+
+# Auto-detect the C++ compiler BEFORE project() (mirrors the Makefile
+# priority icpx > icpc > icc > g++, with clang++ as fallback), unless one was
+# already given via -DCMAKE_CXX_COMPILER or the CXX environment variable
+# (both of which CMake honours automatically and take precedence here).
+# NOTE: this must stay above project(): setting it later has no effect.
+if(NOT CMAKE_CXX_COMPILER)
+    if(DEFINED ENV{CXX} AND NOT "$ENV{CXX}" STREQUAL "")
+        set(CMAKE_CXX_COMPILER $ENV{CXX})
+    else()
+        foreach(_cc icpx icpc icc g++ clang++)
+            find_program(_found_cxx ${_cc})
+            if(_found_cxx)
+                set(CMAKE_CXX_COMPILER ${_cc})
+                break()
+            endif()
+        endforeach()
+        unset(_found_cxx)
+        unset(_cc)
+    endif()
+endif()
+
 project(ComChemKit
     VERSION 0.000.7
     DESCRIPTION "High-performance Computational Kit"
@@ -16,14 +38,12 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeR
 option(ENABLE_EXTRA_WARNINGS "Enable extra compiler warnings" OFF)
 option(ENABLE_ASAN "Enable Address Sanitizer" OFF)
 option(BUILD_FOR_CLUSTER "Build with cluster-specific optimizations" OFF)
+option(STATIC_LIBSTDCXX "Link libstdc++ statically (avoids 'GLIBCXX_X.Y.Z not found' on older run nodes)" OFF)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
-# Set compiler to clang++
-set(CMAKE_CXX_COMPILER clang++)
 
 #Set
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -240,6 +260,16 @@ if(ENABLE_ASAN AND NOT MSVC)
     )
 endif()
 
+# Static libstdc++ linkage: bakes libstdc++ into the binary so it runs on
+# nodes with an older system libstdc++ (e.g. build with GCC 12+, run where
+# only GCC 11's libstdc++.so.6 exists). Makefile equivalent: LDFLAGS += -static-libstdc++.
+# Note: this does NOT cover -ltbb (Intel builds); ship TBB or module-load it at runtime.
+if(STATIC_LIBSTDCXX AND NOT MSVC)
+    target_link_options(cck PRIVATE
+        -static-libstdc++
+    )
+endif()
+
 # Set output name based on platform
 if(WIN32)
     set_target_properties(cck PROPERTIES OUTPUT_NAME "cck")
@@ -280,4 +310,5 @@ message(STATUS "Options:")
 message(STATUS "  Extra warnings: ${ENABLE_EXTRA_WARNINGS}")
 message(STATUS "  ASAN enabled:   ${ENABLE_ASAN}")
 message(STATUS "  Cluster build:  ${BUILD_FOR_CLUSTER}")
+message(STATUS "  Static libstdc++: ${STATIC_LIBSTDCXX}")
 message(STATUS "")
