@@ -832,6 +832,9 @@ cck rmsd list.txt   # single positional = list file
 # Split rows across queue jobs, then merge (SLURM array example)
 cck rmsd --from-list big.txt --rows 0:250 --out part-0.csv
 cck rmsd --merge-csv full.csv part-0.csv part-1.csv
+
+# Thread count uses the global flag, like every other module
+cck rmsd --from-list big.txt -nt 8
 ```
 
 List files accept one filename per line, whitespace-separated, or comma-separated entries. Relative entries resolve against the list file's directory. Interrupted runs resume from complete rows in the existing CSV (torn tail lines are discarded); `--overwrite` restarts fresh.
@@ -865,6 +868,11 @@ Reorder methods (`--reorder` enables, `--reorder-method` selects; `--reorder` wi
 #### Resource Management
 
 Threads and memory follow the same extract scheme: `-nt half` default with headnode caps, memory auto (30-60% of system RAM by thread count, 1-32 GB clamp, 5% job-allocation reserve). Matrix rows compute in parallel while output streams in blocks, so peak RAM stays at molecules + one block.
+
+```bash
+cck rmsd --from-list big.txt -nt 8        # 8 threads (global -nt/--threads flag)
+cck rmsd --from-list big.txt -nt 2 -q     # headnode-safe
+```
 
 #### Notes
 
