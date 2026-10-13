@@ -680,6 +680,7 @@ project/
 cd higher_level
 cck high-kj    # Improved Gibbs free energy in kJ/mol
 cck high-au    # Improved Gibbs free energy in hartree
+cck extract-au # Extract energy and breakdown in hartree (E/ZPE/TC/TS/H/G, no Status column)
 
 # Custom temperature and concentration (Both auto-enable phase correction)
 cck high-kj -t 310.15
@@ -1013,6 +1014,10 @@ cd higher_level
 # Calculate improved Gibbs free energies
 cck high-kj    # Results in kJ/mol
 cck high-au    # Results in hartree
+
+# Or report single-file components from the current directory only (no ../ lookup)
+cck extract-au          # Text table: Output name | E | ZPE | TC | TS | H | G | LowFQ | PhaseCorr
+cck extract-au -f csv   # CSV version for reporting
 ```
 
 ### Temperature-Dependent Analysis
@@ -1409,6 +1414,7 @@ The thermo module implements advanced parallel processing specifically designed 
    - Non-blocking error collection
 
 ## Version History
+- **v0.1.4** Release version
 - **v0.1.3** Release version
 - **v0.1.2** Release version
 - **v0.1.1** Release version

@@ -29,6 +29,7 @@
 #include "commands/thermo_command.h"
 #include "commands/checker_command.h"
 #include "commands/high_level_command.h"
+#include "commands/extract_au_command.h"
 #include "commands/extract_coords_command.h"
 #include "commands/create_input_command.h"
 #include "commands/ivcoord_command.h"
@@ -137,6 +138,7 @@ int main(int argc, char* argv[])
     registry.register_command(std::make_unique<CheckerCommand>(CommandType::CHECK_ALL, "check-all", "Run comprehensive checks for all job types"));
     registry.register_command(std::make_unique<HighLevelCommand>(CommandType::HIGH_LEVEL_KJ, "high-kj", "High-level energies in kJ/mol"));
     registry.register_command(std::make_unique<HighLevelCommand>(CommandType::HIGH_LEVEL_AU, "high-au", "High-level energies in atomic units"));
+    registry.register_command(std::make_unique<ExtractAuCommand>());
     registry.register_command(std::make_unique<ExtractCoordsCommand>());
     registry.register_command(std::make_unique<CreateInputCommand>());
     registry.register_command(std::make_unique<IVCoordCommand>());

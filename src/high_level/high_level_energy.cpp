@@ -394,6 +394,146 @@ HighLevelEnergyData HighLevelEnergyCalculator::calculate_high_level_energy(const
     return data;
 }
 
+// Single-file calculation for extract-au: electronic energy + thermal data from the SAME file.
+HighLevelEnergyData HighLevelEnergyCalculator::calculate_single_file_energy(const std::string& file)
+{
+    HighLevelEnergyData data(file);
+
+    try
+    {
+        // Memory guard for large calculations
+        struct MemoryGuard
+        {
+            std::shared_ptr<MemoryMonitor> monitor;
+            size_t                         bytes;
+            MemoryGuard(std::shared_ptr<MemoryMonitor> m, size_t b) : monitor(m), bytes(b)
+            {
+                if (monitor)
+                    monitor->add_usage(bytes);
+            }
+            ~MemoryGuard()
+            {
+                if (monitor)
+                    monitor->remove_usage(bytes);
+            }
+        };
+
+        std::unique_ptr<MemoryGuard> memory_guard;
+        if (has_context_ && context_->memory_monitor)
+        {
+            if (!context_->memory_monitor->can_allocate(10 * 1024 * 1024))
+            {  // 10MB safety check
+                throw std::runtime_error("Insufficient memory to process " + file);
+            }
+            memory_guard = std::make_unique<MemoryGuard>(context_->memory_monitor, 10 * 1024 * 1024);
+        }
+
+        // Electronic energy from the SAME file (priority: equi PCM > CLR > CIS/TD > SCF Done).
+        data.scf_high     = extract_value_from_file(file, "SCF Done", 5, -1);
+        data.scf_td_high  = extract_value_from_file(file, "Total Energy, E\\(CIS", 5, -1, false);
+        data.scf_equi_high =
+            extract_value_from_file(file, "After PCM corrections, the energy is", 7, -1, false);
+        data.scf_clr_high = extract_value_from_file(file, "Total energy after correction", 6, -1, false);
+
+        if (data.scf_equi_high != 0.0)
+        {
+            data.final_scf_high = data.scf_equi_high;
+        }
+        else if (data.scf_clr_high != 0.0)
+        {
+            data.final_scf_high = data.scf_clr_high;
+        }
+        else if (data.scf_td_high != 0.0)
+        {
+            data.final_scf_high = data.scf_td_high;
+        }
+        else
+        {
+            data.final_scf_high = data.scf_high;
+        }
+
+        // Thermal corrections from the SAME file.
+        // Default: plain string-matching. Recalculate via the thermo module when
+        // the user gave -t/-p/-c, or when the file is non-Gaussian (extract superset trigger).
+        std::string prog = ThermoInterface::identify_program(file);
+        bool        used_thermo_path =
+            (use_input_temp_ || use_input_concentration_ || use_input_pressure_ || prog != "Gaussian");
+        if (used_thermo_path)
+        {
+            if (!extract_low_level_thermal_data_thermo(file, data))
+            {
+                throw std::runtime_error("Failed to extract thermal data from " + file);
+            }
+        }
+        else
+        {
+            if (!extract_low_level_thermal_data(file, data))
+            {
+                throw std::runtime_error("Failed to extract thermal data from " + file);
+            }
+        }
+
+        // For single-file reporting, the low-level reference energy is the same file's energy.
+        data.final_scf_low = data.final_scf_high;
+
+        // Derived quantities (identical to high-au).
+        data.tc_only  = calculate_thermal_only(data.tc_energy, data.zpe);
+        data.ts_value = data.tc_enthalpy - data.tc_gibbs;
+
+        data.enthalpy_hartree = data.final_scf_high + data.tc_enthalpy;
+        data.gibbs_hartree    = data.final_scf_high + data.tc_gibbs;
+
+        // SCRF check + phase correction on the SAME file (high-au rule).
+        std::string file_content = has_context_ ? safe_read_file(file) : read_file_content(file);
+        data.has_scrf            = (file_content.find("scrf") != std::string::npos);
+
+        if (data.has_scrf)
+        {
+            data.phase_correction        = calculate_phase_correction(data.temperature, concentration_mol_m3_);
+            data.gibbs_hartree_corrected = data.gibbs_hartree + data.phase_correction;
+            data.phase_corr_applied      = true;
+        }
+        else
+        {
+            data.gibbs_hartree_corrected = data.gibbs_hartree;
+            data.phase_corr_applied      = false;
+        }
+
+        data.gibbs_kj_mol = data.gibbs_hartree_corrected * HARTREE_TO_KJ_MOL;
+        data.gibbs_ev     = data.gibbs_hartree_corrected * HARTREE_TO_EV;
+
+        // lowest_frequency is already set when the thermo path was used (lf_cm from the module).
+        if (!used_thermo_path)
+        {
+            data.lowest_frequency = extract_lowest_frequency(file);
+        }
+        // Status is computed for exit-code purposes only; extract-au tables never print it.
+        data.status = determine_job_status(file);
+
+        if (has_context_ && !HighLevelEnergyUtils::validate_energy_data(data))
+        {
+            if (context_->error_collector)
+            {
+                context_->error_collector->add_warning("Energy data validation failed for " + file);
+            }
+        }
+    }
+    catch (const std::exception& e)
+    {
+        if (has_context_ && context_->error_collector)
+        {
+            context_->error_collector->add_error("Error processing " + file + ": " + e.what());
+        }
+        else
+        {
+            std::cerr << "Error processing " << file << ": " << e.what() << std::endl;
+        }
+        data.status = "ERROR";
+    }
+
+    return data;
+}
+
 // Process entire directory
 std::vector<HighLevelEnergyData> HighLevelEnergyCalculator::process_directory(const std::string& extension)
 {
@@ -421,7 +561,8 @@ std::vector<HighLevelEnergyData> HighLevelEnergyCalculator::process_directory(co
 
         for (const auto& file : log_files)
         {
-            auto data = calculate_high_level_energy(file);
+            auto data = is_extract_au_format_ ? calculate_single_file_energy(file)
+                                              : calculate_high_level_energy(file);
             results.push_back(data);
         }
 
@@ -552,7 +693,8 @@ HighLevelEnergyCalculator::process_files_with_limits(const std::vector<std::stri
         {
             try
             {
-                auto data = calculate_high_level_energy(file);
+                auto data = is_extract_au_format_ ? calculate_single_file_energy(file)
+                                                  : calculate_high_level_energy(file);
                 results.push_back(data);
             }
             catch (const std::exception& e)
@@ -751,6 +893,44 @@ void HighLevelEnergyCalculator::print_components_csv_format(const std::vector<Hi
             << std::setprecision(6) << data.ts_value << "," << std::fixed << std::setprecision(6)
             << data.enthalpy_hartree << "," << std::fixed << std::setprecision(6) << data.gibbs_hartree_corrected << ","
             << std::fixed << std::setprecision(2) << data.lowest_frequency << "," << phase_corr << "\n";
+    }
+}
+
+// Print extract-au CSV format (single-file reporting table, no Status column)
+void HighLevelEnergyCalculator::print_extract_au_csv_format(const std::vector<HighLevelEnergyData>& results,
+                                                            bool                                    quiet,
+                                                            std::ostream*                           output_file)
+{
+    // In quiet mode, only write to file if output_file is provided
+    if (quiet && !output_file)
+    {
+        return;
+    }
+
+    std::ostream& out = output_file ? *output_file : std::cout;
+
+    // Header box
+    print_header_box(out);
+
+    if (!quiet && !results.empty())
+    {
+        print_summary_info(results[0].filename, output_file);
+    }
+
+    // CSV header for extract-au format (single E column, no Status column)
+    out << "Output name,E a.u,ZPE a.u,TC a.u,TS a.u,H a.u,G a.u,LowFQ,PhaseCorr\n";
+
+    for (const auto& data : results)
+    {
+        std::string formatted_name = format_filename(data.filename, 53);
+        std::string phase_corr     = data.phase_corr_applied ? "YES" : "NO";
+
+        out << "\"" << formatted_name << "\"," << std::fixed << std::setprecision(6) << data.final_scf_high << ","
+            << std::fixed << std::setprecision(6) << data.zpe << "," << std::fixed << std::setprecision(6)
+            << data.tc_only << "," << std::fixed << std::setprecision(6) << data.ts_value << "," << std::fixed
+            << std::setprecision(6) << data.enthalpy_hartree << "," << std::fixed << std::setprecision(6)
+            << data.gibbs_hartree_corrected << "," << std::fixed << std::setprecision(2) << data.lowest_frequency
+            << "," << phase_corr << "\n";
     }
 }
 
@@ -1400,6 +1580,134 @@ void HighLevelEnergyCalculator::print_components_header_dynamic(const std::vecto
         << std::string(column_widths[9] - 3, '-') << std::endl;
 }
 
+std::vector<int>
+HighLevelEnergyCalculator::calculate_extract_au_column_widths(const std::vector<HighLevelEnergyData>& results)
+{
+    // Column order: filename, E a.u, ZPE a.u, TC a.u, TS a.u, H a.u, G a.u, LowFQ, PhaseCorr
+    std::vector<int> widths(9);
+
+    // Initialize with header lengths + 3 spaces padding
+    widths[0] = std::max(11, 52);  // "Output name"
+    widths[1] = std::max(5, 15);   // "E a.u"
+    widths[2] = std::max(7, 10);   // "ZPE a.u"
+    widths[3] = std::max(6, 10);   // "TC a.u"
+    widths[4] = std::max(6, 10);   // "TS a.u"
+    widths[5] = std::max(5, 15);   // "H a.u"
+    widths[6] = std::max(5, 15);   // "G a.u"
+    widths[7] = std::max(5, 10);   // "LowFQ"
+    widths[8] = std::max(9, 11);   // "PhaseCorr"
+
+    for (const auto& data : results)
+    {
+        // Check filename length (limited to reasonable max)
+        std::string formatted_name = format_filename(data.filename, 70);
+        widths[0]                  = std::max(widths[0], static_cast<int>(formatted_name.length()) + 3);
+
+        // Check E a.u length
+        std::ostringstream ss1;
+        ss1 << std::fixed << std::setprecision(8) << data.final_scf_high;
+        widths[1] = std::max(widths[1], static_cast<int>(ss1.str().length()) + 3);
+
+        // Check ZPE a.u length
+        std::ostringstream ss3;
+        ss3 << std::fixed << std::setprecision(6) << data.zpe;
+        widths[2] = std::max(widths[2], static_cast<int>(ss3.str().length()) + 3);
+
+        // Check TC a.u length
+        std::ostringstream ss4;
+        ss4 << std::fixed << std::setprecision(6) << data.tc_only;
+        widths[3] = std::max(widths[3], static_cast<int>(ss4.str().length()) + 3);
+
+        // Check TS a.u length
+        std::ostringstream ss5;
+        ss5 << std::fixed << std::setprecision(6) << data.ts_value;
+        widths[4] = std::max(widths[4], static_cast<int>(ss5.str().length()) + 3);
+
+        // Check H a.u length
+        std::ostringstream ss6;
+        ss6 << std::fixed << std::setprecision(6) << data.enthalpy_hartree;
+        widths[5] = std::max(widths[5], static_cast<int>(ss6.str().length()) + 3);
+
+        // Check G a.u length
+        std::ostringstream ss7;
+        ss7 << std::fixed << std::setprecision(6) << data.gibbs_hartree_corrected;
+        widths[6] = std::max(widths[6], static_cast<int>(ss7.str().length()) + 3);
+
+        // Check LowFQ length
+        std::ostringstream ss8;
+        ss8 << std::fixed << std::setprecision(4) << data.lowest_frequency;
+        widths[7] = std::max(widths[7], static_cast<int>(ss8.str().length()) + 3);
+
+        // Check PhaseCorr length
+        std::string phase_corr = data.phase_corr_applied ? "YES" : "NO";
+        widths[8]              = std::max(widths[8], static_cast<int>(phase_corr.length()) + 3);
+    }
+
+    return widths;
+}
+
+void HighLevelEnergyCalculator::print_extract_au_header_dynamic(const std::vector<int>& column_widths,
+                                                                std::ostream*           output_file)
+{
+    std::ostream& out = output_file ? *output_file : std::cout;
+
+    out << std::setw(column_widths[0]) << "Output name" << std::setw(column_widths[1]) << "E a.u"
+        << std::setw(column_widths[2]) << "ZPE a.u" << std::setw(column_widths[3]) << "TC a.u"
+        << std::setw(column_widths[4]) << "TS a.u" << std::setw(column_widths[5]) << "H a.u"
+        << std::setw(column_widths[6]) << "G a.u" << std::setw(column_widths[7]) << "LowFQ"
+        << std::setw(column_widths[8]) << "PhaseCorr" << std::endl;
+
+    // Print separator line
+    out << std::setw(column_widths[0]) << std::string(column_widths[0] - 3, '-') << std::setw(column_widths[1])
+        << std::string(column_widths[1] - 3, '-') << std::setw(column_widths[2])
+        << std::string(column_widths[2] - 3, '-') << std::setw(column_widths[3])
+        << std::string(column_widths[3] - 3, '-') << std::setw(column_widths[4])
+        << std::string(column_widths[4] - 3, '-') << std::setw(column_widths[5])
+        << std::string(column_widths[5] - 3, '-') << std::setw(column_widths[6])
+        << std::string(column_widths[6] - 3, '-') << std::setw(column_widths[7])
+        << std::string(column_widths[7] - 3, '-') << std::setw(column_widths[8])
+        << std::string(column_widths[8] - 3, '-') << std::endl;
+}
+
+void HighLevelEnergyCalculator::print_extract_au_format_dynamic(const std::vector<HighLevelEnergyData>& results,
+                                                                bool                                    quiet,
+                                                                std::ostream*                           output_file)
+{
+    // In quiet mode, only write to file if output_file is provided
+    if (quiet && !output_file)
+    {
+        return;
+    }
+
+    std::ostream& out = output_file ? *output_file : std::cout;
+
+    // Header box
+    print_header_box(out);
+
+    if (!quiet && !results.empty())
+    {
+        print_summary_info(results[0].filename, output_file);
+    }
+
+    auto column_widths = calculate_extract_au_column_widths(results);
+    print_extract_au_header_dynamic(column_widths, output_file);
+
+    for (const auto& data : results)
+    {
+        std::string formatted_name = format_filename(data.filename, column_widths[0] - 3);
+        std::string phase_corr     = data.phase_corr_applied ? "YES" : "NO";
+
+        out << std::setw(column_widths[0]) << formatted_name << std::setw(column_widths[1]) << std::fixed
+            << std::setprecision(6) << data.final_scf_high << std::setw(column_widths[2]) << std::fixed
+            << std::setprecision(6) << data.zpe << std::setw(column_widths[3]) << std::fixed << std::setprecision(6)
+            << data.tc_only << std::setw(column_widths[4]) << std::fixed << std::setprecision(6) << data.ts_value
+            << std::setw(column_widths[5]) << std::fixed << std::setprecision(6) << data.enthalpy_hartree
+            << std::setw(column_widths[6]) << std::fixed << std::setprecision(6) << data.gibbs_hartree_corrected
+            << std::setw(column_widths[7]) << std::fixed << std::setprecision(4) << data.lowest_frequency
+            << std::setw(column_widths[8]) << phase_corr << std::endl;
+    }
+}
+
 void HighLevelEnergyCalculator::print_gibbs_format_dynamic(const std::vector<HighLevelEnergyData>& results,
                                                            bool                                    quiet,
                                                            std::ostream*                           output_file)
@@ -1574,8 +1882,9 @@ void HighLevelEnergyCalculator::process_files_worker(const std::vector<std::stri
                 }
             }
 
-            // Process the file
-            auto data = calculate_high_level_energy(files[i]);
+            // Process the file (extract-au: single-file engine; else two-file high-level engine)
+            auto data = is_extract_au_format_ ? calculate_single_file_energy(files[i])
+                                              : calculate_high_level_energy(files[i]);
 
             // Thread-safe result storage
             {
@@ -1911,6 +2220,34 @@ bool HighLevelEnergyCalculator::validate_processing_context()
 // Comparison function for sorting based on visual column numbers
 bool HighLevelEnergyCalculator::compare_results(const HighLevelEnergyData& a, const HighLevelEnergyData& b, int column)
 {
+    if (is_extract_au_format_)
+    {
+        // Extract-AU format (9 cols, no Status):
+        // 1=Name, 2=E a.u, 3=ZPE a.u, 4=TC a.u, 5=TS a.u, 6=H a.u, 7=G a.u, 8=LowFQ, 9=PhaseCorr
+        switch (column)
+        {
+            case 1:  // Output name
+                return a.filename < b.filename;
+            case 2:  // E a.u
+                return a.final_scf_high < b.final_scf_high;
+            case 3:  // ZPE a.u
+                return a.zpe < b.zpe;
+            case 4:  // TC a.u
+                return a.tc_only < b.tc_only;
+            case 5:  // TS a.u
+                return a.ts_value < b.ts_value;
+            case 6:  // H a.u
+                return a.enthalpy_hartree < b.enthalpy_hartree;
+            case 7:  // G a.u
+                return a.gibbs_hartree_corrected < b.gibbs_hartree_corrected;
+            case 8:  // LowFQ
+                return a.lowest_frequency < b.lowest_frequency;
+            case 9:  // PhaseCorr (YES comes before NO)
+                return a.phase_corr_applied > b.phase_corr_applied;
+            default:  // Default to E a.u
+                return a.final_scf_high < b.final_scf_high;
+        }
+    }
     if (is_au_format_)
     {
         // High-AU format: Output name, E high a.u, E low a.u, ZPE a.u, TC a.u, TS a.u, H a.u, G a.u, LowFQ, PhaseCorr
@@ -2215,7 +2552,9 @@ HighLevelEnergyCalculator::process_files_with_thread_pool(const std::vector<std:
             try
             {
                 // Process with cached file reading
-                results[idx] = calculate_high_level_energy(files[idx]);
+                // (extract-au: single-file engine; else two-file high-level engine)
+                results[idx] = is_extract_au_format_ ? calculate_single_file_energy(files[idx])
+                                                     : calculate_high_level_energy(files[idx]);
                 progress_counter.fetch_add(1);
             }
             catch (const std::exception& e)

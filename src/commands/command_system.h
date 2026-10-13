@@ -22,6 +22,7 @@
  * - check-all: Run comprehensive job status checks
  * - high-kj: Calculate high-level energies with output in kJ/mol units
  * - high-au: Calculate high-level energies with detailed output in atomic units
+ * - extract-au: Extract single-file energies with component breakdown in atomic units
  *
  * @section Integration
  * The command system integrates with:
@@ -60,6 +61,7 @@ enum class CommandType
     CHECK_ALL,        ///< Run comprehensive checks for all job types
     HIGH_LEVEL_KJ,    ///< Calculate high-level energies with output in kJ/mol units
     HIGH_LEVEL_AU,    ///< Calculate high-level energies with detailed output in atomic units
+    EXTRACT_AU,       ///< Extract single-file energies with component breakdown in atomic units
     EXTRACT_COORDS,   ///< Extract coordinates from log files and organize XYZ files
     CREATE_INPUT,     ///< Create Gaussian input files from XYZ files
     THERMO,           ///< Advanced thermodynamic analysis for multiple quantum chemistry programs

@@ -92,6 +92,7 @@ SOURCES = $(SRC_DIR)/main.cpp \
           $(SRC_DIR)/commands/extract_command.cpp \
           $(SRC_DIR)/commands/checker_command.cpp \
           $(SRC_DIR)/commands/high_level_command.cpp \
+          $(SRC_DIR)/commands/extract_au_command.cpp \
           $(SRC_DIR)/commands/extract_coords_command.cpp \
           $(SRC_DIR)/commands/create_input_command.cpp \
           $(SRC_DIR)/commands/thermo_command.cpp \
@@ -138,6 +139,7 @@ HEADERS = $(SRC_DIR)/commands/signal_handler.h \
           $(SRC_DIR)/commands/extract_command.h \
           $(SRC_DIR)/commands/checker_command.h \
           $(SRC_DIR)/commands/high_level_command.h \
+          $(SRC_DIR)/commands/extract_au_command.h \
           $(SRC_DIR)/commands/extract_coords_command.h \
           $(SRC_DIR)/commands/create_input_command.h \
           $(SRC_DIR)/commands/thermo_command.h \

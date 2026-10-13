@@ -444,6 +444,28 @@ public:
     HighLevelEnergyData calculate_high_level_energy(const std::string& high_level_file);
 
     /**
+     * @brief Calculate single-file energy with component breakdown (extract-au)
+     * @param file Path to log file containing both electronic energy and thermal data
+     * @return HighLevelEnergyData with complete energy analysis
+     *
+     * Single-file variant of calculate_high_level_energy used by the
+     * `extract-au` command. Unlike the two-file high-level workflow (electronic
+     * energy from the current directory plus thermal corrections from the
+     * parent directory), this function reads BOTH the electronic energy and
+     * the thermal corrections from the SAME file, exactly like the default
+     * `extract` command does. The electronic-energy priority order
+     * (equilibrium PCM > CLR correction > CIS/TD > SCF Done) and all
+     * downstream formulas (TC, TS, H, G, phase correction, LowFQ) are
+     * identical to the high-au path.
+     *
+     * Thermal source follows the same trigger as the parent class:
+     * plain string-matching by default; thermo-module recalculation when
+     * -t, -p or -c was given, or when the file is non-Gaussian (detected
+     * via ThermoInterface::identify_program).
+     */
+    HighLevelEnergyData calculate_single_file_energy(const std::string& file);
+
+    /**
      * @brief Process entire directory of high-level calculations
      * @param extension File extension to process (default: ".log")
      * @return Vector of HighLevelEnergyData for all processed files
@@ -594,6 +616,19 @@ public:
     }
 
     /**
+     * @brief Set whether the user explicitly specified the pressure
+     * @param flag True if the user provided -p/--pressure
+     *
+     * When true, the thermo module is invoked to recalculate thermal corrections
+     * (same trigger as -t/-c), because pressure enters the recalculated
+     * corrections. Without any of -t/-p/-c, values are read from the file.
+     */
+    void set_use_input_pressure(bool flag)
+    {
+        use_input_pressure_ = flag;
+    }
+
+    /**
      * @brief Set low-frequency vibrational treatment for the thermo module
      * @param method Method name: "harmonic", "truhlar", "grimme", "minenkov", or "headgordon"
      *
@@ -650,7 +685,7 @@ public:
 
     /**
      * @brief Set sort column for results ordering
-     * @param column Column number for sorting (2-10)
+     * @param column Column number for sorting (1-10)
      *
      * Sets which column to use for sorting results (visual column numbers):
      *
@@ -660,6 +695,13 @@ public:
      * High-AU format (1-10):
      * - 1: Output name  - 2: E high a.u  - 3: E low a.u  - 4: ZPE a.u  - 5: TC a.u
      * - 6: TS a.u  - 7: H a.u  - 8: G a.u  - 9: LowFQ  - 10: PhaseCorr
+     *
+     * Extract-AU format (1-9, no Status column):
+     * - 1: Output name  - 2: E a.u  - 3: ZPE a.u  - 4: TC a.u  - 5: TS a.u
+     * - 6: H a.u  - 7: G a.u  - 8: LowFQ  - 9: PhaseCorr
+     *
+     * Enable extract-au column mapping with set_extract_au_format(true)
+     * before calling set_sort_column/compare.
      */
     void set_sort_column(int column)
     {
@@ -667,6 +709,29 @@ public:
         {
             sort_column_ = column;
         }
+    }
+
+    /**
+     * @brief Enable/disable extract-au column mapping for sorting
+     * @param flag True to sort with the 9-column extract-au layout
+     *
+     * When true, compare_results() interprets sort_column_ with the
+     * extract-au mapping (1=Name, 2=E, 3=ZPE, 4=TC, 5=TS, 6=H, 7=G,
+     * 8=LowFQ, 9=PhaseCorr). When false (default), the high-kj/high-au
+     * mapping selected by is_au_format_ is used.
+     */
+    void set_extract_au_format(bool flag)
+    {
+        is_extract_au_format_ = flag;
+    }
+
+    /**
+     * @brief Check whether extract-au column mapping is active
+     * @return True when sorting uses the 9-column extract-au layout
+     */
+    bool get_extract_au_format() const
+    {
+        return is_extract_au_format_;
     }
 
     /**
@@ -688,6 +753,8 @@ private:
     bool   is_au_format_;          ///< Whether using AU format (affects column mapping)
     bool        use_input_temp_ = false;           ///< True when the user explicitly specified -t/--temp
     bool        use_input_concentration_ = false;  ///< True when the user explicitly specified -c/--conc
+    bool        use_input_pressure_ = false;       ///< True when the user explicitly specified -p/--pressure
+    bool        is_extract_au_format_ = false;     ///< True when sorting/printing uses 9-col extract-au layout
     std::string low_vib_method_ = "grimme";        ///< Low-frequency treatment passed to thermo module
     double      ravib_           = 100.0;           ///< Crossover frequency for quasi-RRHO methods (cm-1)
 
@@ -898,6 +965,44 @@ public:
                                          std::ostream*                           output_file = nullptr);
 
     /**
+     * @brief Print results in extract-au format with dynamic column widths
+     * @param results Vector of calculation results to display
+     * @param quiet Suppress header and summary information (default: false)
+     * @param output_file Optional file stream for output (default: nullptr for console)
+     *
+     * Single-file reporting table (no Status column):
+     * Output name | E a.u | ZPE a.u | TC a.u | TS a.u | H a.u | G a.u | LowFQ | PhaseCorr
+     * Uses dynamic column sizing based on actual data content.
+     */
+    void print_extract_au_format_dynamic(const std::vector<HighLevelEnergyData>& results,
+                                         bool                                    quiet       = false,
+                                         std::ostream*                           output_file = nullptr);
+
+    /**
+     * @brief Print results in extract-au CSV format
+     * @param results Vector of calculation results to display
+     * @param quiet Suppress header and summary information (default: false)
+     * @param output_file Optional file stream for output (default: nullptr for console)
+     *
+     * CSV header: "Output name,E a.u,ZPE a.u,TC a.u,TS a.u,H a.u,G a.u,LowFQ,PhaseCorr"
+     */
+    void print_extract_au_csv_format(const std::vector<HighLevelEnergyData>& results,
+                                     bool                                    quiet       = false,
+                                     std::ostream*                           output_file = nullptr);
+
+    /**
+     * @brief Public wrapper around compare_results for single-file processing
+     * @param a First data entry
+     * @param b Second data entry
+     * @param column Column number to sort by (extract-au: 1-9)
+     * @return true if a should come before b in sorted order
+     */
+    bool compare_results_public(const HighLevelEnergyData& a, const HighLevelEnergyData& b, int column)
+    {
+        return compare_results(a, b, column);
+    }
+
+    /**
      * @brief Print results in Gibbs format with static column widths
      * @param results Vector of calculation results to display
      * @param quiet Suppress header and summary information (default: false)
@@ -947,6 +1052,13 @@ private:
     std::vector<int> calculate_components_column_widths(const std::vector<HighLevelEnergyData>& results);
 
     /**
+     * @brief Calculate optimal column widths for extract-au format output
+     * @param results Vector of calculation results
+     * @return Vector of column widths for each data column (9 entries)
+     */
+    std::vector<int> calculate_extract_au_column_widths(const std::vector<HighLevelEnergyData>& results);
+
+    /**
      * @brief Print header for Gibbs format with dynamic column widths
      * @param column_widths Vector of column widths
      * @param output_file Optional file stream for output
@@ -959,6 +1071,13 @@ private:
      * @param output_file Optional file stream for output
      */
     void print_components_header_dynamic(const std::vector<int>& column_widths, std::ostream* output_file = nullptr);
+
+    /**
+     * @brief Print header for extract-au format with dynamic column widths
+     * @param column_widths Vector of column widths (9 entries)
+     * @param output_file Optional file stream for output
+     */
+    void print_extract_au_header_dynamic(const std::vector<int>& column_widths, std::ostream* output_file = nullptr);
 
     /** @} */  // end of DynamicFormatting group
 
@@ -979,6 +1098,8 @@ private:
      *
      * High-KJ format: 2=G kJ/mol, 3=G a.u, 4=G eV, 5=LowFQ, 6=Status, 7=PhCorr
      * High-AU format: 2=E high a.u, 3=E low a.u, 4=ZPE a.u, 5=TC a.u, 6=TS a.u, 7=H a.u, 8=G a.u, 9=LowFQ, 10=PhaseCorr
+     * Extract-AU format (when is_extract_au_format_ is true):
+     * 1=Name, 2=E a.u, 3=ZPE a.u, 4=TC a.u, 5=TS a.u, 6=H a.u, 7=G a.u, 8=LowFQ, 9=PhaseCorr
      */
     bool compare_results(const HighLevelEnergyData& a, const HighLevelEnergyData& b, int column);
 

@@ -45,6 +45,8 @@ ComChemKit supports the following commands:
 +------------------+--------------------------------------------------+
 | ``high-au``      | Calculate high-level energies (atomic units)     |
 +------------------+--------------------------------------------------+
+| ``extract-au``   | Single-file energies, au breakdown (no Status)   |
++------------------+--------------------------------------------------+
 | ``xyz``          | Extract coordinates to XYZ format                |
 +------------------+--------------------------------------------------+
 | ``ci``           | Create Gaussian input files from XYZ             |
@@ -287,6 +289,21 @@ Phase correction converts gas-phase energies to solution-phase:
 
    Name    E high    E low     ZPE      TC       TS       H        G
    mol1    -456.78   -450.12   0.123    0.456    0.789    -455.67  -456.46
+
+**extract-au (Atomic Units - Single-file reporting table, no Status column):**
+
+.. code-block::
+
+   Name    E         ZPE      TC       TS       H        G        LowFQ   PhaseCorr
+   mol1    -456.78   0.123    0.012    0.045    -455.67  -456.46  25.14   YES
+
+.. code-block:: bash
+
+   # Single-file breakdown from current directory only (no ../ lookup)
+   cck extract-au              # Text table
+   cck extract-au -f csv       # CSV for reporting
+   cck extract-au -col 7       # Sort by G a.u (1-9: Name,E,ZPE,TC,TS,H,G,LowFQ,PhCorr)
+   cck extract-au -t 273 -c 1  # Recalculated thermochemistry via thermo module
 
 **Advanced Options:**
 
