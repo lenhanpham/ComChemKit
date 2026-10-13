@@ -51,6 +51,8 @@ ComChemKit supports the following commands:
 +------------------+--------------------------------------------------+
 | ``ivcoord``      | Displace geometry along imaginary modes (QRC)    |
 +------------------+--------------------------------------------------+
+| ``rmsd``         | RMSD between structures (XYZ/PDB), pair+matrix   |
++------------------+--------------------------------------------------+
 | ``interactive``  | Launch interactive mode (Windows)                |
 +------------------+--------------------------------------------------+
 
@@ -955,6 +957,97 @@ Use the template:
 
    # 5. Analyze thermochemistry of products
    cck thermo *.log -T 298.15 -lowvibmeth 2
+
+8. RMSD — Structure Comparison
+--------------------------------
+
+**Purpose:** Calculate the root-mean-square deviation (RMSD) between two molecular geometries read from XYZ or PDB files (``.gz`` transparent). Both structures are centered, optimally rotated (Kabsch or quaternion method), optionally reordered when atoms are listed in different orders, and optionally searched over reflections and axis swaps. Works on single pairs as well as whole structure lists, producing a pairwise RMSD matrix for heatmap visualisation and clustering.
+
+**Basic Usage:**
+
+.. code-block:: bash
+
+   # Pair mode: print one RMSD
+   cck rmsd a.xyz b.xyz
+
+   # Ignore hydrogens, find best atom correspondence first
+   cck rmsd -n --reorder --reorder-method hungarian a.xyz b.xyz
+
+   # Scan reflections + axis swaps (alters stereochemistry)
+   cck rmsd --use-reflections conf1.xyz conf2.xyz
+
+   # Print rotated structure B instead of a number
+   cck rmsd -p a.xyz b.xyz
+
+**Matrix Mode:**
+
+.. code-block:: bash
+
+   cck rmsd --from-list list.txt
+   cck rmsd list.txt   # single positional = list file
+
+   # Split rows across queue jobs, then merge (SLURM array example)
+   cck rmsd --from-list big.txt --rows 0:250 --out part-0.csv
+   cck rmsd --merge-csv full.csv part-0.csv part-1.csv
+
+List files accept one filename per line, whitespace-separated, or comma-separated entries. Relative entries resolve against the list file's directory. Interrupted runs resume from complete rows in the existing CSV (torn tail lines are discarded); ``--overwrite`` restarts fresh.
+
+**Options:**
+
+.. table:: RMSD Options
+
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | Option                            | Description                                       | Values                 | Default           |
+   +===================================+===================================================+========================+===================+
+   | ``-r, --rotation``                | Rotation/alignment method                         | kabsch|quaternion|none | kabsch            |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--reorder``                     | Enable reordering (no ``-e``: it means ``--ext``) | (flag)                 | false             |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--reorder-method``              | Reorder method (see below)                        | none|hungarian|...     | inertia-hungarian |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--use-reflections``             | Scan 48 swap x reflection trials                  | (flag)                 | false             |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--use-reflections-keep-stereo`` | Same, skipping enantiomeric trials                | (flag)                 | false             |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--only-alpha-carbons``          | PDB alpha carbons only                            | (flag, PDB-only)       | false             |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``-n, --ignore-hydrogen``         | Ignore hydrogen atoms                             | (flag)                 | false             |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--remove-idx``                  | Drop atom indices (space/comma separated)         | indices                | -                 |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--add-idx``                     | Keep only atom indices (space/comma separated)    | indices                | -                 |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--format``                      | Input format                                      | xyz|pdb (auto)         | auto              |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``-p, --print``                   | Print rotated structure B (pair mode only)        | (flag)                 | false             |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--print-only-rmsd-atoms``       | With filtering, print only RMSD atoms             | (flag)                 | false             |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--from-list``                   | Structure list for matrix mode                    | file path              | -                 |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--rows``                        | Row range chunk ``START:END``                     | range                  | -                 |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--out``                         | Output CSV path                                   | file path              | beside list       |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--overwrite``                   | Discard existing output, recompute                | (flag)                 | false             |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--max-mem``                     | Matrix memory budget, e.g. ``4GB``                | size                   | auto              |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--memory-limit``                | Same budget in MB (``0`` = auto)                  | integer                | 0                 |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+   | ``--merge-csv``                   | Merge partial CSVs into OUT (>= 2)                | OUT PART...            | -                 |
+   +-----------------------------------+---------------------------------------------------+------------------------+-------------------+
+
+Reorder methods (``--reorder`` enables, ``--reorder-method`` selects; ``--reorder`` with ``none`` errors): ``none`` (atoms must already match), ``hungarian`` (optimal assignment, Munkres), ``inertia-hungarian`` (default; inertia-tensor pre-alignment + Hungarian over 8 sign reflections), ``distance`` (cheap centroid-distance heuristic), ``brute`` (exhaustive per-element permutations, tiny systems only).
+
+**Resource Management:**
+
+Threads and memory follow the same extract scheme: ``-nt half`` default with headnode caps, memory auto (30-60% of system RAM by thread count, 1-32 GB clamp, 5% job-allocation reserve). Matrix rows compute in parallel while output streams in blocks, so peak RAM stays at molecules + one block.
+
+.. note::
+   As a rule of thumb, values below ~0.5 A indicate nearly identical structures, 1-2 A a related but relaxed geometry, larger values a different conformation or bad atom correspondence. On symmetric tops with degenerate inertia moments (e.g. ethane), ``inertia-hungarian``/``distance`` results depend on eigensolver/tie-breaking details: they are deterministic but not guaranteed to match other implementations exactly.
+
+Golden-value verification: ``./test_rmsd.sh`` (fixtures in ``tests/rmsd/``).
 
 Configuration and Customization
 ===============================

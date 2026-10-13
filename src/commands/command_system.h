@@ -63,7 +63,8 @@ enum class CommandType
     EXTRACT_COORDS,   ///< Extract coordinates from log files and organize XYZ files
     CREATE_INPUT,     ///< Create Gaussian input files from XYZ files
     THERMO,           ///< Advanced thermodynamic analysis for multiple quantum chemistry programs
-    IVCOORD           ///< Displace geometry along imaginary normal modes and write XYZ files
+    IVCOORD,          ///< Displace geometry along imaginary normal modes and write XYZ files
+    RMSD              ///< Calculate RMSD between molecular structures
 };
 ;
 

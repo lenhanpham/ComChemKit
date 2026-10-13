@@ -1,0 +1,17 @@
+5dendralene_01.xyz
+5dendralene_02.xyz
+5dendralene_03.xyz
+5dendralene_04.xyz
+5dendralene_05.xyz
+5dendralene_06.xyz
+5dendralene_07.xyz
+5dendralene_08.xyz
+5dendralene_09.xyz
+5dendralene_10.xyz
+5dendralene_11.xyz
+5dendralene_12.xyz
+5dendralene_13.xyz
+5dendralene_14.xyz
+5dendralene_15.xyz
+5dendralene_16.xyz
+
