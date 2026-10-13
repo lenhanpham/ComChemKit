@@ -1,0 +1,123 @@
+name: Docs
+run-name: ${{ github.actor }}'s manual docs build
+
+# Manual only: run from the Actions tab to rebuild and deploy the GitHub Pages site.
+on:
+  workflow_dispatch:
+
+# Deploying to GitHub Pages needs these permissions
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy-docs:
+    runs-on: ubuntu-latest
+    
+    # Use concurrency to cancel in-progress deployments
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      # Same fix for docs job
+      - name: Configure Git identity (global)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global init.defaultBranch main
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r docs/requirements.txt
+
+      - name: Install Doxygen and Graphviz
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+
+      - name: Generate Doxygen XML and HTML
+        run: |
+          doxygen Doxyfile
+          if [ ! -d "docs/xml" ]; then
+            echo "Error: Doxygen XML generation failed: docs/xml/ directory not found."
+            exit 1
+          fi
+          if [ ! -d "docs/html" ]; then
+            echo "Warning: Doxygen HTML directory (docs/html/) not found."
+          fi
+
+      - name: Verify Doxygen XML Output
+        run: |
+          if [ -z "$(ls -A docs/xml/)" ]; then
+            echo "Error: Doxygen XML directory (docs/xml/) is empty."
+            exit 1
+          fi
+          echo "Doxygen XML files generated successfully."
+
+      - name: Build Sphinx HTML
+        working-directory: docs
+        run: |
+          mkdir -p _static _templates
+          cp -r ../docs/html/*.svg _static/ && echo "SVGs copied to _static/" || echo "No SVGs found in docs/html/, continuing"
+          make html
+          if [ -s build_warnings.log ]; then
+            echo "Warnings during Sphinx HTML build:"
+            cat build_warnings.log
+          fi
+          if [ ! -d "_build/html" ]; then
+            echo "Error: HTML generation failed: _build/html/ directory not found."
+            exit 1
+          fi
+          if [ ! -f "_build/html/api/api.html" ]; then
+            echo "Error: API documentation (api.html) not generated."
+            exit 1
+          fi
+          echo "Sphinx HTML build completed successfully."
+
+      - name: Build Sphinx Markdown
+        working-directory: docs
+        run: |
+          sphinx-build -b markdown . _build/markdown -W --keep-going || echo "Markdown build failed, continuing"
+          if [ -d "_build/markdown" ] && [ -z "$(ls -A _build/markdown)" ]; then
+            rm -rf _build/markdown
+            echo "Markdown directory was empty and removed"
+          fi
+
+      - name: Upload Documentation Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation
+          path: |
+            docs/_build/html/
+            docs/_build/markdown/
+            docs/html/
+
+      # Setup GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_build/html
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
