@@ -281,6 +281,8 @@ CommandType CommandParser::parse_command(const std::string& cmd)
         return CommandType::HIGH_LEVEL_KJ;
     if (cmd == "high-au" || cmd == "--high-level-au")
         return CommandType::HIGH_LEVEL_AU;
+    if (cmd == "extract-au" || cmd == "--extract-au")
+        return CommandType::EXTRACT_AU;
     if (cmd == "xyz" || cmd == "--extract-coord")
         return CommandType::EXTRACT_COORDS;
     if (cmd == "ci" || cmd == "--create-input")
@@ -320,6 +322,8 @@ std::string CommandParser::get_command_name(CommandType command)
             return std::string("high-kj");
         case CommandType::HIGH_LEVEL_AU:
             return std::string("high-au");
+        case CommandType::EXTRACT_AU:
+            return std::string("extract-au");
         case CommandType::EXTRACT_COORDS:
             return std::string("xyz");
         case CommandType::CREATE_INPUT:

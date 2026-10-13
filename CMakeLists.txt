@@ -81,6 +81,7 @@ set(SOURCES
     src/commands/extract_command.cpp
     src/commands/checker_command.cpp
     src/commands/high_level_command.cpp
+    src/commands/extract_au_command.cpp
     src/commands/extract_coords_command.cpp
     src/commands/create_input_command.cpp
     src/commands/thermo_command.cpp
@@ -138,6 +139,7 @@ set(HEADERS
     src/commands/extract_command.h
     src/commands/checker_command.h
     src/commands/high_level_command.h
+    src/commands/extract_au_command.h
     src/commands/extract_coords_command.h
     src/commands/create_input_command.h
     src/commands/thermo_command.h

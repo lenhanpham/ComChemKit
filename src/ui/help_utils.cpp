@@ -27,6 +27,7 @@ namespace HelpUtils
         std::cout << "Commands:\n";
         std::cout
             << "  extract           Extract thermodynamic data and energy components from Gaussian outputs (default)\n";
+        std::cout << "  extract-au        Extract single-file energies with component breakdown in atomic units\n";            
         std::cout << "  done              Check and move completed Gaussian jobs\n";
         std::cout << "  errors            Check and move jobs with errors\n";
         std::cout << "  pcm               Check and move jobs with PCM convergence failures\n";
@@ -145,6 +146,28 @@ namespace HelpUtils
                 std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
                 std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
                 std::cout << "                          Applied when -t or -c is specified\n";
+                std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
+                break;
+
+            case CommandType::EXTRACT_AU:
+                std::cout << "Description: Extract single-file energies with component breakdown in atomic units\n";
+                std::cout
+                    << "             Reads electronic energy and thermal corrections from the SAME file\n\n";
+                std::cout << "This command processes each log file in the current directory (no parent\n";
+                std::cout << "directory lookup) and prints a high-au-style energy component breakdown:\n";
+                std::cout << "Output name | E a.u | ZPE a.u | TC a.u | TS a.u | H a.u | G a.u | LowFQ | PhaseCorr.\n";
+                std::cout << "There is no Status column (full reporting table; status only drives exit code).\n\n";
+                std::cout << "Additional Options:\n";
+                std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";
+                std::cout << "  -p, --pressure <atm>    Pressure in atm (default: 1.0)\n";
+                std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
+                std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
+                std::cout << "  -col, --column <N>      Sort column 1-9 (default: 2)\n";
+                std::cout
+                    << "                          1=Name, 2=E, 3=ZPE, 4=TC, 5=TS, 6=H, 7=G, 8=LowFQ, 9=PhCorr\n";
+                std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
+                std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
+                std::cout << "                          Applied when -t, -p or -c is specified\n";
                 std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
                 break;
 
@@ -349,6 +372,18 @@ namespace HelpUtils
             std::cout << "  " << program_name << " " << cmd_name << " -col 8       # Sort by Gibbs energy\n";
             std::cout << "  " << program_name << " " << cmd_name
                       << " -t 273 -col 4 -f csv  # Custom temp, sort by ZPE, CSV\n";
+            std::cout << "  " << program_name << " " << cmd_name
+                      << " -t 253.15 -c 1 -lowvibmeth harmonic  # Harmonic treatment\n";
+            std::cout << "  " << program_name << " " << cmd_name
+                      << " -t 253.15 -lowvibmeth grimme -ravib 150  # Grimme with custom crossover\n";
+        }
+        else if (command == CommandType::EXTRACT_AU)
+        {
+            std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
+            std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
+            std::cout << "  " << program_name << " " << cmd_name << " -col 7       # Sort by Gibbs energy\n";
+            std::cout << "  " << program_name << " " << cmd_name
+                      << " -t 273 -col 3 -f csv  # Custom temp, sort by ZPE, CSV\n";
             std::cout << "  " << program_name << " " << cmd_name
                       << " -t 253.15 -c 1 -lowvibmeth harmonic  # Harmonic treatment\n";
             std::cout << "  " << program_name << " " << cmd_name

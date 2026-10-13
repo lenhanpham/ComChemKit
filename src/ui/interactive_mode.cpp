@@ -267,6 +267,7 @@ public:
                              "check",
                              "high-kj",
                              "high-au",
+                             "extract-au",
                              "xyz",
                              "ci",
                              "help",
@@ -863,6 +864,7 @@ int run_interactive_loop()
             std::cout << "  check             Run all job checks" << std::endl;
             std::cout << "  high-kj           Calculate high-level energies in kJ/mol" << std::endl;
             std::cout << "  high-au           Calculate high-level energies in atomic units" << std::endl;
+            std::cout << "  extract-au        Extract single-file energies with component breakdown in a.u." << std::endl;
             std::cout << "  xyz               Extract coordinates to XYZ format" << std::endl;
             std::cout << "  ci                Create Gaussian input files from XYZ files" << std::endl;
             std::cout << "  thermo            Calculate thermochemical properties" << std::endl;
@@ -1128,6 +1130,8 @@ int run_interactive_loop()
                                                                            {"check", CommandType::CHECK_ALL},
                                                                            {"high-kj", CommandType::HIGH_LEVEL_KJ},
                                                                            {"high-au", CommandType::HIGH_LEVEL_AU},
+                                                                           {"extract-au", CommandType::EXTRACT_AU},
+                                                                           {"--extract-au", CommandType::EXTRACT_AU},
                                                                            {"xyz", CommandType::EXTRACT_COORDS},
                                                                            {"ci", CommandType::CREATE_INPUT}};
 
@@ -1324,6 +1328,8 @@ int run_interactive_loop()
                                                                         "--high-level-kj",
                                                                         "high-au",
                                                                         "--high-level-au",
+                                                                        "extract-au",
+                                                                        "--extract-au",
                                                                         "xyz",
                                                                         "--extract-coord",
                                                                         "ci",
