@@ -990,6 +990,9 @@ Use the template:
    cck rmsd --from-list big.txt --rows 0:250 --out part-0.csv
    cck rmsd --merge-csv full.csv part-0.csv part-1.csv
 
+   # Thread count uses the global flag, like every other module
+   cck rmsd --from-list big.txt -nt 8
+
 List files accept one filename per line, whitespace-separated, or comma-separated entries. Relative entries resolve against the list file's directory. Interrupted runs resume from complete rows in the existing CSV (torn tail lines are discarded); ``--overwrite`` restarts fresh.
 
 **Options:**
@@ -1043,6 +1046,11 @@ Reorder methods (``--reorder`` enables, ``--reorder-method`` selects; ``--reorde
 **Resource Management:**
 
 Threads and memory follow the same extract scheme: ``-nt half`` default with headnode caps, memory auto (30-60% of system RAM by thread count, 1-32 GB clamp, 5% job-allocation reserve). Matrix rows compute in parallel while output streams in blocks, so peak RAM stays at molecules + one block.
+
+.. code-block:: bash
+
+   cck rmsd --from-list big.txt -nt 8        # 8 threads (global -nt/--threads flag)
+   cck rmsd --from-list big.txt -nt 2 -q     # headnode-safe
 
 .. note::
    As a rule of thumb, values below ~0.5 A indicate nearly identical structures, 1-2 A a related but relaxed geometry, larger values a different conformation or bad atom correspondence. On symmetric tops with degenerate inertia moments (e.g. ethane), ``inertia-hungarian``/``distance`` results depend on eigensolver/tie-breaking details: they are deterministic but not guaranteed to match other implementations exactly.
