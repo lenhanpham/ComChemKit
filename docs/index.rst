@@ -132,6 +132,7 @@ Current Version: **v0.000.8**
 - **v0.000.8**: Support extracting coordinates with displacement of imaginary modes from geometrical optimization containing imaginary modes
 - **v0.1.1**: Improved accuracy of symmetry submodule and fixed bugs in CI module
 - **v0.1.2**: Meaningful modredundant parameter keywords for frozen bonds
-
+- **v0.1.3**: New feature: calculation of RMSD to compare two geomtrical structures 
+- **v0.1.4**: New feature: extract-au and tabulate energy components in au like extract (opt freq) 
 .. note::
     This documentation is for ComChemKit v0.1.2. For older versions, please refer to the archived documentation.
