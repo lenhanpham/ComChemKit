@@ -114,7 +114,7 @@ struct CommandContext
         : command(CommandType::EXTRACT),                                       // Default to extraction command
           quiet(false),                                                        // Show normal output by default
           requested_threads(0),                                                // Auto-detect thread count
-          max_file_size_mb(100),                                               // 100MB max file size
+          max_file_size_mb(500),                                               // 500MB max file size
           batch_size(0),                                                       // Auto-detect batch size (0 = disabled)
           extension(".log"),                                                   // Process .log files
           valid_extensions({".log", ".out", ".LOG", ".OUT", ".Log", ".Out"})  // Valid output extensions

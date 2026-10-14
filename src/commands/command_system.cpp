@@ -424,7 +424,7 @@ void CommandParser::parse_common_options(CommandContext& context, int& i, int ar
                 int size = std::stoi(argv[i]);
                 if (size <= 0)
                 {
-                    add_warning(context, "Error: Max file size must be positive. Using default 100MB.");
+                    add_warning(context, "Error: Max file size must be positive. Using default 500MB.");
                 }
                 else
                 {
@@ -433,7 +433,7 @@ void CommandParser::parse_common_options(CommandContext& context, int& i, int ar
             }
             catch (const std::exception& e)
             {
-                add_warning(context, "Error: Invalid max file size format. Using default 100MB.");
+                add_warning(context, "Error: Invalid max file size format. Using default 500MB.");
             }
         }
         else

@@ -57,7 +57,7 @@ void ConfigManager::initialize_default_values()
 
     // Performance settings
     config_values["default_threads"]    = ConfigValue("half", "Default thread count (number/half/max)", "performance");
-    config_values["max_file_size_mb"]   = ConfigValue("100", "Maximum file size to process in MB", "performance");
+    config_values["max_file_size_mb"]   = ConfigValue("500", "Maximum file size to process in MB", "performance");
     config_values["memory_limit_mb"]    = ConfigValue("0", "Memory limit in MB (0 = auto)", "performance");
     config_values["cluster_safe_mode"]  = ConfigValue("auto", "Cluster safety mode (auto/on/off)", "performance");
     config_values["progress_reporting"] = ConfigValue("true", "Show progress during processing", "performance");

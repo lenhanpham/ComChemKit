@@ -65,6 +65,10 @@ private:
     std::string ci_tddft_extra = "";
     bool        ci_fix_pcm = false;
     double      ci_temperature = -1.0;
+    std::string ci_mem = "";
+    std::string ci_cpu = "";
+    std::string ci_nprocshared = "";
+    std::string ci_gpucpu = "";
 };
 
 #endif // CREATE_INPUT_COMMAND_H

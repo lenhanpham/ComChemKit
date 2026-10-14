@@ -16,7 +16,6 @@
     <img src="https://github.com/lenhanpham/ComChemKit/actions/workflows/ci.yml/badge.svg" alt="Build Status">
   </a>
 </p>
-
 **ComChemKit** is a high-performance, cluster-safe program designed to enable researchers to interact with computational chemistry programs easily and efficiently. Users can create inputs, analyze data, organize computational tasks (jobs), and calculate further properties with ComChemKit. ComChemKit runs in parallel with comprehensive safety features to prevent system overload and ensure stable operation in shared computing environments.
 
 **ComChemKit** *can speed up your workflow thousands of times and save your 99.9% of time for input creation, data extraction, data analysis, and computational job management.*
@@ -35,7 +34,7 @@
 
 **Windows interactive mode**: Windows users can use all features plus popular linux commands in the interactive mode
 
-**Important note**: **Large files (>100MB) automatically skipped by default**. Users need to set flag --max-file-size xxxxx to increase the size limit
+**Important note**: **Large files (>500MB) automatically skipped by default**. Users need to set flag --max-file-size xxxxx to increase the size limit
 
 ## Full features and User Manual:
 
@@ -201,7 +200,7 @@ cck -e out                  # Process .out files instead of .log
 | `-f, --format`         | Output format      | text, csv         | text              |
 | `-nt, --threads`       | Thread count       | number, half, max | half              |
 | `-q, --quiet`          | Quiet mode         | -                 | false             |
-| `--max-file-size`      | Max file size (MB) | Positive integer  | 100               |
+| `--max-file-size`      | Max file size (MB) | Positive integer  | 500               |
 | `--memory-limit`       | Memory limit (MB)  | Positive integer  | Auto-calculated   |
 | `--batch-size`         | Batch size         | Positive integer  | false             |
 | `--resource-info`      | Show resources     | -                 | false             |
@@ -541,6 +540,7 @@ The parameter file uses `name = value` lines (`#` = comment); keys present in th
 | `tschk_path` | parent dir | For `high_sp`, `irc_forward`/`irc_reverse` |
 | `tddft_method` / `tddft_states` / `tddft_nstates` / `tddft_extra` | `tda` / both / `15` / (empty) | `singlets` writes `-singlets.gau`, `triplets` writes `-triplets.gau`, `50-50` writes one file, empty writes both |
 | `fix_pcm` / `temperature` | `false` / (unset) | Two-section Link1 SES job; not valid for high_sp, oss_ts_freq, modre_ts_freq, tddft, irc |
+| `mem` / `cpu` / `nprocshared` / `gpucpu` | (empty) | Param-file-only; Link0 first-section-only, emitted before `%chk` in order `%Mem`, `%CPU`, `%NProcShared`, `%GPUCPU`; uncomment in template to use |
 | `tail` / `extra_options` | (empty) | `tail` carries GEN/GENECP basis; `extra_options` appends an extra section (param-file-only) |
 
 Restart example (param file):
@@ -977,8 +977,8 @@ cck -nt 8 -c 5 -col 4 -f csv
 # Conservative head node usage
 cck -nt 2 -q --resource-info
 
-# Process larger files (increase 100MB default limit)
-cck --max-file-size 500
+# Process larger files (increase 500MB default limit)
+cck --max-file-size 1000
 
 # Set specific memory limit for high-memory systems
 cck --memory-limit 8192 -nt 16
@@ -1177,8 +1177,8 @@ cck --resource-info
 
 ### File Size Management
 
-- **Default limit**: 100MB per file
-- **Larger files**: Use `--max-file-size 200` to increase limit
+- **Default limit**: 500MB per file
+- **Larger files**: Use `--max-file-size 1000` to increase limit
 - **Very large files**: Consider processing sequentially (`-nt 1`)
 - **Disk space**: Ensure adequate space for output files
 
@@ -1239,7 +1239,7 @@ CXX=icpx make                # Force Intel oneAPI compiler
 cck -nt 2
 
 # Check file sizes
-ls -lh *.log  # Files >100MB are automatically skipped
+ls -lh *.log  # Files >500MB are automatically skipped
 
 # Monitor resources
 cck --resource-info

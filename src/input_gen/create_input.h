@@ -343,6 +343,30 @@ public:
     void set_temperature(double temperature);
 
     /**
+     * @brief Set Link0 memory directive value (e.g. "16GB")
+     * @param mem Memory specification string; empty disables the directive
+     */
+    void set_mem(const std::string& mem);
+
+    /**
+     * @brief Set Link0 CPU directive value (e.g. "0-31")
+     * @param cpu CPU specification string; empty disables the directive
+     */
+    void set_cpu(const std::string& cpu);
+
+    /**
+     * @brief Set Link0 NProcShared directive value (e.g. "32")
+     * @param nprocshared NProcShared specification string; empty disables the directive
+     */
+    void set_nprocshared(const std::string& nprocshared);
+
+    /**
+     * @brief Set Link0 GPUCPU directive value (e.g. "0,1,2,3,4,5=0,1,16,17,18,19")
+     * @param gpucpu GPUCPU specification string; empty disables the directive
+     */
+    void set_gpucpu(const std::string& gpucpu);
+
+    /**
      * @brief Print summary of creation operation
      * @param summary Summary to print
      * @param operation Description of operation
@@ -395,6 +419,12 @@ private:
     bool   fix_pcm_;      ///< Enable PCM fix (SES surface) two-section input mode
     double temperature_;  ///< Temperature (K) for PCM fix section 2 route; -1.0 = unset
 
+    // Link0 computing-resource directives (first section only, %Mem/%CPU/%NProcShared/%GPUCPU)
+    std::string mem_;         ///< Memory value for %Mem (e.g. "16GB"); empty = omit
+    std::string cpu_;         ///< CPU value for %CPU (e.g. "0-31"); empty = omit
+    std::string nprocshared_; ///< NProcShared value for %NProcShared (e.g. "32"); empty = omit
+    std::string gpucpu_;      ///< GPUCPU value for %GPUCPU (verbatim); empty = omit
+
     /**
      * @brief Create input file from single XYZ file
      * @param xyz_file Path to XYZ file
@@ -409,6 +439,13 @@ private:
      * @return Complete Gaussian input content
      */
     std::string generate_input_content(const std::string& isomer_name, const std::string& coordinates);
+
+    /**
+     * @brief Generate Link0 computing-resource directives for the first input section
+     * @return Resource lines in canonical order (%Mem, %CPU, %NProcShared, %GPUCPU),
+     *         each terminated by newline; empty string when no resource is set
+     */
+    std::string generate_resource_section() const;
 
     /**
      * @brief Generate route section for different calculation types

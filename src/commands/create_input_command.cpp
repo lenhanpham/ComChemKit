@@ -698,6 +698,12 @@ void CreateInputCommand::parse_args(int argc, char* argv[], int& i, CommandConte
             if (loaded_temp > 0.0)
                 ci_temperature = loaded_temp;
 
+            // Load Link0 computing-resource directives (first section only; empty = omit)
+            ci_mem         = parser.getString("mem", ci_mem);
+            ci_cpu         = parser.getString("cpu", ci_cpu);
+            ci_nprocshared = parser.getString("nprocshared", ci_nprocshared);
+            ci_gpucpu      = parser.getString("gpucpu", ci_gpucpu);
+
             std::cout << "Parameters loaded from: " << param_file << std::endl;
             if (!detected_calc_type.empty())
             {
@@ -907,6 +913,14 @@ int CreateInputCommand::execute(const CommandContext& context)
             creator.set_fix_pcm(true);
         if (ci_temperature > 0.0)
             creator.set_temperature(ci_temperature);
+        if (!ci_mem.empty())
+            creator.set_mem(ci_mem);
+        if (!ci_cpu.empty())
+            creator.set_cpu(ci_cpu);
+        if (!ci_nprocshared.empty())
+            creator.set_nprocshared(ci_nprocshared);
+        if (!ci_gpucpu.empty())
+            creator.set_gpucpu(ci_gpucpu);
 
         // Execute the creation (with batch processing if enabled)
         CreateSummary total_summary;

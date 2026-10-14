@@ -103,7 +103,7 @@ const size_t DEFAULT_MEMORY_MB        = 4096;   ///< Default memory limit: 4GB
 const size_t MIN_MEMORY_MB            = 1024;   ///< Minimum safe memory limit: 1GB
 const size_t MAX_MEMORY_MB            = 32768;  ///< Maximum memory limit: 32GB
 const size_t MAX_FILE_HANDLES         = 20;     ///< Maximum concurrent file operations
-const size_t DEFAULT_MAX_FILE_SIZE_MB = 100;    ///< Default maximum individual file size: 100MB
+const size_t DEFAULT_MAX_FILE_SIZE_MB = 500;    ///< Default maximum individual file size: 500MB
 
 /** @} */  // end of SafetyLimits group
 
@@ -557,7 +557,7 @@ struct ProcessingContext
      * @param use_temp Whether to use temperatures from input files
      * @param thread_count Number of processing threads to use
      * @param ext File extension to process (default: ".log")
-     * @param max_file_mb Maximum individual file size in MB (default: 100)
+     * @param max_file_mb Maximum individual file size in MB (default: 500)
      * @param job_res Job scheduler resource information
      *
      * Creates a complete processing context with:

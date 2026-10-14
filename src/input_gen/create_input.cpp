@@ -32,7 +32,8 @@ CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, bool quiet)
       tddft_method_("tda"), tddft_states_(""), tddft_nstates_(15), tddft_extra_(""),
       freeze_bond_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
       irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1), opt_options_(""), scf_options_(""), opt_restart_(false), scf_restart_(false),
-      fix_pcm_(false), temperature_(-1.0)
+      fix_pcm_(false), temperature_(-1.0),
+      mem_(""), cpu_(""), nprocshared_(""), gpucpu_("")
 {}
 
 std::string CreateInput::select_basis_for_calculation() const
@@ -348,6 +349,10 @@ std::string CreateInput::generate_pcm_fix_content(const std::string& isomer_name
 {
     std::ostringstream content;
 
+    // Link0 computing resources apply to the first section only; later
+    // sections inherit them, so emit the block once here at the very top.
+    content << generate_resource_section();
+
     // ── Section 1: SES geometry step ──────────────────────────────────────
     content << "%chk=" << isomer_name << "-ses.chk\n";
     content << generate_pcm_fix_s1_route(calc_type_, isomer_name) << "\n";
@@ -409,7 +414,8 @@ CreateInput::CreateInput(std::shared_ptr<ProcessingContext> ctx, const std::stri
       tddft_method_("tda"), tddft_states_(""), tddft_nstates_(15), tddft_extra_(""),
       freeze_bond_({0, 0}), scf_maxcycle_(-1), opt_maxcycles_(-1), irc_maxpoints_(-1), irc_recalc_(-1),
       irc_maxcycle_(-1), irc_stepsize_(-1), opt_maxstep_(-1), opt_options_(""), scf_options_(""), opt_restart_(false), scf_restart_(false),
-      fix_pcm_(false), temperature_(-1.0)
+      fix_pcm_(false), temperature_(-1.0),
+      mem_(""), cpu_(""), nprocshared_(""), gpucpu_("")
 {
     if (!loadParameters(param_file))
     {
@@ -542,6 +548,12 @@ bool CreateInput::loadParameters(const std::string& param_file)
     double temp = parser.getDouble("temperature", -1.0);
     if (temp > 0.0)
         temperature_ = temp;
+
+    // Link0 computing-resource directives (first section only; empty = omit)
+    mem_         = parser.getString("mem", "");
+    cpu_         = parser.getString("cpu", "");
+    nprocshared_ = parser.getString("nprocshared", "");
+    gpucpu_      = parser.getString("gpucpu", "");
 
     return true;
 }
@@ -1019,6 +1031,10 @@ std::string CreateInput::generate_input_content(const std::string& isomer_name, 
 
     std::ostringstream content;
 
+    // Link0 computing resources apply to the first section only; later
+    // --Link1-- sections inherit them, so emit the block once here at the top.
+    content << generate_resource_section();
+
     switch (calc_type_)
     {
         case CalculationType::OSS_TS_FREQ:
@@ -1436,6 +1452,50 @@ void CreateInput::set_fix_pcm(bool enable)
 void CreateInput::set_temperature(double temperature)
 {
     temperature_ = temperature;
+}
+
+void CreateInput::set_mem(const std::string& mem)
+{
+    mem_ = mem;
+}
+
+void CreateInput::set_cpu(const std::string& cpu)
+{
+    cpu_ = cpu;
+}
+
+void CreateInput::set_nprocshared(const std::string& nprocshared)
+{
+    nprocshared_ = nprocshared;
+}
+
+void CreateInput::set_gpucpu(const std::string& gpucpu)
+{
+    gpucpu_ = gpucpu;
+}
+
+/**
+ * @brief Generate Link0 computing-resource directives for the first input section
+ *
+ * Emits the set directives in canonical order (%Mem, %CPU, %NProcShared,
+ * %GPUCPU), one per line, each terminated by a newline. Unset (empty) values
+ * are omitted so the output is unchanged when no resources are configured.
+ * Values are emitted verbatim (trimming is handled by the parameter parser).
+ *
+ * @return Resource section string, or empty string when nothing is set
+ */
+std::string CreateInput::generate_resource_section() const
+{
+    std::ostringstream resources;
+    if (!mem_.empty())
+        resources << "%Mem=" << mem_ << "\n";
+    if (!cpu_.empty())
+        resources << "%CPU=" << cpu_ << "\n";
+    if (!nprocshared_.empty())
+        resources << "%NProcShared=" << nprocshared_ << "\n";
+    if (!gpucpu_.empty())
+        resources << "%GPUCPU=" << gpucpu_ << "\n";
+    return resources.str();
 }
 
 /**

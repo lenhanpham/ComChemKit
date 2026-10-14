@@ -1943,8 +1943,9 @@ std::vector<std::string> HighLevelEnergyCalculator::validate_and_prepare_files(c
 {
     std::vector<std::string> validated_files;
 
-    // Get max file size from context or use default
-    size_t max_file_size_bytes = 100 * 1024 * 1024;  // Default 100MB
+    // Get max file size from context or use the compiled default (500MB).
+    // CLI (--max-file-size) and config file values flow in via context_->max_file_size_mb.
+    size_t max_file_size_bytes = DEFAULT_MAX_FILE_SIZE_MB * 1024 * 1024;
     if (has_context_)
     {
         max_file_size_bytes = context_->max_file_size_mb * 1024 * 1024;
@@ -2670,10 +2671,13 @@ HighLevelEnergyCalculator::batch_read_files(const std::vector<std::string>& file
     {
         try
         {
-            // Check file size first
-            auto file_size = std::filesystem::file_size(filename);
-            if (file_size > 500 * 1024 * 1024)
-            {  // Skip files > 500MB
+            // Check file size against the configured limit (CLI/config value via context,
+            // compiled default otherwise) so this path honors --max-file-size like the rest.
+            auto   file_size      = std::filesystem::file_size(filename);
+            size_t max_size_bytes = has_context_ ? context_->max_file_size_mb * 1024 * 1024
+                                               : DEFAULT_MAX_FILE_SIZE_MB * 1024 * 1024;
+            if (file_size > max_size_bytes)
+            {
                 if (has_context_ && context_->error_collector)
                 {
                     context_->error_collector->add_warning("Skipping large file: " + filename);
