@@ -242,7 +242,9 @@ namespace HelpUtils
                 std::cout << "  --tddft-extra <kw>       Extra keywords inside td/tda() e.g. Root=5,Read,IVOGuess\n";
                 std::cout << "  --fix-pcm                Enable two-section SES surface input to fix PCM\n";
                 std::cout << "                           discontinuity errors (requires --solvent; not for irc/tddft)\n";
-                std::cout << "  --temperature <K>        Temperature (e.g. 253.15)\n\n";
+                std::cout << "  --temperature <K>        Temperature (e.g. 253.15)\n";
+                std::cout << "                           Resource directives (%Mem/%CPU/%NProcShared/%GPUCPU) are "
+                             "param-file-only: set mem/cpu/nprocshared/gpucpu in the file (first section only)\n\n";
 
                 std::cout << "Generation of Gaussian keywords (template parameter file):\n";
                 std::cout << "  --genci-params [type] [dir]  Generate parameter template for input creation\n";
@@ -321,7 +323,7 @@ namespace HelpUtils
         std::cout << "  -e, --ext <ext>       File extension: log|out (default: log)\n";
         std::cout << "  -nt, --threads <N>    Thread count: number|max|half (default: half)\n";
         std::cout << "  -q, --quiet           Quiet mode (minimal output)\n";
-        std::cout << "  --max-file-size <MB>  Maximum file size in MB (default: 100)\n";
+        std::cout << "  --max-file-size <MB>  Maximum file size in MB (default: 500)\n";
         std::cout << "  --batch-size <N>      Batch size for large directories (default: auto)\n";
 
         if (command == CommandType::CHECK_DONE)

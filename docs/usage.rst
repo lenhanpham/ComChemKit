@@ -145,8 +145,8 @@ Core Commands
    # Use specific number of threads
    cck -nt 8
 
-   # Process files larger than default 100MB limit
-   cck --max-file-size 500
+   # Process files larger than default 500MB limit
+   cck --max-file-size 1000
 
 **Temperature and Phase Correction:**
 
@@ -537,6 +537,17 @@ Restart and extra opt/scf sub-options (param-file only):
 Every key is written as ``name = value`` (one per line; ``#`` starts a comment).
 CLI flags set starting values; any key present in the parameter file overrides them.
 Keys marked *param-file-only* have no CLI flag.
+
+Computing-resource (Link0) keys (param-file-only):
+
+- ``mem`` / ``cpu`` / ``nprocshared`` / ``gpucpu`` (string, default empty = omit that line) —
+  Link0 directives emitted once at the top of the generated input, before ``%chk``,
+  in canonical order ``%Mem``, ``%CPU``, ``%NProcShared``, ``%GPUCPU``.
+  Only the first (``--link0--``) section carries them; later ``--Link1--`` sections inherit them.
+  Values are emitted verbatim, e.g. ``mem = 16GB``, ``cpu = 0-31``,
+  ``nprocshared = 32``, ``gpucpu = 0,1,2,3,4,5=0,1,16,17,18,19``
+  (cf. ``tests/create-input/22_468.gau``).
+  Templates carry these keys commented out; uncomment the lines you need.
 
 Basic keys:
 
@@ -1191,8 +1202,8 @@ File Size Handling
 
 .. code-block:: bash
 
-   # Increase file size limit (default: 100MB)
-   cck --max-file-size 500
+   # Increase file size limit (default: 500MB)
+   cck --max-file-size 1000
 
    # Process very large files
    cck --max-file-size 1000
@@ -1252,7 +1263,7 @@ Error Handling
 **File Processing Errors:**
 
 - Corrupted log files are skipped with warnings
-- Large files (>100MB) automatically skipped by default
+- Large files (>500MB) automatically skipped by default
 - Memory limits prevent system overload
 - Thread-safe error reporting
 

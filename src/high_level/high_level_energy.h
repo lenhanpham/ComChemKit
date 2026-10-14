@@ -1244,7 +1244,7 @@ private:
      * - File handle management
      * - Error reporting to context collector
      */
-    std::string safe_read_file(const std::string& filename, size_t max_size_mb = 100);
+    std::string safe_read_file(const std::string& filename, size_t max_size_mb = DEFAULT_MAX_FILE_SIZE_MB);
 
     /**
      * @brief Safe energy value parsing with validation
