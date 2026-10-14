@@ -690,14 +690,14 @@ public:
      * Sets which column to use for sorting results (visual column numbers):
      *
      * High-KJ format (1-7):
-     * - 1: Output name  - 2: G kJ/mol  - 3: G a.u  - 4: G eV  - 5: LowFQ  - 6: Status  - 7: PhCorr
+     * - 1: Output  - 2: G kJ/mol  - 3: G a.u  - 4: G eV  - 5: LowFQ  - 6: Status  - 7: PhCorr
      *
      * High-AU format (1-10):
-     * - 1: Output name  - 2: E high a.u  - 3: E low a.u  - 4: ZPE a.u  - 5: TC a.u
+     * - 1: Output  - 2: E high a.u  - 3: E low a.u  - 4: ZPE a.u  - 5: TC a.u
      * - 6: TS a.u  - 7: H a.u  - 8: G a.u  - 9: LowFQ  - 10: PhaseCorr
      *
      * Extract-AU format (1-9, no Status column):
-     * - 1: Output name  - 2: E a.u  - 3: ZPE a.u  - 4: TC a.u  - 5: TS a.u
+     * - 1: Output  - 2: E a.u  - 3: ZPE a.u  - 4: TC a.u  - 5: TS a.u
      * - 6: H a.u  - 7: G a.u  - 8: LowFQ  - 9: PhaseCorr
      *
      * Enable extract-au column mapping with set_extract_au_format(true)
@@ -971,7 +971,7 @@ public:
      * @param output_file Optional file stream for output (default: nullptr for console)
      *
      * Single-file reporting table (no Status column):
-     * Output name | E a.u | ZPE a.u | TC a.u | TS a.u | H a.u | G a.u | LowFQ | PhaseCorr
+     * Output | E a.u | ZPE a.u | TC a.u | TS a.u | H a.u | G a.u | LowFQ | PhaseCorr
      * Uses dynamic column sizing based on actual data content.
      */
     void print_extract_au_format_dynamic(const std::vector<HighLevelEnergyData>& results,
@@ -984,7 +984,7 @@ public:
      * @param quiet Suppress header and summary information (default: false)
      * @param output_file Optional file stream for output (default: nullptr for console)
      *
-     * CSV header: "Output name,E a.u,ZPE a.u,TC a.u,TS a.u,H a.u,G a.u,LowFQ,PhaseCorr"
+     * CSV header: "Output,E a.u,ZPE a.u,TC a.u,TS a.u,H a.u,G a.u,LowFQ,PhaseCorr"
      */
     void print_extract_au_csv_format(const std::vector<HighLevelEnergyData>& results,
                                      bool                                    quiet       = false,

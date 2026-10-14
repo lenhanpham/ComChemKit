@@ -844,14 +844,13 @@ void HighLevelEnergyCalculator::print_gibbs_csv_format(const std::vector<HighLev
     }
 
     // CSV header for Gibbs format (matching first bash script output)
-    out << "Output name,G kJ/mol,G a.u,G eV,LowFQ,Status,PhCorr\n";
+    out << "Output,G kJ/mol,G a.u,G eV,LowFQ,Status,PhCorr\n";
 
     for (const auto& data : results)
     {
-        std::string formatted_name = format_filename(data.filename, 52);
-        std::string phase_corr     = data.phase_corr_applied ? "YES" : "NO";
+        std::string phase_corr = data.phase_corr_applied ? "YES" : "NO";
 
-        out << "\"" << formatted_name << "\"," << std::fixed << std::setprecision(6) << data.gibbs_kj_mol << ","
+        out << "\"" << data.filename << "\"," << std::fixed << std::setprecision(6) << data.gibbs_kj_mol << ","
             << std::fixed << std::setprecision(6) << data.gibbs_hartree_corrected << "," << std::fixed
             << std::setprecision(6) << data.gibbs_ev << "," << std::fixed << std::setprecision(2)
             << data.lowest_frequency << "," << data.status << "," << phase_corr << "\n";
@@ -880,14 +879,13 @@ void HighLevelEnergyCalculator::print_components_csv_format(const std::vector<Hi
     }
 
     // CSV header for components format (matching second bash script output)
-    out << "Output name,E high a.u,E low a.u,ZPE a.u,TC a.u,TS a.u,H a.u,G a.u,LowFQ,PhaseCorr\n";
+    out << "Output,E high a.u,E low a.u,ZPE a.u,TC a.u,TS a.u,H a.u,G a.u,LowFQ,PhaseCorr\n";
 
     for (const auto& data : results)
     {
-        std::string formatted_name = format_filename(data.filename, 53);
-        std::string phase_corr     = data.phase_corr_applied ? "YES" : "NO";
+        std::string phase_corr = data.phase_corr_applied ? "YES" : "NO";
 
-        out << "\"" << formatted_name << "\"," << std::fixed << std::setprecision(6) << data.final_scf_high << ","
+        out << "\"" << data.filename << "\"," << std::fixed << std::setprecision(6) << data.final_scf_high << ","
             << std::fixed << std::setprecision(6) << data.final_scf_low << "," << std::fixed << std::setprecision(6)
             << data.zpe << "," << std::fixed << std::setprecision(6) << data.tc_only << "," << std::fixed
             << std::setprecision(6) << data.ts_value << "," << std::fixed << std::setprecision(6)
@@ -918,14 +916,13 @@ void HighLevelEnergyCalculator::print_extract_au_csv_format(const std::vector<Hi
     }
 
     // CSV header for extract-au format (single E column, no Status column)
-    out << "Output name,E a.u,ZPE a.u,TC a.u,TS a.u,H a.u,G a.u,LowFQ,PhaseCorr\n";
+    out << "Output,E a.u,ZPE a.u,TC a.u,TS a.u,H a.u,G a.u,LowFQ,PhaseCorr\n";
 
     for (const auto& data : results)
     {
-        std::string formatted_name = format_filename(data.filename, 53);
-        std::string phase_corr     = data.phase_corr_applied ? "YES" : "NO";
+        std::string phase_corr = data.phase_corr_applied ? "YES" : "NO";
 
-        out << "\"" << formatted_name << "\"," << std::fixed << std::setprecision(6) << data.final_scf_high << ","
+        out << "\"" << data.filename << "\"," << std::fixed << std::setprecision(6) << data.final_scf_high << ","
             << std::fixed << std::setprecision(6) << data.zpe << "," << std::fixed << std::setprecision(6)
             << data.tc_only << "," << std::fixed << std::setprecision(6) << data.ts_value << "," << std::fixed
             << std::setprecision(6) << data.enthalpy_hartree << "," << std::fixed << std::setprecision(6)
@@ -1338,7 +1335,7 @@ void HighLevelEnergyCalculator::print_gibbs_header(std::ostream* output_file)
 {
     std::ostream& out = output_file ? *output_file : std::cout;
 
-    out << std::setw(52) << "Output name" << std::setw(18) << "G kJ/mol" << std::setw(15) << "G a.u" << std::setw(15)
+    out << std::setw(52) << "Output" << std::setw(18) << "G kJ/mol" << std::setw(15) << "G a.u" << std::setw(15)
         << "G eV" << std::setw(12) << "LowFQ" << std::setw(8) << "Status" << std::setw(8) << "PhCorr" << std::endl;
 
     out << std::setw(52) << "-----------" << std::setw(18) << "----------" << std::setw(15) << "---------"
@@ -1350,7 +1347,7 @@ void HighLevelEnergyCalculator::print_components_header(std::ostream* output_fil
 {
     std::ostream& out = output_file ? *output_file : std::cout;
 
-    out << std::setw(53) << "Output name" << std::setw(15) << "E high a.u" << std::setw(15) << "E low a.u"
+    out << std::setw(53) << "Output" << std::setw(15) << "E high a.u" << std::setw(15) << "E low a.u"
         << std::setw(10) << "ZPE a.u" << std::setw(10) << "TC a.u" << std::setw(10) << "TS a.u" << std::setw(15)
         << "H a.u" << std::setw(15) << "G a.u" << std::setw(10) << "LowFQ" << std::setw(11) << "PhaseCorr" << std::endl;
 
@@ -1417,8 +1414,13 @@ HighLevelEnergyCalculator::calculate_gibbs_column_widths(const std::vector<HighL
     // Calculate optimal column widths for Gibbs format output
     std::vector<int> widths(7);
 
-    // Initialize with header lengths + 3 spaces padding
-    widths[0] = std::max(11, 52);  // "Output name" or minimum filename width
+    // Initialize with header lengths + 3 spaces padding (Output: longest full name + 1, no truncation)
+    size_t longest_name = std::string("Output").size();
+    for (const auto& data : results)
+    {
+        longest_name = std::max(longest_name, data.filename.size());
+    }
+    widths[0] = static_cast<int>(longest_name) + 1;
     widths[1] = std::max(8, 15);   // "G kJ/mol"
     widths[2] = std::max(6, 12);   // "G a.u"
     widths[3] = std::max(4, 12);   // "G eV"
@@ -1430,11 +1432,6 @@ HighLevelEnergyCalculator::calculate_gibbs_column_widths(const std::vector<HighL
     char buffer[64];
     for (const auto& data : results)
     {
-        // Check filename length (limited to reasonable max)
-        std::string formatted_name = format_filename(data.filename, 70);
-        widths[0]                  = std::max(widths[0], static_cast<int>(formatted_name.length()) + 3);
-
-        // Use snprintf for faster formatting
         int len;
 
         // Check G kJ/mol length
@@ -1470,8 +1467,13 @@ HighLevelEnergyCalculator::calculate_components_column_widths(const std::vector<
     // Column order: filename, E high a.u, E low a.u, ZPE a.u, TC a.u, TS a.u, H a.u, G a.u, LowFQ, PhaseCorr
     std::vector<int> widths(10);
 
-    // Initialize with header lengths + 3 spaces padding
-    widths[0] = std::max(11, 52);  // "Output name"
+    // Initialize with header lengths + 3 spaces padding (Output: longest full name + 1, no truncation)
+    size_t longest_name = std::string("Output").size();
+    for (const auto& data : results)
+    {
+        longest_name = std::max(longest_name, data.filename.size());
+    }
+    widths[0] = static_cast<int>(longest_name) + 1;
     widths[1] = std::max(10, 15);  // "E high a.u"
     widths[2] = std::max(9, 15);   // "E low a.u"
     widths[3] = std::max(7, 10);   // "ZPE a.u"
@@ -1484,10 +1486,6 @@ HighLevelEnergyCalculator::calculate_components_column_widths(const std::vector<
 
     for (const auto& data : results)
     {
-        // Check filename length (limited to reasonable max)
-        std::string formatted_name = format_filename(data.filename, 70);
-        widths[0]                  = std::max(widths[0], static_cast<int>(formatted_name.length()) + 3);
-
         // Check E high a.u length
         std::ostringstream ss1;
         ss1 << std::fixed << std::setprecision(8) << data.final_scf_high;
@@ -1541,14 +1539,15 @@ void HighLevelEnergyCalculator::print_gibbs_header_dynamic(const std::vector<int
 {
     std::ostream& out = output_file ? *output_file : std::cout;
 
-    out << std::setw(column_widths[0]) << "Output name" << std::setw(column_widths[1]) << "G kJ/mol"
+    out << std::setw(column_widths[0]) << std::left << "Output" << std::setw(column_widths[1]) << std::right
+        << "G kJ/mol"
         << std::setw(column_widths[2]) << "G a.u" << std::setw(column_widths[3]) << "G eV"
         << std::setw(column_widths[4]) << "LowFQ" << std::setw(column_widths[5]) << "Status"
         << std::setw(column_widths[6]) << "PhCorr" << std::endl;
 
-    // Print separator line
-    out << std::setw(column_widths[0]) << std::string(column_widths[0] - 3, '-') << std::setw(column_widths[1])
-        << std::string(column_widths[1] - 3, '-') << std::setw(column_widths[2])
+    // Print separator line (Output uses +1 padding, others +3)
+    out << std::setw(column_widths[0]) << std::left << std::string(column_widths[0] - 1, '-') << std::setw(column_widths[1])
+        << std::right << std::string(column_widths[1] - 3, '-') << std::setw(column_widths[2])
         << std::string(column_widths[2] - 3, '-') << std::setw(column_widths[3])
         << std::string(column_widths[3] - 3, '-') << std::setw(column_widths[4])
         << std::string(column_widths[4] - 3, '-') << std::setw(column_widths[5])
@@ -1561,15 +1560,16 @@ void HighLevelEnergyCalculator::print_components_header_dynamic(const std::vecto
 {
     std::ostream& out = output_file ? *output_file : std::cout;
 
-    out << std::setw(column_widths[0]) << "Output name" << std::setw(column_widths[1]) << "E high a.u"
+    out << std::setw(column_widths[0]) << std::left << "Output" << std::setw(column_widths[1]) << std::right
+        << "E high a.u"
         << std::setw(column_widths[2]) << "E low a.u" << std::setw(column_widths[3]) << "ZPE a.u"
         << std::setw(column_widths[4]) << "TC a.u" << std::setw(column_widths[5]) << "TS a.u"
         << std::setw(column_widths[6]) << "H a.u" << std::setw(column_widths[7]) << "G a.u"
         << std::setw(column_widths[8]) << "LowFQ" << std::setw(column_widths[9]) << "PhaseCorr" << std::endl;
 
-    // Print separator line
-    out << std::setw(column_widths[0]) << std::string(column_widths[0] - 3, '-') << std::setw(column_widths[1])
-        << std::string(column_widths[1] - 3, '-') << std::setw(column_widths[2])
+    // Print separator line (Output uses +1 padding, others +3)
+    out << std::setw(column_widths[0]) << std::left << std::string(column_widths[0] - 1, '-')
+        << std::setw(column_widths[1]) << std::right << std::string(column_widths[1] - 3, '-') << std::setw(column_widths[2])
         << std::string(column_widths[2] - 3, '-') << std::setw(column_widths[3])
         << std::string(column_widths[3] - 3, '-') << std::setw(column_widths[4])
         << std::string(column_widths[4] - 3, '-') << std::setw(column_widths[5])
@@ -1586,8 +1586,13 @@ HighLevelEnergyCalculator::calculate_extract_au_column_widths(const std::vector<
     // Column order: filename, E a.u, ZPE a.u, TC a.u, TS a.u, H a.u, G a.u, LowFQ, PhaseCorr
     std::vector<int> widths(9);
 
-    // Initialize with header lengths + 3 spaces padding
-    widths[0] = std::max(11, 52);  // "Output name"
+    // Initialize with header lengths + 3 spaces padding (Output: longest full name + 1, no truncation)
+    size_t longest_name = std::string("Output").size();
+    for (const auto& data : results)
+    {
+        longest_name = std::max(longest_name, data.filename.size());
+    }
+    widths[0] = static_cast<int>(longest_name) + 1;
     widths[1] = std::max(5, 15);   // "E a.u"
     widths[2] = std::max(7, 10);   // "ZPE a.u"
     widths[3] = std::max(6, 10);   // "TC a.u"
@@ -1599,10 +1604,6 @@ HighLevelEnergyCalculator::calculate_extract_au_column_widths(const std::vector<
 
     for (const auto& data : results)
     {
-        // Check filename length (limited to reasonable max)
-        std::string formatted_name = format_filename(data.filename, 70);
-        widths[0]                  = std::max(widths[0], static_cast<int>(formatted_name.length()) + 3);
-
         // Check E a.u length
         std::ostringstream ss1;
         ss1 << std::fixed << std::setprecision(8) << data.final_scf_high;
@@ -1651,15 +1652,16 @@ void HighLevelEnergyCalculator::print_extract_au_header_dynamic(const std::vecto
 {
     std::ostream& out = output_file ? *output_file : std::cout;
 
-    out << std::setw(column_widths[0]) << "Output name" << std::setw(column_widths[1]) << "E a.u"
+    out << std::setw(column_widths[0]) << std::left << "Output" << std::setw(column_widths[1]) << std::right
+        << "E a.u"
         << std::setw(column_widths[2]) << "ZPE a.u" << std::setw(column_widths[3]) << "TC a.u"
         << std::setw(column_widths[4]) << "TS a.u" << std::setw(column_widths[5]) << "H a.u"
         << std::setw(column_widths[6]) << "G a.u" << std::setw(column_widths[7]) << "LowFQ"
         << std::setw(column_widths[8]) << "PhaseCorr" << std::endl;
 
-    // Print separator line
-    out << std::setw(column_widths[0]) << std::string(column_widths[0] - 3, '-') << std::setw(column_widths[1])
-        << std::string(column_widths[1] - 3, '-') << std::setw(column_widths[2])
+    // Print separator line (Output uses +1 padding, others +3)
+    out << std::setw(column_widths[0]) << std::left << std::string(column_widths[0] - 1, '-')
+        << std::setw(column_widths[1]) << std::right << std::string(column_widths[1] - 3, '-') << std::setw(column_widths[2])
         << std::string(column_widths[2] - 3, '-') << std::setw(column_widths[3])
         << std::string(column_widths[3] - 3, '-') << std::setw(column_widths[4])
         << std::string(column_widths[4] - 3, '-') << std::setw(column_widths[5])
@@ -1694,10 +1696,10 @@ void HighLevelEnergyCalculator::print_extract_au_format_dynamic(const std::vecto
 
     for (const auto& data : results)
     {
-        std::string formatted_name = format_filename(data.filename, column_widths[0] - 3);
-        std::string phase_corr     = data.phase_corr_applied ? "YES" : "NO";
+        std::string phase_corr = data.phase_corr_applied ? "YES" : "NO";
 
-        out << std::setw(column_widths[0]) << formatted_name << std::setw(column_widths[1]) << std::fixed
+        out << std::setw(column_widths[0]) << std::left << data.filename << std::setw(column_widths[1]) << std::right
+            << std::fixed
             << std::setprecision(6) << data.final_scf_high << std::setw(column_widths[2]) << std::fixed
             << std::setprecision(6) << data.zpe << std::setw(column_widths[3]) << std::fixed << std::setprecision(6)
             << data.tc_only << std::setw(column_widths[4]) << std::fixed << std::setprecision(6) << data.ts_value
@@ -1733,10 +1735,10 @@ void HighLevelEnergyCalculator::print_gibbs_format_dynamic(const std::vector<Hig
 
     for (const auto& data : results)
     {
-        std::string formatted_name = format_filename(data.filename, column_widths[0] - 3);
-        std::string phase_corr     = data.phase_corr_applied ? "YES" : "NO";
+        std::string phase_corr = data.phase_corr_applied ? "YES" : "NO";
 
-        out << std::setw(column_widths[0]) << formatted_name << std::setw(column_widths[1]) << std::fixed
+        out << std::setw(column_widths[0]) << std::left << data.filename << std::setw(column_widths[1]) << std::right
+            << std::fixed
             << std::setprecision(6) << data.gibbs_kj_mol << std::setw(column_widths[2]) << std::fixed
             << std::setprecision(6) << data.gibbs_hartree_corrected << std::setw(column_widths[3]) << std::fixed
             << std::setprecision(6) << data.gibbs_ev << std::setw(column_widths[4]) << std::fixed
@@ -1770,10 +1772,10 @@ void HighLevelEnergyCalculator::print_components_format_dynamic(const std::vecto
 
     for (const auto& data : results)
     {
-        std::string formatted_name = format_filename(data.filename, column_widths[0] - 3);
-        std::string phase_corr     = data.phase_corr_applied ? "YES" : "NO";
+        std::string phase_corr = data.phase_corr_applied ? "YES" : "NO";
 
-        out << std::setw(column_widths[0]) << formatted_name << std::setw(column_widths[1]) << std::fixed
+        out << std::setw(column_widths[0]) << std::left << data.filename << std::setw(column_widths[1]) << std::right
+            << std::fixed
             << std::setprecision(6) << data.final_scf_high << std::setw(column_widths[2]) << std::fixed
             << std::setprecision(6) << data.final_scf_low << std::setw(column_widths[3]) << std::fixed
             << std::setprecision(6) << data.zpe << std::setw(column_widths[4]) << std::fixed << std::setprecision(6)
@@ -1810,10 +1812,10 @@ void HighLevelEnergyCalculator::print_gibbs_format_static(const std::vector<High
 
     for (const auto& data : results)
     {
-        std::string formatted_name = format_filename(data.filename, 52);
-        std::string phase_corr     = data.phase_corr_applied ? "YES" : "NO";
+        std::string phase_corr = data.phase_corr_applied ? "YES" : "NO";
 
-        out << std::setw(52) << formatted_name << std::setw(18) << std::fixed << std::setprecision(6)
+        out << std::setw(52) << std::left << data.filename << std::setw(18) << std::right << std::fixed
+            << std::setprecision(6)
             << data.gibbs_kj_mol << std::setw(15) << std::fixed << std::setprecision(6) << data.gibbs_hartree_corrected
             << std::setw(15) << std::fixed << std::setprecision(6) << data.gibbs_ev << std::setw(12) << std::fixed
             << std::setprecision(4) << data.lowest_frequency << std::setw(8) << data.status << std::setw(8)
@@ -1845,10 +1847,10 @@ void HighLevelEnergyCalculator::print_components_format_static(const std::vector
 
     for (const auto& data : results)
     {
-        std::string formatted_name = format_filename(data.filename, 53);
-        std::string phase_corr     = data.phase_corr_applied ? "YES" : "NO";
+        std::string phase_corr = data.phase_corr_applied ? "YES" : "NO";
 
-        out << std::setw(53) << formatted_name << std::setw(15) << std::fixed << std::setprecision(6)
+        out << std::setw(53) << std::left << data.filename << std::setw(15) << std::right << std::fixed
+            << std::setprecision(6)
             << data.final_scf_high << std::setw(15) << std::fixed << std::setprecision(6) << data.final_scf_low
             << std::setw(10) << std::fixed << std::setprecision(6) << data.zpe << std::setw(10) << std::fixed
             << std::setprecision(6) << data.tc_only << std::setw(10) << std::fixed << std::setprecision(6)
@@ -2227,7 +2229,7 @@ bool HighLevelEnergyCalculator::compare_results(const HighLevelEnergyData& a, co
         // 1=Name, 2=E a.u, 3=ZPE a.u, 4=TC a.u, 5=TS a.u, 6=H a.u, 7=G a.u, 8=LowFQ, 9=PhaseCorr
         switch (column)
         {
-            case 1:  // Output name
+            case 1:  // Output
                 return a.filename < b.filename;
             case 2:  // E a.u
                 return a.final_scf_high < b.final_scf_high;
@@ -2251,10 +2253,10 @@ bool HighLevelEnergyCalculator::compare_results(const HighLevelEnergyData& a, co
     }
     if (is_au_format_)
     {
-        // High-AU format: Output name, E high a.u, E low a.u, ZPE a.u, TC a.u, TS a.u, H a.u, G a.u, LowFQ, PhaseCorr
+        // High-AU format: Output, E high a.u, E low a.u, ZPE a.u, TC a.u, TS a.u, H a.u, G a.u, LowFQ, PhaseCorr
         switch (column)
         {
-            case 1:  // Output name
+            case 1:  // Output
                 return a.filename < b.filename;
             case 2:  // E high a.u
                 return a.final_scf_high < b.final_scf_high;
@@ -2280,10 +2282,10 @@ bool HighLevelEnergyCalculator::compare_results(const HighLevelEnergyData& a, co
     }
     else
     {
-        // High-KJ format: Output name, G kJ/mol, G a.u, G eV, LowFQ, Status, PhCorr
+        // High-KJ format: Output, G kJ/mol, G a.u, G eV, LowFQ, Status, PhCorr
         switch (column)
         {
-            case 1:  // Output name
+            case 1:  // Output
                 return a.filename < b.filename;
             case 2:  // G kJ/mol
                 return a.gibbs_kj_mol < b.gibbs_kj_mol;
