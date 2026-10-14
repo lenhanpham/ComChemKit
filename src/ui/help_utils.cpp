@@ -155,7 +155,7 @@ namespace HelpUtils
                     << "             Reads electronic energy and thermal corrections from the SAME file\n\n";
                 std::cout << "This command processes each log file in the current directory (no parent\n";
                 std::cout << "directory lookup) and prints a high-au-style energy component breakdown:\n";
-                std::cout << "Output name | E a.u | ZPE a.u | TC a.u | TS a.u | H a.u | G a.u | LowFQ | PhaseCorr.\n";
+                std::cout << "Output | E a.u | ZPE a.u | TC a.u | TS a.u | H a.u | G a.u | LowFQ | PhaseCorr.\n";
                 std::cout << "There is no Status column (full reporting table; status only drives exit code).\n\n";
                 std::cout << "Additional Options:\n";
                 std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";

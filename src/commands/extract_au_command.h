@@ -8,7 +8,7 @@
  * `extract` command (single-file: electronic energy and thermal corrections
  * are both read from each log file in the current directory) but prints a
  * `high-au`-style energy component breakdown in atomic units:
- * Output name | E a.u | ZPE a.u | TC a.u | TS a.u | H a.u | G a.u | LowFQ | PhaseCorr
+ * Output | E a.u | ZPE a.u | TC a.u | TS a.u | H a.u | G a.u | LowFQ | PhaseCorr
  *
  * There is intentionally NO Status column: extract-au prepares a full table
  * of data for reporting. Status is still computed internally and drives the

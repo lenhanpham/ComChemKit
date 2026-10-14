@@ -1317,11 +1317,7 @@ Result extract(const std::string& file_name_param, const ProcessingContext& cont
         }
     }
 
-    // Truncate filename if too long
-    if (file_name.length() > 53)
-    {
-        file_name = file_name.substr(file_name.length() - 53);
-    }
+    // Full filename is kept; Output column width is dynamic (longest name + 1).
 
     return Result{file_name, etgkj, lf, GibbsFreeHartree, nucleare, scf, zpe, status, phaseCorr, copyright_count};
 }
@@ -1692,33 +1688,92 @@ void processAndOutputResults(double                          temp,
 
         if (format == "text")
         {
+            // Dynamic column widths like extract-au: Output + 1, all other columns + 3
+            // (min 3-space gap between numeric columns). Formatting here must match
+            // the row printing below (%.6f, %.2f, raw strings, int).
+            static const char* headers[10] = {"Output", "ETG kJ/mol", "Low FC",     "ETG a.u",
+                                              "Nuclear E au", "SCFE",      "ZPE ",       "Status",
+                                              "PCorr",        "Round"};
+            size_t widths[10];
+            for (int i = 0; i < 10; ++i)
+            {
+                widths[i] = std::string(headers[i]).size();
+            }
+            for (const auto& result : results)
+            {
+                widths[0] = std::max(widths[0], result.file_name.size());
+                {
+                    std::ostringstream ss;
+                    ss << std::fixed << std::setprecision(6) << result.etgkj;
+                    widths[1] = std::max(widths[1], ss.str().size());
+                }
+                {
+                    std::ostringstream ss;
+                    ss << std::fixed << std::setprecision(2) << result.lf;
+                    widths[2] = std::max(widths[2], ss.str().size());
+                }
+                {
+                    std::ostringstream ss;
+                    ss << std::fixed << std::setprecision(6) << result.GibbsFreeHartree;
+                    widths[3] = std::max(widths[3], ss.str().size());
+                }
+                {
+                    std::ostringstream ss;
+                    ss << std::fixed << std::setprecision(6) << result.nucleare;
+                    widths[4] = std::max(widths[4], ss.str().size());
+                }
+                {
+                    std::ostringstream ss;
+                    ss << std::fixed << std::setprecision(6) << result.scf;
+                    widths[5] = std::max(widths[5], ss.str().size());
+                }
+                {
+                    std::ostringstream ss;
+                    ss << std::fixed << std::setprecision(6) << result.zpe;
+                    widths[6] = std::max(widths[6], ss.str().size());
+                }
+                widths[7] = std::max(widths[7], result.status.size());
+                widths[8] = std::max(widths[8], result.phaseCorr.size());
+                widths[9] = std::max(widths[9], std::to_string(result.copyright_count).size());
+            }
+            int w[10];
+            w[0] = static_cast<int>(widths[0] + 1);
+            for (int i = 1; i < 10; ++i)
+            {
+                w[i] = static_cast<int>(widths[i] + 3);
+            }
+
             // Text format output
             std::ostringstream header;
-            header << std::setw(53) << std::left << "Output name" << std::setw(18) << std::right << "ETG kJ/mol"
-                   << std::setw(10) << std::right << "Low FC" << std::setw(18) << std::right << "ETG a.u"
-                   << std::setw(18) << std::right << "Nuclear E au" << std::setw(18) << std::right << "SCFE"
-                   << std::setw(10) << std::right << "ZPE " << std::setw(8) << std::right << "Status" << std::setw(6)
-                   << std::right << "PCorr" << std::setw(6) << std::right << "Round" << "\n";
+            header << std::setw(w[0]) << std::left << "Output" << std::setw(w[1]) << std::right << "ETG kJ/mol"
+                   << std::setw(w[2]) << std::right << "Low FC" << std::setw(w[3]) << std::right << "ETG a.u"
+                   << std::setw(w[4]) << std::right << "Nuclear E au" << std::setw(w[5]) << std::right << "SCFE"
+                   << std::setw(w[6]) << std::right << "ZPE " << std::setw(w[7]) << std::right << "Status"
+                   << std::setw(w[8]) << std::right << "PCorr" << std::setw(w[9]) << std::right << "Round" << "\n";
 
             std::ostringstream separator;
-            separator << std::setw(53) << std::left << std::string(53, '-') << std::setw(18) << std::right
-                      << std::string(18, '-') << std::setw(10) << std::right << std::string(10, '-') << std::setw(18)
-                      << std::right << std::string(18, '-') << std::setw(18) << std::right << std::string(18, '-')
-                      << std::setw(18) << std::right << std::string(18, '-') << std::setw(10) << std::right
-                      << std::string(10, '-') << std::setw(8) << std::right << std::string(8, '-') << std::setw(6)
-                      << std::right << std::string(6, '-') << std::setw(6) << std::right << std::string(6, '-') << "\n";
+            separator << std::setw(w[0]) << std::left << std::string(widths[0] + 1, '-') << std::setw(w[1])
+                      << std::right << std::string(widths[1] + 3, '-') << std::setw(w[2]) << std::right
+                      << std::string(widths[2] + 3, '-') << std::setw(w[3]) << std::right
+                      << std::string(widths[3] + 3, '-') << std::setw(w[4]) << std::right
+                      << std::string(widths[4] + 3, '-') << std::setw(w[5]) << std::right
+                      << std::string(widths[5] + 3, '-') << std::setw(w[6]) << std::right
+                      << std::string(widths[6] + 3, '-') << std::setw(w[7]) << std::right
+                      << std::string(widths[7] + 3, '-') << std::setw(w[8]) << std::right
+                      << std::string(widths[8] + 3, '-') << std::setw(w[9]) << std::right
+                      << std::string(widths[9] + 3, '-') << "\n";
 
             for (const auto& result : results)
             {
-                output_stream << std::setw(53) << std::left << result.file_name << std::setw(18) << std::right
-                              << std::fixed << std::setprecision(6) << result.etgkj << std::setw(10) << std::right
-                              << std::fixed << std::setprecision(2) << result.lf << std::setw(18) << std::right
-                              << std::fixed << std::setprecision(6) << result.GibbsFreeHartree << std::setw(18)
-                              << std::right << std::fixed << std::setprecision(6) << result.nucleare << std::setw(18)
-                              << std::right << std::fixed << std::setprecision(6) << result.scf << std::setw(10)
-                              << std::right << std::fixed << std::setprecision(6) << result.zpe << std::setw(8)
-                              << std::right << result.status << std::setw(6) << std::right << result.phaseCorr
-                              << std::setw(6) << std::right << result.copyright_count << "\n";
+                output_stream << std::setw(w[0]) << std::left << result.file_name << std::setw(w[1]) << std::right
+                              << std::fixed << std::setprecision(6) << result.etgkj << std::setw(w[2]) << std::right
+                              << std::fixed << std::setprecision(2) << result.lf << std::setw(w[3]) << std::right
+                              << std::fixed << std::setprecision(6) << result.GibbsFreeHartree << std::setw(w[4])
+                              << std::right << std::fixed << std::setprecision(6) << result.nucleare << std::setw(w[5])
+                              << std::right << std::fixed << std::setprecision(6) << result.scf << std::setw(w[6])
+                              << std::right << std::fixed << std::setprecision(6) << result.zpe << std::setw(w[7])
+                              << std::right << result.status << std::setw(w[8]) << std::right << result.phaseCorr
+                              << std::setw(w[9]) << std::right << result.copyright_count << "\n";
             }
 
             output_file << params.str() << header.str() << separator.str() << output_stream.str();
@@ -1730,7 +1785,7 @@ void processAndOutputResults(double                          temp,
         else if (format == "csv")
         {
             // CSV format output
-            output_stream << "Output name,ETG kJ/mol,Low FC,ETG a.u,Nuclear E au,SCFE,ZPE,Status,PCorr,Round\n";
+            output_stream << "Output,ETG kJ/mol,Low FC,ETG a.u,Nuclear E au,SCFE,ZPE,Status,PCorr,Round\n";
             for (const auto& result : results)
             {
                 output_stream << "\"" << result.file_name << "\"," << std::fixed << std::setprecision(6) << result.etgkj
