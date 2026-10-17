@@ -1417,6 +1417,7 @@ The thermo module implements advanced parallel processing specifically designed 
    - Non-blocking error collection
 
 ## Version History
+- **v0.1.5** Release version
 - **v0.1.4** Release version
 - **v0.1.3** Release version
 - **v0.1.2** Release version
