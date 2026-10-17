@@ -239,7 +239,45 @@ Output compute_rmsd(const Molecule& p, const Molecule& q, const Options& opts, c
         }
     }
 
-    double rmsd_value = has_result ? result_rmsd : rmsd_for_rotation(opts.rotation, p_sub, q_sub);
+    // When element order matches (same_order) but no reordering/reflections were
+    // requested, same-element atoms may still be permuted within element groups
+    // (two structures with identical element sequence but different atom indexing).
+    // Plain index-to-index matching would then pair wrong atoms and return an
+    // inflated RMSD. Try reordering with the configured method and keep the best
+    // RMSD, so we never return a worse value than index-to-index matching.
+    double baseline_rmsd = rmsd_for_rotation(opts.rotation, p_sub, q_sub);
+    if (!has_result && !reorder_active && opts.reflections == Reflections::None && same_order && !has_review &&
+        !(opts.print_rotated && use_view))
+    {
+        bool applied = false;
+        std::vector<size_t> auto_review =
+            reorder_dispatch(opts.reorder, p_atoms, q_atoms, p_sub, q_sub, applied);
+        if (applied && !auto_review.empty())
+        {
+            std::vector<uint8_t> qa2;
+            std::vector<Coord> qs2;
+            for (size_t i : auto_review)
+            {
+                qa2.push_back(q_atoms[i]);
+                qs2.push_back(q_sub[i]);
+            }
+            if (p_atoms == qa2)
+            {
+                double reordered_rmsd = rmsd_for_rotation(opts.rotation, p_sub, qs2);
+                if (reordered_rmsd < baseline_rmsd)
+                {
+                    q_atoms = qa2;
+                    q_sub = qs2;
+                    q_review = auto_review;
+                    has_review = true;
+                    result_rmsd = reordered_rmsd;
+                    has_result = true;
+                }
+            }
+        }
+    }
+
+    double rmsd_value = has_result ? result_rmsd : baseline_rmsd;
 
     Output out;
     out.rmsd = rmsd_value;

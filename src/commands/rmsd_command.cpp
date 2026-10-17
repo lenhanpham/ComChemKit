@@ -12,6 +12,8 @@
 #include "rmsd/struct_list.h"
 #include "utilities/config_manager.h"
 #include <atomic>
+#include <chrono>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -519,10 +521,57 @@ int RmsdCommand::run_matrix(const CommandContext& context) const
     };
     if (start >= re)
     {
-        std::cout << "output '" << out_path << "' already complete (" << entries.size() << "x" << entries.size()
-                  << ", " << total << " pairs)\n";
-        return 0;
+        if (exists)
+        {
+            // Archive the existing output with a timestamp before recalculating,
+            // so previous data is preserved and the user is informed that a
+            // recalculation is about to happen instead of silently stopping.
+            auto now = std::chrono::system_clock::now();
+            std::time_t now_t = std::chrono::system_clock::to_time_t(now);
+            std::tm now_tm{};
+#if defined(_WIN32)
+            localtime_s(&now_tm, &now_t);
+#else
+            localtime_r(&now_t, &now_tm);
+#endif
+            char tsbuf[64];
+            std::strftime(tsbuf, sizeof(tsbuf), "%Y%m%d_%H%M%S", &now_tm);
+            fs::path p(out_path);
+            std::string stem = p.stem().string();
+            std::string ext = p.extension().string();
+            // Pick a unique archived name (counter suffix if timestamp collides).
+            fs::path archived;
+            int counter = 0;
+            do
+            {
+                archived = p.parent_path() /
+                           (stem + "_" + tsbuf + (counter > 0 ? "_" + std::to_string(counter) : "") + ext);
+                ++counter;
+            } while (fs::exists(archived));
+            std::error_code ec;
+            fs::rename(out_path, archived, ec);
+            if (ec)
+            {
+                std::cerr << "rmsd: cannot archive existing output '" << out_path
+                          << "': " << ec.message() << "\n";
+                return 1;
+            }
+            std::cout << "rmsd: output '" << out_path << "' already complete ("
+                      << entries.size() << "x" << entries.size() << ", " << total
+                      << " pairs); archived to '" << archived.string()
+                      << "' and recalculating\n";
+            start = rs;
+            exists = false;
+        }
+        else
+        {
+            std::cout << "output '" << out_path << "' already complete (" << entries.size()
+                      << "x" << entries.size() << ", " << total << " pairs)\n";
+            return 0;
+        }
     }
+    base_done = start * (start + 1) / 2;
+    shown.store(base_done);
     uint64_t row_bytes = (static_cast<uint64_t>(entries.size()) + 1) * 14;
     size_t block = Rmsd::block_rows(row_bytes, max_mem);
     bool need_header = !exists || overwrite_;
