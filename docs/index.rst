@@ -120,7 +120,7 @@ ComChemKit is released under the MIT License. See the LICENSE file for details.
 Version Information
 ===================
 
-Current Version: **v0.000.8**
+Current Version: **v0.1.5**
 
 - **v0.000.1**: Initial release featuring parallel data extraction, computational chemistry input generation, and thermo module for multi-program thermodynamic calculations
 - **v0.000.2**: Updated version with new calculation types and improvements in create input functionality
@@ -134,5 +134,6 @@ Current Version: **v0.000.8**
 - **v0.1.2**: Meaningful modredundant parameter keywords for frozen bonds
 - **v0.1.3**: New feature: calculation of RMSD to compare two geomtrical structures 
 - **v0.1.4**: New feature: extract-au and tabulate energy components in au like extract (opt freq) 
+- **v0.1.5**: Fixed bugs in the module rmsd  
 .. note::
     This documentation is for ComChemKit v0.1.2. For older versions, please refer to the archived documentation.
