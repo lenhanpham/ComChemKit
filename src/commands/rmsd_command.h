@@ -41,6 +41,7 @@ private:
     std::string max_mem_str_;
     size_t memory_limit_mb_ = 0;
     bool overwrite_ = false;
+    bool resume_ = false;
     std::string merge_csv_;
     bool format_forced_ = false;
 

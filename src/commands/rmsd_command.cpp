@@ -215,6 +215,10 @@ void RmsdCommand::parse_args(int argc, char* argv[], int& i, CommandContext& con
     {
         overwrite_ = true;
     }
+    else if (arg == "--resume")
+    {
+        resume_ = true;
+    }
     else if (arg == "--merge-csv")
     {
         need_value(merge_csv_, arg);
@@ -470,62 +474,57 @@ int RmsdCommand::run_matrix(const CommandContext& context) const
     std::string expected_header = Rmsd::csv_header(full_labels);
     size_t start = rs;
     bool exists = fs::exists(out_path);
-    if (exists && !overwrite_)
+    bool need_header = true;
+
+    if (exists)
     {
-        std::ifstream f(out_path, std::ios::binary);
-        std::string text((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-        try
+        if (resume_)
         {
-            auto st = Rmsd::resume_state(text, full_labels);
-            if (st.first < rs || st.first > re)
+            if (overwrite_)
             {
-                std::cerr << "rmsd: existing output covers rows 0.." << st.first
-                          << " which does not extend this range (use --overwrite)\n";
+                std::cerr << "rmsd: --resume and --overwrite cannot be combined\n";
                 return 1;
             }
-            if (st.second != text.size())
+            // Resume mode: validate the existing output and continue from where it
+            // left off. Opted in explicitly with --resume.
+            std::ifstream f(out_path, std::ios::binary);
+            std::string text((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+            try
             {
-                std::FILE* fh = std::fopen(out_path.c_str(), "r+b");
-                if (fh != nullptr)
+                auto st = Rmsd::resume_state(text, full_labels);
+                if (st.first < rs || st.first > re)
                 {
-#if defined(_WIN32)
-                    _chsize(_fileno(fh), static_cast<long>(st.second));
-#else
-                    int trunc_rc = ftruncate(fileno(fh), static_cast<off_t>(st.second));
-                    (void)trunc_rc;
-#endif
-                    std::fclose(fh);
+                    std::cerr << "rmsd: existing output covers rows 0.." << st.first
+                              << " which does not extend this range (use --overwrite)\n";
+                    return 1;
                 }
+                if (st.second != text.size())
+                {
+                    std::FILE* fh = std::fopen(out_path.c_str(), "r+b");
+                    if (fh != nullptr)
+                    {
+#if defined(_WIN32)
+                        _chsize(_fileno(fh), static_cast<long>(st.second));
+#else
+                        int trunc_rc = ftruncate(fileno(fh), static_cast<off_t>(st.second));
+                        (void)trunc_rc;
+#endif
+                        std::fclose(fh);
+                    }
+                }
+                start = st.first;
+                need_header = false;
             }
-            start = st.first;
-        }
-        catch (const std::exception& e)
-        {
-            std::cerr << "rmsd: cannot resume '" << out_path << "': " << e.what() << "\n";
-            return 1;
-        }
-    }
-    size_t total = entries.size() * (entries.size() + 1) / 2;
-    size_t base_done = start * (start + 1) / 2;
-    std::atomic<size_t> shown(base_done);
-    auto report = [&](size_t done, size_t) {
-        size_t prev = shown.exchange(done > shown.load() ? done : shown.load());
-        auto pct = [&](size_t d) { return d * 100 / (total == 0 ? 1 : total); };
-        if (pct(done) > pct(prev) || done == total)
-        {
-            if (!context.quiet)
+            catch (const std::exception& e)
             {
-                std::cerr << "[" << done << "/" << total << "] pairs computed\n";
+                std::cerr << "rmsd: cannot resume '" << out_path << "': " << e.what() << "\n";
+                return 1;
             }
         }
-    };
-    if (start >= re)
-    {
-        if (exists)
+        else
         {
-            // Archive the existing output with a timestamp before recalculating,
-            // so previous data is preserved and the user is informed that a
-            // recalculation is about to happen instead of silently stopping.
+            // Default: always archive the existing output with a timestamp and
+            // recalculate from scratch. Users opt into resuming with --resume.
             auto now = std::chrono::system_clock::now();
             std::time_t now_t = std::chrono::system_clock::to_time_t(now);
             std::tm now_tm{};
@@ -539,7 +538,6 @@ int RmsdCommand::run_matrix(const CommandContext& context) const
             fs::path p(out_path);
             std::string stem = p.stem().string();
             std::string ext = p.extension().string();
-            // Pick a unique archived name (counter suffix if timestamp collides).
             fs::path archived;
             int counter = 0;
             do
@@ -556,25 +554,38 @@ int RmsdCommand::run_matrix(const CommandContext& context) const
                           << "': " << ec.message() << "\n";
                 return 1;
             }
-            std::cout << "rmsd: output '" << out_path << "' already complete ("
-                      << entries.size() << "x" << entries.size() << ", " << total
-                      << " pairs); archived to '" << archived.string()
-                      << "' and recalculating\n";
-            start = rs;
+            std::cout << "rmsd: output '" << out_path << "' already exists; archived to '"
+                      << archived.string() << "' and recalculating\n";
             exists = false;
+            start = rs;
+            need_header = true;
         }
-        else
+    }
+
+    size_t total = entries.size() * (entries.size() + 1) / 2;
+    size_t base_done = start * (start + 1) / 2;
+    std::atomic<size_t> shown(base_done);
+    auto report = [&](size_t done, size_t) {
+        size_t prev = shown.exchange(done > shown.load() ? done : shown.load());
+        auto pct = [&](size_t d) { return d * 100 / (total == 0 ? 1 : total); };
+        if (pct(done) > pct(prev) || done == total)
         {
-            std::cout << "output '" << out_path << "' already complete (" << entries.size()
-                      << "x" << entries.size() << ", " << total << " pairs)\n";
-            return 0;
+            if (!context.quiet)
+            {
+                std::cerr << "[" << done << "/" << total << "] pairs computed\n";
+            }
         }
+    };
+    if (resume_ && start >= re)
+    {
+        std::cout << "output '" << out_path << "' already complete (" << entries.size()
+                  << "x" << entries.size() << ", " << total << " pairs)\n";
+        return 0;
     }
     base_done = start * (start + 1) / 2;
     shown.store(base_done);
     uint64_t row_bytes = (static_cast<uint64_t>(entries.size()) + 1) * 14;
     size_t block = Rmsd::block_rows(row_bytes, max_mem);
-    bool need_header = !exists || overwrite_;
     try
     {
         for (size_t cur = start; cur < re;)
