@@ -619,6 +619,12 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "# solvent = water\n";
     content << "# solvent_model = smd\n";
     content << "# solvent_extra = read   # Optional: extra SCRF keyword appended after solvent= (e.g. read)\n\n";
+        // PCM fix parameters
+    content << "# ==========================================\n";
+    content << "# PCM FIX (SES surface, solvation discontinuity correction)\n";
+    content << "# Not applicable for tddft and irc calculation types\n";
+    content << "# ==========================================\n";
+    content << "# fix_pcm = false\n";
 
     // TD-DFT parameters
     content << "# ==========================================\n";
@@ -665,6 +671,7 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "# print_level = P\n";
     content << "# route_extra_keywords = Int=UltraFine SCF=Conver=8\n";
     content << "# Supports multiple keywords separated by spaces, | , or semicolons\n\n";
+    content << "# temperature = 298.15   # Temperature (K) added to section 2 (freq) route (e.g. 253.15)\n\n";
 
     // Custom cycle and optimization parameters
     content << "# ==========================================\n";
@@ -682,14 +689,6 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "# irc_recalc = 10\n";
     content << "# irc_maxcycle = 350\n";
     content << "# irc_stepsize = 10\n\n";
-
-    // PCM fix parameters
-    content << "# ==========================================\n";
-    content << "# PCM FIX (SES surface, solvation discontinuity correction)\n";
-    content << "# Not applicable for tddft and irc calculation types\n";
-    content << "# ==========================================\n";
-    content << "# fix_pcm = false\n";
-    content << "# temperature = 298.15   # Temperature (K) added to section 2 (freq) route (e.g. 253.15)\n\n";
 
     // Multi-line tail example
     content << "# ==========================================\n";
@@ -724,7 +723,7 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "# More sections\n";
     content << "# )\n\n";
 
-    // Usage examples
+// Usage examples
     content << "# ==========================================\n";
     content << "# USAGE EXAMPLES\n";
     content << "# ==========================================\n";
@@ -739,15 +738,41 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "#   calc_type = ts_freq\n";
     content << "#   large_basis = def2TZVPP\n";
     content << "#\n";
+    content << "# For stable open-shell singlet check:\n";
+    content << "#   calc_type = oss_check_sp\n";
+    content << "#\n";
+    content << "# For openshell singlet TS search + frequency:\n";
+    content << "#   calc_type = oss_ts_freq\n";
+    content << "#   large_basis = def2TZVPP\n";
+    content << "#   freeze_bond = 1,2\n";
+    content << "#\n";
+    content << "# For modredundant TS search + frequency:\n";
+    content << "#   calc_type = modre_ts_freq\n";
+    content << "#   large_basis = def2TZVPP\n";
+    content << "#   modre =\n";
+    content << "#   B 1 2 F\n";
+    content << "#\n";
+    content << "# For modredundant geometrical optimization:\n";
+    content << "#   calc_type = modre_opt\n";
+    content << "#   modre =\n";
+    content << "#   B 1 2 F\n";
+    content << "#   opt_maxcycles = 300\n";
+    content << "#\n";
     content << "# For high-level single point:\n";
     content << "#   calc_type = high_sp\n";
     content << "#   large_basis = def2TZVPP\n";
     content << "#   tschk_path = ../ts_checkpoints\n";
     content << "#\n";
-    content << "# For IRC calculations:\n";
+    content << "# For IRC forward:\n";
     content << "#   calc_type = irc_forward\n";
     content << "#   large_basis = def2TZVPP\n";
     content << "#   tschk_path = ../ts_checkpoints\n";
+    content << "#\n";
+    content << "# For IRC reverse:\n";
+    content << "#   calc_type = irc_reverse\n";
+    content << "#   tschk_path = ../ts_checkpoints\n";
+    content << "#   irc_maxpoints = 50\n";
+    content << "#   irc_stepsize = 10\n";
     content << "#\n";
     content << "# For TD-DFT excited states (singlets + triplets, 2 files per XYZ):\n";
     content << "#   calc_type = tddft\n";
