@@ -305,6 +305,16 @@ Phase correction converts gas-phase energies to solution-phase:
    cck extract-au -col 7       # Sort by G a.u (1-9: Name,E,ZPE,TC,TS,H,G,LowFQ,PhCorr)
    cck extract-au -t 273 -c 1  # Recalculated thermochemistry via thermo module
 
+**Default Sorting:**
+
+Both commands order rows by Gibbs free energy (ascending, most negative first)
+by default, so the same compounds appear in the same order in either table:
+
+- ``high-kj`` sorts by ``G kJ/mol`` (column 2)
+- ``high-au`` sorts by ``G a.u`` (column 8)
+
+Use ``-col`` to sort by another column (see the column lists above).
+
 **Advanced Options:**
 
 .. code-block:: bash
@@ -317,6 +327,7 @@ Phase correction converts gas-phase energies to solution-phase:
 
    # Sort by different column
    cck high-kj -col 4
+   cck high-au -col 2          # E high a.u instead of the default G a.u (column 8)
 
    # CSV output
    cck high-kj -f csv
