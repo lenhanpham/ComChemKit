@@ -38,6 +38,8 @@ void ConfigManager::initialize_default_values()
     config_values["default_concentration"] = ConfigValue("1.0", "Default concentration in M", "extract");
     config_values["default_pressure"]      = ConfigValue("1.0", "Default pressure in atm", "extract");
     config_values["default_sort_column"]   = ConfigValue("2", "Default column to sort by (2-10)", "extract");
+    config_values["default_sort_column_au"] =
+        ConfigValue("8", "Default column to sort high-au results by (2-10, 8 = G a.u)", "extract");
     config_values["default_output_format"] = ConfigValue("text", "Default output format (text/csv)", "extract");
     config_values["use_input_temp"]   = ConfigValue("false", "Use temperature from input files by default", "extract");
     config_values["phase_correction"] = ConfigValue("true", "Apply phase correction by default", "extract");
@@ -631,6 +633,13 @@ std::vector<std::string> ConfigManager::validate_config()
     if (column < 2 || column > 10)
     {
         errors.push_back("Invalid sort column: " + std::to_string(column) + " (must be 2-10)");
+    }
+
+    // Validate high-au sort column
+    int column_au = get_int("default_sort_column_au");
+    if (column_au < 2 || column_au > 10)
+    {
+        errors.push_back("Invalid high-au sort column: " + std::to_string(column_au) + " (must be 2-10)");
     }
 
     // Validate output format

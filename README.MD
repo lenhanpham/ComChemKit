@@ -691,6 +691,10 @@ cck high-au -c 2          # Can also use -C, --cm, or --conc
 cck high-au -t 300 -c 2   # Can also use -C, --cm, or --conc
 ```
 
+By default both commands sort the table by Gibbs free energy (ascending), so the
+same compounds appear in the same order: `high-kj` uses column 2 (`G kJ/mol`) and
+`high-au` uses column 8 (`G a.u`). Override with `-col`.
+
 #### Functionality
 
 The module:

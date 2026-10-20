@@ -139,7 +139,7 @@ namespace HelpUtils
                 std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";
                 std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
                 std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
-                std::cout << "  -col, --column <N>      Sort column 1-10 (default: 2)\n";
+                std::cout << "  -col, --column <N>      Sort column 1-10 (default: 8 = G a.u)\n";
                 std::cout
                     << "                          1=Name, 2=E high, 3=E low, 4=ZPE, 5=TC, 6=TS, 7=H, 8=G, 9=LowFQ, "
                        "10=PhCorr\n";

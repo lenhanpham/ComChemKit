@@ -16,12 +16,30 @@ extern std::atomic<bool> g_shutdown_requested;
 
 extern ConfigManager g_config_manager;
 
+namespace {
+/**
+ * @brief Built-in default sort column for each high-level command.
+ *
+ * high-kj sorts by G in kJ/mol (column 2); high-au sorts by G in atomic
+ * units (column 8). Both therefore rank rows by Gibbs free energy by
+ * default, so the two tables agree on the ordering of the same compounds.
+ */
+int default_sort_column_for(CommandType cmd_type) {
+    return cmd_type == CommandType::HIGH_LEVEL_AU ? 8 : 2;
+}
+}  // namespace
+
 HighLevelCommand::HighLevelCommand(CommandType type, std::string name, std::string desc)
     : type(type), name(name), desc(desc) {
+    sort_column = default_sort_column_for(type);
     if (g_config_manager.is_config_loaded()) {
         temp               = g_config_manager.get_default_temperature();
         concentration      = static_cast<int>(g_config_manager.get_default_concentration() * 1000);
-        sort_column        = g_config_manager.get_int("default_sort_column");
+        // high-au has its own default (G a.u, column 8) so that it ranks rows
+        // the same way as high-kj, which ranks by G kJ/mol (column 2).
+        sort_column        = g_config_manager.get_int(
+            type == CommandType::HIGH_LEVEL_AU ? "default_sort_column_au" : "default_sort_column",
+            default_sort_column_for(type));
         output_format      = g_config_manager.get_default_output_format();
         use_input_temp     = g_config_manager.get_bool("use_input_temp");
         memory_limit_mb    = g_config_manager.get_size_t("memory_limit_mb");
@@ -137,12 +155,14 @@ void HighLevelCommand::parse_args(int argc, char* argv[], int& i, CommandContext
                 }
                 else
                 {
-                    context.warnings.push_back("Error: Column must be between 1-10. Using default column 2.");
+                    context.warnings.push_back("Error: Column must be between 1-10. Using default column " +
+                                               std::to_string(sort_column) + ".");
                 }
             }
             catch (const std::exception& e)
             {
-                context.warnings.push_back("Error: Invalid column format. Using default column 2.");
+                context.warnings.push_back("Error: Invalid column format. Using default column " +
+                                           std::to_string(sort_column) + ".");
             }
         }
         else
