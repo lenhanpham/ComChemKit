@@ -80,4 +80,40 @@ namespace ThermoHelpUtils
         std::cout << "For more detailed help on specific topics, use --help-<topic>\n";
     }
 
+    void print_topic(const std::string& topic, const std::string& program_name)
+    {
+        std::string lower = topic;
+        for (auto& c : lower) c = static_cast<char>(std::tolower(c));
+        std::cout << "Help for thermo topic: " << topic << "\n\n";
+        if (lower == "input") {
+            std::cout << "Thermo input files (.otm or quantum chemistry outputs):\n";
+            std::cout << "  Supported: Gaussian, ORCA, GAMESS-US, NWChem, CP2K, VASP, Q-Chem (.log/.out)\n";
+            std::cout << "  .otm: OpenThermo format (use -outotm 1 to generate). If no file is given,\n";
+            std::cout << "  the program scans the current directory for .log/.out files.\n\n";
+            std::cout << "Examples:\n";
+            std::cout << "  " << program_name << " thermo molecule.log\n";
+            std::cout << "  " << program_name << " thermo molecule.otm -T 300 -P 2.0\n";
+        } else if (lower == "output") {
+            std::cout << "Thermo output files:\n";
+            std::cout << "  <basename>.UHG    Thermodynamic quantities vs T/P (scan mode)\n";
+            std::cout << "  <basename>.SCq    Entropy, heat capacities, partition functions\n";
+            std::cout << "  <basename>.vibcon Individual vibration contributions (with -prtvib 1)\n";
+            std::cout << "  *.otm             OpenThermo format file (with -outotm 1)\n";
+            std::cout << "  Use -prtlevel 0|1|2|3 for output verbosity.\n";
+        } else if (lower == "settings") {
+            std::cout << "Thermo settings.ini (current dir or $OPENTHERMOPATH):\n";
+            std::cout << "  Key=value pairs mirror CLI flags (temperature, pressure, sclZPE,\n";
+            std::cout << "  sclheat, sclS, sclCV, lowvibmeth, ravib, intpvib, ipmode, ...).\n";
+            std::cout << "  CLI flags in ThermoCommand::parse_args override settings.ini.\n";
+            std::cout << "  Use -noset to ignore settings.ini, --create-config for a template.\n";
+        } else {
+            std::cout << "Option '--help-" << topic << "': see '" << program_name << " thermo --help'\n";
+            std::cout << "for the full flag list (-E/-T/-P/-scl*/-lowvibmeth/-ravib/-intpvib/\n";
+            std::cout << "-hg_entropy/-bav/-ipmode/-imagreal/-conc/-massmod/-PGname/-prtvib/\n";
+            std::cout << "-prtlevel/-outotm/-omp-threads/-noset).\n";
+            std::cout << "\nFor per-option details, check docs/usage.rst (thermo section).\n";
+        }
+        std::cout << "\n";
+    }
+
 }  // namespace ThermoHelpUtils

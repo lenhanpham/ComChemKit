@@ -1,4 +1,5 @@
 #include "commands/extract_command.h"
+#include "ui/help_utils.h"
 #include "commands/signal_handler.h"
 #include "utilities/config_manager.h"
 #include "extraction/qc_extractor.h"
@@ -33,6 +34,39 @@ std::string ExtractCommand::get_name() const {
 
 std::string ExtractCommand::get_description() const {
     return "Process Gaussian log files and extract thermodynamic data";
+}
+
+void ExtractCommand::print_help(const std::string& program_name) const {
+    std::string cmd_name = get_name();
+    std::cout << "Help for command: " << cmd_name << "\n\n";
+    std::cout << "Description: Extract thermodynamic data from Gaussian log files\n\n";
+    std::cout << "This is the default command when no command is specified.\n";
+    std::cout << "Extracts electronic energies, thermal corrections, and other\n";
+    std::cout << "thermodynamic properties from Gaussian log files.\n\n";
+    std::cout << "Additional Options:\n";
+    std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: 298.15)\n";
+    std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
+    std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
+    std::cout << "  -col, --column <N>      Sort column 1-7 (default: 2)\n";
+    std::cout << "                        1=Name, 2=G kJ/mol, 3=G a.u, 4=G eV, 5=LowFQ, 6=Status, 7=PhCorr\n";
+    std::cout << "  --input-temp            Use temperature from input files\n";
+    std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
+    std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
+    std::cout << "                          Applied when -t, -p, or -c is specified\n";
+    std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n";
+    std::cout << "  --show-resources        Show system resource information\n";
+    std::cout << "  --memory-limit <MB>     Maximum memory usage in MB (default: auto)\n";
+    HelpUtils::print_common_options();
+    std::cout << "  -h, --help            Show this help message\n";
+    std::cout << "  -v, --version         Show version information\n\n";
+    std::cout << "Examples:\n";
+    std::cout << "  " << program_name << "                            # Basic usage (reads T from each log)\n";
+    std::cout << "  " << program_name << " -t 298.15                  # Force single temperature\n";
+    std::cout << "  " << program_name << " -t 253.15 -c 1             # Custom T and concentration\n";
+    std::cout << "  " << program_name << " -t 253.15 -c 1 -lowvibmeth harmonic\n";
+    std::cout << "  " << program_name << " -t 253.15 -lowvibmeth grimme -ravib 150\n";
+    std::cout << "  " << program_name << " -f csv -col 4              # CSV output, sort by G eV\n";
+    std::cout << "\n";
 }
 
 void ExtractCommand::parse_args(int argc, char* argv[], int& i, CommandContext& context) {

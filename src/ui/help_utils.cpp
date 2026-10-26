@@ -1,18 +1,20 @@
 /**
  * @file help_utils.cpp
- * @brief Implementation of help utility functions
- * @author Le Nhan Pham
- * @date 2025
+ * @brief Implementation of help utility functions (thin hub).
  *
- * This file contains implementations for help-related utility functions
- * used throughout the ComChemKit application.
+ * Each module owns its help text via ICommand::print_help().
+ * This hub only aggregates (top-level list) and dispatches
+ * (command-specific help) through the CommandRegistry, plus
+ * shared blocks (common options, config help).
  */
 
 #include "ui/help_utils.h"
-#include "thermo/help_utils.h"
+#include "commands/command_registry.h"
+#include "commands/icommand.h"
 #include "commands/command_system.h"
 #include "utilities/config_manager.h"
 #include "utilities/version.h"
+#include <iomanip>
 #include <iostream>
 
 using namespace ComChemKit;
@@ -20,27 +22,44 @@ using namespace ComChemKit;
 namespace HelpUtils
 {
 
+    static std::string display_name(const std::string& registry_name)
+    {
+        // CLI keeps short aliases for checker family (pre-existing UX: `cck done`, not `cck check-done`).
+        if (registry_name == "check-done") return "done";
+        if (registry_name == "check-errors") return "errors";
+        if (registry_name == "check-pcm") return "pcm";
+        if (registry_name == "check-imaginary") return "imode";
+        if (registry_name == "check-all") return "check";
+        return registry_name;
+    }
+
     void print_help(const std::string& program_name)
     {
         std::cout << "ComChemKit (Version " << ComChemKit::get_version_info() << ")\n\n";
         std::cout << "Usage: " << program_name << " [command] [options]\n\n";
         std::cout << "Commands:\n";
-        std::cout
-            << "  extract           Extract thermodynamic data and energy components from Gaussian outputs (default)\n";
-        std::cout << "  extract-au        Extract single-file energies with component breakdown in atomic units\n";            
-        std::cout << "  done              Check and move completed Gaussian jobs\n";
-        std::cout << "  errors            Check and move jobs with errors\n";
-        std::cout << "  pcm               Check and move jobs with PCM convergence failures\n";
-        std::cout << "  imode             Check and move jobs with imaginary frequencies\n";
-        std::cout << "  check             Run all job checks (done, errors, pcm)\n";
-        std::cout << "  high-kj           Calculate high-level energies in kJ/mol\n";
-        std::cout << "  high-au           Calculate high-level energies in atomic units\n";
-        std::cout << "  xyz               Extract final coordinates to XYZ format\n";
-        std::cout << "  ci                Create inputs from xyz coordinate files\n";
-        std::cout << "  ivcoord           Displace geometry along imaginary normal modes\n";
-        std::cout << "  rmsd              Calculate RMSD between molecular structures (XYZ/PDB)\n";
-        std::cout << "  thermo            Advanced thermodynamic analysis for multiple quantum chemistry programs\n";
-        std::cout << "  marcus            Marcus theory barrier calculations (OSET / EnT, four-point method)\n";
+        auto all = CommandRegistry::get_instance().get_all_commands();
+        // Curated order preserves the historic UX; new registry entries not in this
+        // list are appended alphabetically so no hub edit is needed for new modules.
+        const std::vector<std::string> order = {"extract",      "extract-au", "check-done", "check-errors",
+                                                "check-pcm",    "check-imaginary", "check-all",  "high-kj",
+                                                "high-au",      "xyz",        "ci",         "ivcoord",
+                                                "rmsd",         "thermo",     "marcus"};
+        for (const auto& name : order)
+        {
+            auto it = all.find(name);
+            if (it != all.end())
+            {
+                std::cout << "  " << std::left << std::setw(18) << display_name(it->first)
+                          << it->second->get_description() << "\n";
+                all.erase(it);
+            }
+        }
+        for (const auto& pair : all)
+        {
+            std::cout << "  " << std::left << std::setw(18) << display_name(pair.first)
+                      << pair.second->get_description() << "\n";
+        }
         std::cout << "\nOptions:\n";
         std::cout << "  -h, --help        Show this help message\n";
         std::cout << "  -v, --version     Show version information\n";
@@ -51,444 +70,37 @@ namespace HelpUtils
         std::cout << "\n";
     }
 
+    bool print_command_help_by_name(const std::string& command_name, const std::string& program_name)
+    {
+        ICommand* cmd = CommandRegistry::get_instance().get_command(command_name);
+        if (cmd != nullptr)
+        {
+            cmd->print_help(program_name);
+            return true;
+        }
+        std::cerr << "Unknown command: " << command_name << "\n";
+        std::cerr << "Run '" << program_name << " --help' for a list of available commands.\n";
+        return false;
+    }
+
     void print_command_help(CommandType command, const std::string& program_name, const CommandContext* context)
     {
-        (void)context; // Suppress unused parameter warning
+        (void)context;  // Kept for backward compatibility; routing needs no context.
         std::string cmd_name = CommandParser::get_command_name(command);
-        std::cout << "Help for command: " << cmd_name << "\n\n";
-
-        switch (command)
+        if (!print_command_help_by_name(cmd_name, program_name))
         {
-            case CommandType::EXTRACT:
-                std::cout << "Description: Extract thermodynamic data from Gaussian log files\n\n";
-                std::cout << "This is the default command when no command is specified.\n";
-                std::cout << "Extracts electronic energies, thermal corrections, and other\n";
-                std::cout << "thermodynamic properties from Gaussian log files.\n\n";
-                std::cout << "Additional Options:\n";
-                std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: 298.15)\n";
-                std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
-                std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
-                std::cout << "  -col, --column <N>      Sort column 1-7 (default: 2)\n";
-                std::cout
-                    << "                        1=Name, 2=G kJ/mol, 3=G a.u, 4=G eV, 5=LowFQ, 6=Status, 7=PhCorr\n";
-                std::cout << "  --input-temp            Use temperature from input files\n";
-                std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
-                std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
-                std::cout << "                          Applied when -t, -p, or -c is specified\n";
-                std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n";
-                std::cout << "  --show-resources        Show system resource information\n";
-                std::cout << "  --memory-limit <MB>     Maximum memory usage in MB (default: auto)\n";
-                break;
-
-            case CommandType::CHECK_DONE:
-                std::cout << "Description: Check and organize completed Gaussian jobs\n\n";
-                std::cout << "This command looks for 'Normal termination' in log files\n";
-                std::cout << "and moves completed jobs along with their .gau and .chk files\n";
-                std::cout << "to a directory named {current_dir}-done/ by default.\n\n";
-                break;
-
-            case CommandType::CHECK_ERRORS:
-                std::cout << "Description: Check and organize Gaussian jobs that failed\n\n";
-                std::cout << "This command looks for error terminations in log files and\n";
-                std::cout << "moves failed jobs along with their .gau and .chk files to errorJobs/\n\n";
-                break;
-
-            case CommandType::CHECK_PCM:
-                std::cout << "Description: Check and organize Gaussian jobs with PCM convergence failures\n\n";
-                std::cout << "This command looks for 'failed in PCMMkU' messages in log files\n";
-                std::cout << "and moves failed jobs along with their .gau and .chk files to PCMMkU/\n\n";
-                break;
-
-            case CommandType::CHECK_IMAGINARY:
-                std::cout << "Description: Check and organize jobs with imaginary frequencies\n\n";
-                std::cout << "This command identifies Gaussian jobs with negative vibrational\n";
-                std::cout << "frequencies and moves them to a designated directory.\n\n";
-                break;
-
-            case CommandType::CHECK_ALL:
-                std::cout << "Description: Run all job checks (done, errors, pcm) in sequence\n\n";
-                break;
-
-            case CommandType::HIGH_LEVEL_KJ:
-                std::cout << "Description: Calculate high-level energies with output in kJ/mol units\n";
-                std::cout
-                    << "             Uses high-level electronic energy combined with low-level thermal corrections\n\n";
-                std::cout << "This command reads high-level electronic energies from current directory\n";
-                std::cout << "and thermal corrections from parent directory (../) to compute final\n";
-                std::cout << "thermodynamic quantities. Output format focuses on final Gibbs energies.\n\n";
-                std::cout << "Additional Options:\n";
-                std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";
-                std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
-                std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
-                std::cout << "  -col, --column <N>      Sort column 1-7 (default: 2)\n";
-                std::cout
-                    << "                        1=Name, 2=G kJ/mol, 3=G a.u, 4=G eV, 5=LowFQ, 6=Status, 7=PhCorr\n";
-                std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
-                std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
-                std::cout << "                          Applied when -t or -c is specified\n";
-                std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
-                break;
-
-            case CommandType::HIGH_LEVEL_AU:
-                std::cout << "Description: Calculate detailed energy components in atomic units\n";
-                std::cout
-                    << "             Uses high-level electronic energy combined with low-level thermal corrections\n\n";
-                std::cout << "This command reads high-level electronic energies from current directory\n";
-                std::cout << "and thermal corrections from parent directory (../) to compute detailed\n";
-                std::cout << "energy component breakdown including ZPE, TC, TS, H, and G values.\n\n";
-                std::cout << "Additional Options:\n";
-                std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";
-                std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
-                std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
-                std::cout << "  -col, --column <N>      Sort column 1-10 (default: 8 = G a.u)\n";
-                std::cout
-                    << "                          1=Name, 2=E high, 3=E low, 4=ZPE, 5=TC, 6=TS, 7=H, 8=G, 9=LowFQ, "
-                       "10=PhCorr\n";
-                std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
-                std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
-                std::cout << "                          Applied when -t or -c is specified\n";
-                std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
-                break;
-
-            case CommandType::EXTRACT_AU:
-                std::cout << "Description: Extract single-file energies with component breakdown in atomic units\n";
-                std::cout
-                    << "             Reads electronic energy and thermal corrections from the SAME file\n\n";
-                std::cout << "This command processes each log file in the current directory (no parent\n";
-                std::cout << "directory lookup) and prints a high-au-style energy component breakdown:\n";
-                std::cout << "Output | E a.u | ZPE a.u | TC a.u | TS a.u | H a.u | G a.u | LowFQ | PhaseCorr.\n";
-                std::cout << "There is no Status column (full reporting table; status only drives exit code).\n\n";
-                std::cout << "Additional Options:\n";
-                std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";
-                std::cout << "  -p, --pressure <atm>    Pressure in atm (default: 1.0)\n";
-                std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
-                std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
-                std::cout << "  -col, --column <N>      Sort column 1-9 (default: 2)\n";
-                std::cout
-                    << "                          1=Name, 2=E, 3=ZPE, 4=TC, 5=TS, 6=H, 7=G, 8=LowFQ, 9=PhCorr\n";
-                std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
-                std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
-                std::cout << "                          Applied when -t, -p or -c is specified\n";
-                std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
-                break;
-
-            case CommandType::EXTRACT_COORDS:
-                std::cout << "Description: Extract final Cartesian coordinates from Gaussian log files\n";
-                std::cout << "             Saves coordinates in XYZ format and organizes based on job status\n\n";
-                std::cout << "This command processes specified or all Gaussian log files in the current directory,\n";
-                std::cout << "extracts the last set of coordinates, converts to XYZ format, and moves\n";
-                std::cout << "the XYZ files to:\n";
-                std::cout << "  - {current_dir}_final_coord/   for completed jobs\n";
-                std::cout << "  - {current_dir}_running_coord/ for incomplete/failed jobs\n\n";
-                std::cout << "Directories are created only if needed.\n\n";
-                std::cout << "Additional Options:\n";
-                std::cout
-                    << "  -f, --files <file1[,file2,...]> Single file or comma-separated list of files to process\n";
-                break;
-
-            case CommandType::CREATE_INPUT:
-                std::cout << "Description: Create Gaussian input files from XYZ coordinate files\n\n";
-                std::cout << "This command processes XYZ files in the current directory and generates\n";
-                std::cout << "corresponding Gaussian input files (.gau) with proper formatting,\n";
-                std::cout << "route sections, and molecular specifications for various types of\n";
-                std::cout << "quantum chemical calculations.\n\n";
-
-                std::cout << "Supported Calculation Types:\n";
-                std::cout << "  sp                    Single point energy calculation\n";
-                std::cout << "  opt_freq              Geometry optimization + frequency analysis\n";
-                std::cout << "  ts_freq               Transition state search + frequency analysis\n";
-                std::cout << "  oss_ts_freq           Openshell singlet TS search + frequency analysis\n";
-                std::cout << "  modre_ts_freq         Modredundant TS search + frequency analysis\n";
-                std::cout << "  modre_opt             Modredundant geometry optimization\n";
-                std::cout << "  oss_check_sp          Openshell singlet stability check\n";
-                std::cout << "  high_sp               High-level single point with larger basis set\n";
-                std::cout << "  irc_forward           IRC calculation in forward direction\n";
-                std::cout << "  irc_reverse           IRC calculation in reverse direction\n";
-                std::cout << "  irc                   IRC calculation in both directions\n";
-                std::cout << "  tddft                 TD-DFT excited state calculation (tda/td, singlets/triplets/50-50)\n\n";
-
-                std::cout << "Calculation Type Details:\n";
-                std::cout << "  sp: Basic single point energy calculation on provided coordinates\n";
-                std::cout << "  opt_freq: Full geometry optimization followed by vibrational frequency analysis\n";
-                std::cout << "  ts_freq: Transition state optimization with frequency analysis (requires TS guess)\n";
-                std::cout << "  oss_ts_freq: Openshell singlet TS search with stability check and frequency analysis\n";
-                std::cout << "  modre_ts_freq: TS search using modredundant to freeze bond, then optimization\n";
-                std::cout << "  modre_opt: Geometrical optimization with modredundant constraints\n";
-                std::cout << "  oss_check_sp: Check openshell singlet stability of optimized geometry\n";
-                std::cout << "  high_sp: High-level single point using larger basis set (requires TS checkpoint)\n";
-                std::cout << "  irc_forward: Intrinsic reaction coordinate from TS to reactants\n";
-                std::cout << "  irc_reverse: Intrinsic reaction coordinate from TS to products\n";
-                std::cout << "  irc: Complete IRC calculation in both directions (creates two files)\n";
-                std::cout << "  tddft: TD-DFT excited states. tddft_method (td/tda), tddft_states (singlets/triplets/50-50), tddft_nstates\n\n";
-
-                std::cout << "Additional Options:\n";
-                std::cout << "  --calc-type <type>       Calculation type (see list above, default: sp)\n";
-                std::cout << "  --functional <func>      DFT functional (default: UWB97XD)\n";
-                std::cout << "  --basis <basis>          Basis set (default: Def2SVPP)\n";
-                std::cout << "  --large-basis <basis>    Large basis set for TS/high-level calcs\n";
-                std::cout << "  --solvent <solvent>      Solvent name for implicit solvation\n";
-                std::cout << "  --solvent-model <model>  Solvent model: smd|cpcm|iefpcm (default: smd)\n";
-                std::cout << "  --charge <num>           Molecular charge (default: 0)\n";
-                std::cout << "  --mult <num>             Multiplicity (default: 1)\n";
-                std::cout << "  --freeze-bond  <a1> <a2> Freeze bond between atoms (for TS calculations)\n";
-                std::cout << "                           (legacy alias: --freeze-atoms, deprecated)\n";
-                std::cout << "  --print-level <sign>     Route section modifier: N|P|T (Gaussian versions)\n";
-                std::cout << "  --extra-keywords <kw>    Additional Gaussian keywords\n";
-                std::cout << "  --extension <ext>        Output file extension (default: .gau)\n";
-                std::cout << "  --tschk-path <path>      Path to TS checkpoint files (for high_sp/IRC)\n";
-                std::cout << "  --solvent-extra <kw>     Extra SCRF keyword after solvent= (e.g. read)\n";
-                std::cout << "  --tddft-method <m>       TD-DFT method: td or tda (default: tda)\n";
-                std::cout << "  --tddft-states <s>       States: singlets|triplets|50-50|empty (default: both)\n";
-                std::cout << "  --tddft-nstates <n>      Number of excited states (default: 15)\n";
-                std::cout << "  --tddft-extra <kw>       Extra keywords inside td/tda() e.g. Root=5,Read,IVOGuess\n";
-                std::cout << "  --fix-pcm                Enable two-section SES surface input to fix PCM\n";
-                std::cout << "                           discontinuity errors (requires --solvent; not for irc/tddft)\n";
-                std::cout << "  --temperature <K>        Temperature (e.g. 253.15)\n";
-                std::cout << "                           Resource directives (%Mem/%CPU/%NProcShared/%GPUCPU) are "
-                             "param-file-only: set mem/cpu/nprocshared/gpucpu in the file (first section only)\n\n";
-
-                std::cout << "Generation of Gaussian keywords (template parameter file):\n";
-                std::cout << "  --genci-params [type] [dir]  Generate parameter template for input creation\n";
-                std::cout << "                                    (type defaults to opt_freq, dir defaults to current "
-                             "directory)\n";
-                std::cout << "  --genci-all-params [dir]     Generate all parameter templates for input creation in "
-                             "directory\n";
-                std::cout << "                                    (optional dir, defaults to current directory)\n";
-                std::cout << "  --param-file <file>          Load parameters from file for input creation\n\n";
-
-                std::cout << "Parameter Files:\n";
-                std::cout << "  The program can generate parameter template files that you can edit and reuse.\n";
-                std::cout << "  Use --genci-params to create a template (type defaults to general)\n";
-                std::cout << "  (optionally specify type and/or directory, defaults to current directory).\n";
-                std::cout << "  Use --genci-all-params to create templates for all supported types\n";
-                std::cout << "  (optionally specify a directory, defaults to current directory).\n";
-                std::cout << "  Then use --param-file to load the parameters from your customized template.\n";
-                break;
-            case CommandType::THERMO:
-                // Delegate to thermo module's comprehensive help
-                ThermoHelpUtils::print_help(program_name);
-                break;
-            case CommandType::IVCOORD:
-                std::cout << "Usage: " << program_name << " ivcoord [options] [file1.log ...]\n\n";
-                std::cout << "Displace geometry along imaginary normal modes and write XYZ files.\n\n";
-                std::cout << "Output is written to <parent_dir>_ivcoord/ relative to each input file.\n";
-                std::cout << "Output filenames: <stem>_p.xyz (plus direction) and/or <stem>_m.xyz (minus).\n\n";
-                std::cout << "Options:\n";
-                std::cout << "  --iamp <float>         Displacement amplitude (default: 1.0)\n";
-                std::cout << "  --idirection <int>     +1 = plus only, -1 = minus only, 0 = both (default: 0)\n\n";
-                std::cout << "Examples:\n";
-                std::cout << "  " << program_name << " ivcoord *.log\n";
-                std::cout << "  " << program_name << " ivcoord --idirection 0 --iamp 0.5 ts.log\n";
-                break;
-            case CommandType::RMSD:
-                std::cout << "Usage: " << program_name << " rmsd FILE_A FILE_B [options]\n";
-                std::cout << "       " << program_name << " rmsd --from-list LIST [options]\n";
-                std::cout << "       " << program_name << " rmsd LIST (single positional = list file)\n";
-                std::cout << "       " << program_name << " rmsd --merge-csv OUT PART...\n\n";
-                std::cout << "Calculate root-mean-square deviation after centering, optimal\n";
-                std::cout << "rotation, optional atom reordering and reflection search.\n\n";
-                std::cout << "Pair Options:\n";
-                std::cout << "  -r, --rotation <m>      kabsch|quaternion|none (default: kabsch)\n";
-                std::cout << "  --reorder               Enable atom reordering (needs --reorder-method)\n";
-                std::cout << "                          (no -e short flag: -e means --ext globally)\n";
-                std::cout << "  --reorder-method <m>    none|hungarian|inertia-hungarian|distance|brute\n";
-                std::cout << "                          (default: inertia-hungarian)\n";
-                std::cout << "  --use-reflections       Scan 48 axis swap x reflection trials\n";
-                std::cout << "  --use-reflections-keep-stereo  Same, skipping enantiomeric trials\n";
-                std::cout << "  --only-alpha-carbons    PDB alpha carbons only (PDB-only)\n";
-                std::cout << "  -n, --ignore-hydrogen   Ignore hydrogen atoms\n";
-                std::cout << "  --remove-idx I...       Drop atom indices (space/comma separated)\n";
-                std::cout << "  --add-idx I...          Keep only atom indices (space/comma separated)\n";
-                std::cout << "  --format <fmt>          xyz|pdb (default: auto-detect, .gz transparent)\n";
-                std::cout << "  -p, --print             Print rotated structure B as XYZ (pair mode only)\n";
-                std::cout << "  --print-only-rmsd-atoms With filtering, print only RMSD atoms\n\n";
-                std::cout << "Matrix Options:\n";
-                std::cout << "  --from-list LIST        Structure list (one/line, whitespace or comma separated)\n";
-                std::cout << "  --rows S:E              Row range chunk for queue jobs (0-based, END-exclusive)\n";
-                std::cout << "  --out CSV               Output CSV (default: beside list file)\n";
-                std::cout << "  --overwrite             Discard existing output, recompute from scratch\n";
-                std::cout << "  --max-mem <size>        Matrix memory budget, e.g. 4GB (default: auto, extract scheme)\n";
-                std::cout << "  --memory-limit <MB>     Same budget in MB (0 = auto)\n";
-                std::cout << "  --merge-csv OUT PART... Merge partial matrix CSVs\n\n";
-                std::cout << "Threads/memory follow the extract scheme: -nt half default with headnode\n";
-                std::cout << "caps, memory auto (30-60% system RAM, 1-32GB clamp, 5% job reserve).\n\n";
-                std::cout << "Examples:\n";
-                std::cout << "  " << program_name << " rmsd a.xyz b.xyz\n";
-                std::cout << "  " << program_name << " rmsd --reorder --reorder-method hungarian a.xyz b.xyz\n";
-                std::cout << "  " << program_name << " rmsd --from-list list.txt\n";
-                std::cout << "  " << program_name << " rmsd --from-list big.txt --rows 0:250 --out part-0.csv\n";
-                break;
-            case CommandType::MARCUS:
-                std::cout << "Usage: " << program_name << " marcus -p <parameter_file> -step <1|2|3>\n";
-                std::cout << "       [options: -mode <symmetric|asymmetric>] [-O <outfile>] [-v]\n\n";
-                std::cout << "Marcus Theory Barrier Calculations (OSET / EnT, Four-Point Method)\n";
-                std::cout << "================================================================\n\n";
-                std::cout << "Calculates Marcus free-energy barriers for Outer Sphere Single\n";
-                std::cout << "Electron Transfer (OSET) and Energy Transfer (EnT) using the\n";
-                std::cout << "explicit four-point reorganization energy method.\n\n";
-                std::cout << "Workflow (3 steps, user submits Gaussian jobs between steps):\n";
-                std::cout << "  Step 1: Generate geometry optimization inputs in <project>_step_1_opt/\n";
-                std::cout << "          User submits to Gaussian, waits for completion.\n";
-                std::cout << "  Step 2: Generate single point inputs in <project>_step_2_sp/\n";
-                std::cout << "          (reads step-1 checkpoints via %OldChk + Geom=Check)\n";
-                std::cout << "          User submits to Gaussian, waits for completion.\n";
-                std::cout << "  Step 3: Calculate barriers in <project>_barrier/\n\n";
-                std::cout << "Options:\n";
-                std::cout << "  -p <file>      Parameter file (required, ComChemKit key=value format)\n";
-                std::cout << "  -step <n>      Workflow step: 1=opt inputs, 2=sp inputs, 3=barriers\n";
-                std::cout << "  -mode <m>      Barrier mode: symmetric (default) or asymmetric\n";
-                std::cout << "  -O <file>      Output file for barrier report (step 3)\n";
-                std::cout << "  -v             Verbose mode\n\n";
-                std::cout << "Thermo options (mirror high-kj/high-au):\n";
-                std::cout << "  -t <K>         Temperature in Kelvin for thermal corrections\n";
-                std::cout << "  -c <M>         Concentration in mol/L for phase correction\n";
-                std::cout << "  --pressure <atm> Pressure in atm for phase correction (default: 1.0)\n";
-                std::cout << "  --lowvibmeth <m> Low-freq vibrational treatment (default: grimme)\n";
-                std::cout << "                   Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
-                std::cout << "  --ravib <cm-1> Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
-                std::cout << "Parameter template generation:\n";
-                std::cout << "  --genoset-params  Generate OSET parameter template\n";
-                std::cout << "  --genent-params   Generate EnT parameter template\n";
-                std::cout << "  -o <file>      Output file for template (default: marcus_<type>.params)\n\n";
-                std::cout << "Examples:\n";
-                std::cout << "  " << program_name << " marcus -p params.ini -step 1\n";
-                std::cout << "  " << program_name << " marcus -p params.ini -step 2\n";
-                std::cout << "  " << program_name << " marcus -p params.ini -step 3 -mode symmetric\n";
-                break;
+            print_help(program_name);
         }
+    }
 
+    void print_common_options()
+    {
         std::cout << "Options:\n";
         std::cout << "  -e, --ext <ext>       File extension: log|out (default: log)\n";
         std::cout << "  -nt, --threads <N>    Thread count: number|max|half (default: half)\n";
         std::cout << "  -q, --quiet           Quiet mode (minimal output)\n";
         std::cout << "  --max-file-size <MB>  Maximum file size in MB (default: 500)\n";
         std::cout << "  --batch-size <N>      Batch size for large directories (default: auto)\n";
-
-        if (command == CommandType::CHECK_DONE)
-        {
-            std::cout << "  --dir-suffix <suffix> Directory suffix (default: done)\n";
-            std::cout << "                        Creates {current_dir}-{suffix}/\n";
-        }
-
-        if (command == CommandType::CHECK_ERRORS || command == CommandType::CHECK_PCM)
-        {
-            std::cout << "  --target-dir <name>   Custom target directory name\n";
-        }
-
-        if (command == CommandType::CHECK_ERRORS)
-        {
-            std::cout << "  --show-details        Show actual error messages found\n";
-        }
-
-        std::cout << "  -h, --help            Show this help message\n";
-        std::cout << "  -v, --version         Show version information\n\n";
-
-        std::cout << "Examples:\n";
-        if (command == CommandType::EXTRACT)
-        {
-            std::cout << "  " << program_name << "                            # Basic usage (reads T from each log)\n";
-            std::cout << "  " << program_name << " -t 298.15                  # Force single temperature\n";
-            std::cout << "  " << program_name << " -t 253.15 -c 1             # Custom T and concentration\n";
-            std::cout << "  " << program_name << " -t 253.15 -c 1 -lowvibmeth harmonic\n";
-            std::cout << "  " << program_name << " -t 253.15 -lowvibmeth grimme -ravib 150\n";
-            std::cout << "  " << program_name << " -f csv -col 4              # CSV output, sort by G eV\n";
-        }
-        else if (command == CommandType::HIGH_LEVEL_KJ)
-        {
-            std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
-            std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
-            std::cout << "  " << program_name << " " << cmd_name << " -col 5       # Sort by frequency\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " -t 300 -col 2 -f csv  # Custom temp, sort by G kJ/mol, CSV\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " -t 253.15 -c 1 -lowvibmeth harmonic  # Harmonic treatment\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " -t 253.15 -lowvibmeth grimme -ravib 150  # Grimme with custom crossover\n";
-        }
-        else if (command == CommandType::HIGH_LEVEL_AU)
-        {
-            std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
-            std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
-            std::cout << "  " << program_name << " " << cmd_name << " -col 8       # Sort by Gibbs energy\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " -t 273 -col 4 -f csv  # Custom temp, sort by ZPE, CSV\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " -t 253.15 -c 1 -lowvibmeth harmonic  # Harmonic treatment\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " -t 253.15 -lowvibmeth grimme -ravib 150  # Grimme with custom crossover\n";
-        }
-        else if (command == CommandType::EXTRACT_AU)
-        {
-            std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
-            std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
-            std::cout << "  " << program_name << " " << cmd_name << " -col 7       # Sort by Gibbs energy\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " -t 273 -col 3 -f csv  # Custom temp, sort by ZPE, CSV\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " -t 253.15 -c 1 -lowvibmeth harmonic  # Harmonic treatment\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " -t 253.15 -lowvibmeth grimme -ravib 150  # Grimme with custom crossover\n";
-        }
-        else if (command == CommandType::EXTRACT_COORDS)
-        {
-            std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
-            std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " -f file1.log,file2.log  # Process specific files\n";
-        }
-        else if (command == CommandType::CREATE_INPUT)
-        {
-            std::cout << "  " << program_name << " " << cmd_name
-                      << "                                       # Basic usage\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " -q                                    # Quiet mode\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " --calc-type opt_freq                  # Optimization + frequency\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " --calc-type modre_ts_freq --freeze-bond 1 2  # TS search\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " --calc-type high_sp --tschk-path ../ts/       # High-level SP\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " -nt 4                                 # Use 4 threads\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " file1.xyz,file2.xyz,file3.xyz         # Process multiple XYZ files (comma-separated)\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " file1.xyz file2.xyz,file3.xyz         # Mixed space and comma separators\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " --calc-type ts_freq file1.xyz,file2.xyz       # TS calc on multiple files\n";
-            std::cout
-                << "  " << program_name << " " << cmd_name
-                << " --genci-params                        # Generate default template (general) in current dir\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " --genci-params opt_freq               # Generate template for opt_freq in current dir\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " --genci-params ./my_templates         # Generate default template (general) in specific "
-                         "directory\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " --genci-params opt_freq ./my_templates        # Generate in specific directory\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " --genci-all-params                    # Generate all templates in current dir\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " --genci-all-params ./templates        # Generate all in specific directory\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " --param-file opt_freq.params          # Use parameters from file\n";
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " --param-file                          # Use default parameter file\n";
-        }
-        else
-        {
-            std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
-            std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
-            std::cout << "  " << program_name << " " << cmd_name << " -nt 4        # Use 4 threads\n";
-        }
-
-        if (command == CommandType::CHECK_DONE)
-        {
-            std::cout << "  " << program_name << " " << cmd_name
-                      << " --dir-suffix completed  # Use 'completed' suffix\n";
-        }
-
-        std::cout << "\n";
     }
 
     void print_config_help()

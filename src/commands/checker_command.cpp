@@ -1,4 +1,5 @@
 #include "commands/checker_command.h"
+#include "ui/help_utils.h"
 #include "commands/signal_handler.h"
 #include "job_management/job_checker.h"
 #include <iostream>
@@ -22,6 +23,54 @@ std::string CheckerCommand::get_name() const {
 
 std::string CheckerCommand::get_description() const {
     return desc;
+}
+
+void CheckerCommand::print_help(const std::string& program_name) const {
+    std::string cmd_name = get_name();
+    std::cout << "Help for command: " << cmd_name << "\n\n";
+    if (type == CommandType::CHECK_DONE) {
+        std::cout << "Description: Check and organize completed Gaussian jobs\n\n";
+        std::cout << "This command looks for 'Normal termination' in log files\n";
+        std::cout << "and moves completed jobs along with their .gau and .chk files\n";
+        std::cout << "to a directory named {current_dir}-done/ by default.\n\n";
+    } else if (type == CommandType::CHECK_ERRORS) {
+        std::cout << "Description: Check and organize Gaussian jobs that failed\n\n";
+        std::cout << "This command looks for error terminations in log files and\n";
+        std::cout << "moves failed jobs along with their .gau and .chk files to errorJobs/\n\n";
+    } else if (type == CommandType::CHECK_PCM) {
+        std::cout << "Description: Check and organize Gaussian jobs with PCM convergence failures\n\n";
+        std::cout << "This command looks for 'failed in PCMMkU' messages in log files\n";
+        std::cout << "and moves failed jobs along with their .gau and .chk files to PCMMkU/\n\n";
+    } else if (type == CommandType::CHECK_IMAGINARY) {
+        std::cout << "Description: Check and organize jobs with imaginary frequencies\n\n";
+        std::cout << "This command identifies Gaussian jobs with negative vibrational\n";
+        std::cout << "frequencies and moves them to a designated directory.\n\n";
+    } else if (type == CommandType::CHECK_ALL) {
+        std::cout << "Description: Run all job checks (done, errors, pcm) in sequence\n\n";
+    } else {
+        std::cout << "Description: " << desc << "\n\n";
+    }
+    HelpUtils::print_common_options();
+    if (type == CommandType::CHECK_DONE) {
+        std::cout << "  --dir-suffix <suffix> Directory suffix (default: done)\n";
+        std::cout << "                        Creates {current_dir}-{suffix}/\n";
+    }
+    if (type == CommandType::CHECK_ERRORS || type == CommandType::CHECK_PCM) {
+        std::cout << "  --target-dir <name>   Custom target directory name\n";
+    }
+    if (type == CommandType::CHECK_ERRORS) {
+        std::cout << "  --show-details        Show actual error messages found\n";
+    }
+    std::cout << "  -h, --help            Show this help message\n";
+    std::cout << "  -v, --version         Show version information\n\n";
+    std::cout << "Examples:\n";
+    std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
+    std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
+    std::cout << "  " << program_name << " " << cmd_name << " -nt 4        # Use 4 threads\n";
+    if (type == CommandType::CHECK_DONE) {
+        std::cout << "  " << program_name << " " << cmd_name << " --dir-suffix completed  # Use 'completed' suffix\n";
+    }
+    std::cout << "\n";
 }
 
 void CheckerCommand::parse_args(int argc, char* argv[], int& i, CommandContext& context) {

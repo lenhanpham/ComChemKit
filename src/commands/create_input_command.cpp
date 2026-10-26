@@ -1,4 +1,5 @@
 #include "commands/create_input_command.h"
+#include "ui/help_utils.h"
 #include "commands/signal_handler.h"
 #include "utilities/utils.h"
 #include "utilities/config_manager.h"
@@ -85,6 +86,101 @@ std::string CreateInputCommand::get_name() const {
 
 std::string CreateInputCommand::get_description() const {
     return "Create Gaussian input files from XYZ files";
+}
+
+void CreateInputCommand::print_help(const std::string& program_name) const {
+    std::string cmd_name = get_name();
+    std::cout << "Help for command: " << cmd_name << "\n\n";
+    std::cout << "Description: Create Gaussian input files from XYZ coordinate files\n\n";
+    std::cout << "This command processes XYZ files in the current directory and generates\n";
+    std::cout << "corresponding Gaussian input files (.gau) with proper formatting,\n";
+    std::cout << "route sections, and molecular specifications for various types of\n";
+    std::cout << "quantum chemical calculations.\n\n";
+    std::cout << "Supported Calculation Types:\n";
+    std::cout << "  sp                    Single point energy calculation\n";
+    std::cout << "  opt_freq              Geometry optimization + frequency analysis\n";
+    std::cout << "  ts_freq               Transition state search + frequency analysis\n";
+    std::cout << "  oss_ts_freq           Openshell singlet TS search + frequency analysis\n";
+    std::cout << "  modre_ts_freq         Modredundant TS search + frequency analysis\n";
+    std::cout << "  modre_opt             Modredundant geometry optimization\n";
+    std::cout << "  oss_check_sp          Openshell singlet stability check\n";
+    std::cout << "  high_sp               High-level single point with larger basis set\n";
+    std::cout << "  irc_forward           IRC calculation in forward direction\n";
+    std::cout << "  irc_reverse           IRC calculation in reverse direction\n";
+    std::cout << "  irc                   IRC calculation in both directions\n";
+    std::cout << "  tddft                 TD-DFT excited state calculation (tda/td, singlets/triplets/50-50)\n\n";
+    std::cout << "Calculation Type Details:\n";
+    std::cout << "  sp: Basic single point energy calculation on provided coordinates\n";
+    std::cout << "  opt_freq: Full geometry optimization followed by vibrational frequency analysis\n";
+    std::cout << "  ts_freq: Transition state optimization with frequency analysis (requires TS guess)\n";
+    std::cout << "  oss_ts_freq: Openshell singlet TS search with stability check and frequency analysis\n";
+    std::cout << "  modre_ts_freq: TS search using modredundant to freeze bond, then optimization\n";
+    std::cout << "  modre_opt: Geometrical optimization with modredundant constraints\n";
+    std::cout << "  oss_check_sp: Check openshell singlet stability of optimized geometry\n";
+    std::cout << "  high_sp: High-level single point using larger basis set (requires TS checkpoint)\n";
+    std::cout << "  irc_forward: Intrinsic reaction coordinate from TS to reactants\n";
+    std::cout << "  irc_reverse: Intrinsic reaction coordinate from TS to products\n";
+    std::cout << "  irc: Complete IRC calculation in both directions (creates two files)\n";
+    std::cout << "  tddft: TD-DFT excited states. tddft_method (td/tda), tddft_states (singlets/triplets/50-50), tddft_nstates\n\n";
+    std::cout << "Additional Options:\n";
+    std::cout << "  --calc-type <type>       Calculation type (see list above, default: sp)\n";
+    std::cout << "  --functional <func>      DFT functional (default: UWB97XD)\n";
+    std::cout << "  --basis <basis>          Basis set (default: Def2SVPP)\n";
+    std::cout << "  --large-basis <basis>    Large basis set for TS/high-level calcs\n";
+    std::cout << "  --solvent <solvent>      Solvent name for implicit solvation\n";
+    std::cout << "  --solvent-model <model>  Solvent model: smd|cpcm|iefpcm (default: smd)\n";
+    std::cout << "  --charge <num>           Molecular charge (default: 0)\n";
+    std::cout << "  --mult <num>             Multiplicity (default: 1)\n";
+    std::cout << "  --freeze-bond  <a1> <a2> Freeze bond between atoms (for TS calculations)\n";
+    std::cout << "                           (legacy alias: --freeze-atoms, deprecated)\n";
+    std::cout << "  --print-level <sign>     Route section modifier: N|P|T (Gaussian versions)\n";
+    std::cout << "  --extra-keywords <kw>    Additional Gaussian keywords\n";
+    std::cout << "  --extension <ext>        Output file extension (default: .gau)\n";
+    std::cout << "  --tschk-path <path>      Path to TS checkpoint files (for high_sp/IRC)\n";
+    std::cout << "  --solvent-extra <kw>     Extra SCRF keyword after solvent= (e.g. read)\n";
+    std::cout << "  --tddft-method <m>       TD-DFT method: td or tda (default: tda)\n";
+    std::cout << "  --tddft-states <s>       States: singlets|triplets|50-50|empty (default: both)\n";
+    std::cout << "  --tddft-nstates <n>      Number of excited states (default: 15)\n";
+    std::cout << "  --tddft-extra <kw>       Extra keywords inside td/tda() e.g. Root=5,Read,IVOGuess\n";
+    std::cout << "  --fix-pcm                Enable two-section SES surface input to fix PCM\n";
+    std::cout << "                           discontinuity errors (requires --solvent; not for irc/tddft)\n";
+    std::cout << "  --temperature <K>        Temperature (e.g. 253.15)\n";
+    std::cout << "                           Resource directives (%Mem/%CPU/%NProcShared/%GPUCPU) are param-file-only: set mem/cpu/nprocshared/gpucpu in the file (first section only)\n\n";
+    std::cout << "Generation of Gaussian keywords (template parameter file):\n";
+    std::cout << "  --genci-params [type] [dir]  Generate parameter template for input creation\n";
+    std::cout << "                                    (type defaults to opt_freq, dir defaults to current directory)\n";
+    std::cout << "  --genci-all-params [dir]     Generate all parameter templates for input creation in directory\n";
+    std::cout << "                                    (optional dir, defaults to current directory)\n";
+    std::cout << "  --param-file <file>          Load parameters from file for input creation\n\n";
+    std::cout << "Parameter Files:\n";
+    std::cout << "  The program can generate parameter template files that you can edit and reuse.\n";
+    std::cout << "  Use --genci-params to create a template (type defaults to general)\n";
+    std::cout << "  (optionally specify type and/or directory, defaults to current directory).\n";
+    std::cout << "  Use --genci-all-params to create templates for all supported types\n";
+    std::cout << "  (optionally specify a directory, defaults to current directory).\n";
+    std::cout << "  Then use --param-file to load the parameters from your customized template.\n";
+    HelpUtils::print_common_options();
+    std::cout << "  -h, --help            Show this help message\n";
+    std::cout << "  -v, --version         Show version information\n\n";
+    std::cout << "Examples:\n";
+    std::cout << "  " << program_name << " " << cmd_name << "                                       # Basic usage\n";
+    std::cout << "  " << program_name << " " << cmd_name << " -q                                    # Quiet mode\n";
+    std::cout << "  " << program_name << " " << cmd_name << " --calc-type opt_freq                  # Optimization + frequency\n";
+    std::cout << "  " << program_name << " " << cmd_name << " --calc-type modre_ts_freq --freeze-bond 1 2  # TS search\n";
+    std::cout << "  " << program_name << " " << cmd_name << " --calc-type high_sp --tschk-path ../ts/       # High-level SP\n";
+    std::cout << "  " << program_name << " " << cmd_name << " -nt 4                                 # Use 4 threads\n";
+    std::cout << "  " << program_name << " " << cmd_name << " file1.xyz,file2.xyz,file3.xyz         # Process multiple XYZ files (comma-separated)\n";
+    std::cout << "  " << program_name << " " << cmd_name << " file1.xyz file2.xyz,file3.xyz         # Mixed space and comma separators\n";
+    std::cout << "  " << program_name << " " << cmd_name << " --calc-type ts_freq file1.xyz,file2.xyz       # TS calc on multiple files\n";
+    std::cout << "  " << program_name << " " << cmd_name << " --genci-params                        # Generate default template (general) in current dir\n";
+    std::cout << "  " << program_name << " " << cmd_name << " --genci-params opt_freq               # Generate template for opt_freq in current dir\n";
+    std::cout << "  " << program_name << " " << cmd_name << " --genci-params ./my_templates         # Generate default template (general) in specific directory\n";
+    std::cout << "  " << program_name << " " << cmd_name << " --genci-params opt_freq ./my_templates        # Generate in specific directory\n";
+    std::cout << "  " << program_name << " " << cmd_name << " --genci-all-params                    # Generate all templates in current dir\n";
+    std::cout << "  " << program_name << " " << cmd_name << " --genci-all-params ./templates        # Generate all in specific directory\n";
+    std::cout << "  " << program_name << " " << cmd_name << " --param-file opt_freq.params          # Use parameters from file\n";
+    std::cout << "  " << program_name << " " << cmd_name << " --param-file                          # Use default parameter file\n";
+    std::cout << "\n";
 }
 
 void CreateInputCommand::parse_args(int argc, char* argv[], int& i, CommandContext& context) {

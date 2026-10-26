@@ -1,4 +1,5 @@
 #include "commands/extract_au_command.h"
+#include "ui/help_utils.h"
 #include "high_level/high_level_energy.h"
 #include "commands/signal_handler.h"
 #include "utilities/config_manager.h"
@@ -34,6 +35,39 @@ std::string ExtractAuCommand::get_name() const {
 
 std::string ExtractAuCommand::get_description() const {
     return "Extract single-file energies with component breakdown in atomic units";
+}
+
+void ExtractAuCommand::print_help(const std::string& program_name) const {
+    std::string cmd_name = get_name();
+    std::cout << "Help for command: " << cmd_name << "\n\n";
+    std::cout << "Description: Extract single-file energies with component breakdown in atomic units\n";
+    std::cout << "             Reads electronic energy and thermal corrections from the SAME file\n\n";
+    std::cout << "This command processes each log file in the current directory (no parent\n";
+    std::cout << "directory lookup) and prints a high-au-style energy component breakdown:\n";
+    std::cout << "Output | E a.u | ZPE a.u | TC a.u | TS a.u | H a.u | G a.u | LowFQ | PhaseCorr.\n";
+    std::cout << "There is no Status column (full reporting table; status only drives exit code).\n\n";
+    std::cout << "Additional Options:\n";
+    std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";
+    std::cout << "  -p, --pressure <atm>    Pressure in atm (default: 1.0)\n";
+    std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
+    std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
+    std::cout << "  -col, --column <N>      Sort column 1-9 (default: 2)\n";
+    std::cout << "                          1=Name, 2=E, 3=ZPE, 4=TC, 5=TS, 6=H, 7=G, 8=LowFQ, 9=PhCorr\n";
+    std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
+    std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
+    std::cout << "                          Applied when -t, -p or -c is specified\n";
+    std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
+    HelpUtils::print_common_options();
+    std::cout << "  -h, --help            Show this help message\n";
+    std::cout << "  -v, --version         Show version information\n\n";
+    std::cout << "Examples:\n";
+    std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
+    std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
+    std::cout << "  " << program_name << " " << cmd_name << " -col 7       # Sort by Gibbs energy\n";
+    std::cout << "  " << program_name << " " << cmd_name << " -t 273 -col 3 -f csv  # Custom temp, sort by ZPE, CSV\n";
+    std::cout << "  " << program_name << " " << cmd_name << " -t 253.15 -c 1 -lowvibmeth harmonic  # Harmonic treatment\n";
+    std::cout << "  " << program_name << " " << cmd_name << " -t 253.15 -lowvibmeth grimme -ravib 150  # Grimme with custom crossover\n";
+    std::cout << "\n";
 }
 
 void ExtractAuCommand::parse_args(int argc, char* argv[], int& i, CommandContext& context) {

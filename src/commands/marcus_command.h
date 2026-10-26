@@ -24,6 +24,7 @@ public:
 
     std::string get_name() const override;
     std::string get_description() const override;
+    void print_help(const std::string& program_name = "cck") const override;
     void parse_args(int argc, char* argv[], int& i, CommandContext& context) override;
     int execute(const CommandContext& context) override;
 
@@ -61,7 +62,6 @@ private:
     // Helpers
     Marcus::CalcType parse_calc_type(const std::string& s);
     Marcus::BarrierMode parse_barrier_mode(const std::string& s);
-    void print_help() const;
 };
 
 #endif  // MARCUS_COMMAND_H

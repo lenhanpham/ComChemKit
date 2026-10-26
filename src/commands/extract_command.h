@@ -29,6 +29,7 @@ public:
     ExtractCommand();
     std::string get_name() const override;
     std::string get_description() const override;
+    void print_help(const std::string& program_name = "cck") const override;
     void parse_args(int argc, char* argv[], int& i, CommandContext& context) override;
     int execute(const CommandContext& context) override;
 

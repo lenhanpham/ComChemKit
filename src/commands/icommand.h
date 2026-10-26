@@ -48,7 +48,18 @@ public:
      * @return std::string A brief description of what the command does.
      */
     virtual std::string get_description() const = 0;
-    
+
+    /**
+     * @brief Prints detailed help for this command.
+     *
+     * Each module owns its help text. The global help hub
+     * (HelpUtils) only aggregates and dispatches to this method,
+     * so adding a new command never requires editing the hub.
+     *
+     * @param program_name Name of the program executable (for display).
+     */
+    virtual void print_help(const std::string& program_name = "cck") const = 0;
+
     /**
      * @brief Parses command-specific arguments from the command line.
      * 
