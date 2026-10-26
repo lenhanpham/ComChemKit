@@ -890,6 +890,178 @@ namespace ThermoInterface
         return success;
     }
 
+    bool extract_basic_properties(const std::string& file,
+                                  double& scf_au, double& corrG_au, double& corrH_au, double& zpe_au, double& lf_cm, int& nfreq, std::string& prog_name,
+                                  const ThermoSettings& settings)
+    {
+        SystemData* sys = new SystemData();
+        sys->inputfile = file;
+        sys->T = settings.temperature;
+        sys->P = settings.pressure;
+        sys->concstr = settings.concentration;
+        sys->prtlevel = settings.prt_level; // Output verbosity
+        sys->prtvib = settings.print_vib;
+        sys->lowVibTreatment = util::parseLowVibTreatment(settings.low_vib_treatment);
+        sys->massmod = settings.mass_mode;
+        sys->outotm = settings.output_otm ? 1 : 0;
+        sys->ipmode = settings.ip_mode;
+        sys->sclZPE = settings.scale_zpe;
+        sys->sclheat = settings.scale_heat;
+        sys->sclS = settings.scale_entropy;
+        sys->sclCV = settings.scale_cv;
+        sys->ravib = settings.raise_vib;
+        sys->intpvib = settings.interp_vib;
+        sys->hgEntropy = settings.hg_entropy;
+        sys->bavPreset = settings.bav_preset.empty() ? BavPreset::Grimme : (settings.bav_preset == "qchem" ? BavPreset::QChem : BavPreset::Grimme);
+        sys->Bav = 1e-44;
+        sys->bavUserOverride = !settings.bav_preset.empty();
+        sys->imagreal = settings.imag_real;
+        sys->Eexter = settings.external_energy;
+        if (!settings.point_group.empty()) {
+            sys->PGnameinit = settings.point_group;
+            sys->PGname = settings.point_group;
+        }
+
+        util::QuantumChemistryProgram prog = util::deterprog(*sys);
+        sys->isys = static_cast<int>(prog);
+
+        switch(prog) {
+            case util::QuantumChemistryProgram::Gaussian: prog_name = "Gaussian"; break;
+            case util::QuantumChemistryProgram::Orca: prog_name = "ORCA"; break;
+            case util::QuantumChemistryProgram::Gamess: prog_name = "GAMESS-US"; break;
+            case util::QuantumChemistryProgram::Nwchem: prog_name = "NWChem"; break;
+            case util::QuantumChemistryProgram::Cp2k: prog_name = "CP2K"; break;
+            case util::QuantumChemistryProgram::Vasp: prog_name = "VASP"; break;
+            case util::QuantumChemistryProgram::Xtb: prog_name = "xTB"; break;
+            case util::QuantumChemistryProgram::QChem: prog_name = "Q-Chem"; break;
+            default: prog_name = "Unknown"; break;
+        }
+
+        if (prog == util::QuantumChemistryProgram::Unknown) {
+            delete sys;
+            return false;
+        }
+
+        bool success = false;
+        try {
+            if (prog == util::QuantumChemistryProgram::Gaussian) {
+                LoadFile::loadgau(*sys);
+            } else if (prog == util::QuantumChemistryProgram::Orca) {
+                LoadFile::loadorca(*sys);
+            } else if (prog == util::QuantumChemistryProgram::Gamess) {
+                LoadFile::loadgms(*sys);
+            } else if (prog == util::QuantumChemistryProgram::Nwchem) {
+                LoadFile::loadnw(*sys);
+            } else if (prog == util::QuantumChemistryProgram::Cp2k) {
+                LoadFile::loadCP2K(*sys);
+            } else if (prog == util::QuantumChemistryProgram::Vasp) {
+                LoadFile::loadvasp(*sys);
+            } else if (prog == util::QuantumChemistryProgram::QChem) {
+                LoadFile::loadqchem(*sys);
+            }
+            success = true;
+        } catch (...) {
+            if (prog == util::QuantumChemistryProgram::Orca) {
+                try {
+                    sys->nfreq = 0;
+                    sys->wavenum.clear();
+                    sys->E = 0.0;
+                    const std::string energy_label = "FINAL SINGLE POINT ENERGY";
+                    std::ifstream ef(sys->inputfile);
+                    if (ef.is_open()) {
+                        std::string eline;
+                        std::string last_energy_line;
+                        while (std::getline(ef, eline)) {
+                            if (eline.find(energy_label) != std::string::npos) {
+                                last_energy_line = eline;
+                            }
+                        }
+                        ef.close();
+                        if (!last_energy_line.empty()) {
+                            std::istringstream eiss(last_energy_line);
+                            std::string etok;
+                            while (eiss >> etok) { /* consume all tokens */ }
+                            try { sys->E = std::stod(etok); } catch (...) {}
+                        }
+                        success = (sys->E != 0.0);
+                    }
+                } catch (...) {
+                    success = false;
+                }
+            }
+        }
+
+        if (success) {
+            scf_au = sys->E;
+            nfreq  = sys->nfreq;
+
+            if (nfreq > 0 && !sys->wavenum.empty()) {
+                lf_cm = sys->wavenum[0];
+                for (int i = 1; i < nfreq; ++i) {
+                    if (sys->wavenum[i] < lf_cm && sys->wavenum[i] >= 0) {
+                        lf_cm = sys->wavenum[i];
+                    } else if (lf_cm < 0 && sys->wavenum[i] < 0 && sys->wavenum[i] < lf_cm) {
+                        lf_cm = sys->wavenum[i];
+                    }
+                }
+            } else {
+                lf_cm = 0.0;
+            }
+
+            if (nfreq > 0) {
+                try {
+                    sys->totmass = 0.0;
+                    for (const auto& atom : sys->a) {
+                        sys->totmass += atom.mass;
+                    }
+                    calc::calcinertia(*sys);
+                    sys->ilinear = 0;
+                    for (double in : sys->inert) {
+                        if (in < 0.001) {
+                            sys->ilinear = 1;
+                            break;
+                        }
+                    }
+                    sys->ncenter = static_cast<int>(sys->a.size());
+
+                    symmetry::SymmetryDetector symDetector;
+                    symDetector.PGnameinit = sys->PGnameinit;
+                    symDetector.ncenter    = sys->a.size();
+                    symDetector.a          = sys->a;
+                    symDetector.a_index.resize(sys->a.size());
+                    for (size_t i = 0; i < sys->a.size(); ++i) {
+                        symDetector.a_index[i] = i;
+                    }
+                    symDetector.detectPG(0);
+                    sys->rotsym = symDetector.rotsym;
+                    sys->PGname = symDetector.PGname;
+
+                    sys->freq.resize(sys->nfreq);
+                    for (int i = 0; i < sys->nfreq; ++i) {
+                        sys->freq[i] = sys->wavenum[i] * wave2freq;
+                    }
+                    if (sys->nelevel <= 0 || sys->elevel.empty() || sys->edegen.empty()) {
+                        sys->nelevel = 1;
+                        sys->elevel  = { 0.0 };
+                        sys->edegen  = { std::max(1, sys->spinmult) };
+                    }
+                    calc::ThermoResult tr = calc::calcthermo(*sys, settings.temperature, settings.pressure);
+                    corrG_au = tr.corrG / au2kJ_mol;
+                    corrH_au = tr.corrH / au2kJ_mol;
+                    zpe_au   = tr.ZPE / au2kJ_mol;
+                } catch (...) {
+                    nfreq    = 0;
+                    corrG_au = 0.0;
+                    corrH_au = 0.0;
+                    zpe_au   = 0.0;
+                }
+            }
+        }
+
+        delete sys;
+        return success;
+    }
+
     bool calculate_thermal_corrections(const std::string& file, double T, double P, 
                                        double& corrG_au, double& corrH_au, double& zpe_au, int& nfreq)
     {

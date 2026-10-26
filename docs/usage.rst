@@ -55,6 +55,8 @@ ComChemKit supports the following commands:
 +------------------+--------------------------------------------------+
 | ``rmsd``         | RMSD between structures (XYZ/PDB), pair+matrix   |
 +------------------+--------------------------------------------------+
+| ``marcus``       | Marcus barrier calculations (OSET / EnT)         |
++------------------+--------------------------------------------------+
 | ``interactive``  | Launch interactive mode (Windows)                |
 +------------------+--------------------------------------------------+
 
@@ -1095,6 +1097,307 @@ Threads and memory follow the same extract scheme: ``-nt half`` default with hea
    As a rule of thumb, values below ~0.5 A indicate nearly identical structures, 1-2 A a related but relaxed geometry, larger values a different conformation or bad atom correspondence. On symmetric tops with degenerate inertia moments (e.g. ethane), ``inertia-hungarian``/``distance`` results depend on eigensolver/tie-breaking details: they are deterministic but not guaranteed to match other implementations exactly.
 
 Golden-value verification: ``./test_rmsd.sh`` (fixtures in ``tests/rmsd/``).
+
+9. Marcus Theory Barrier Calculations (marcus)
+----------------------------------------------
+
+**Purpose:** Calculate Marcus theory barriers for Outer Sphere Single Electron Transfer (OSET) and Energy Transfer (EnT) using the four-point method. The workflow has three steps:
+
+1. **Step 1**: Generate geometry optimization + frequency inputs (4 `.gau` files)
+2. **Step 2**: Generate single point inputs reading step-1 checkpoints (8 `.gau` files)
+3. **Step 3**: Calculate barriers from collected outputs (ΔG°r, λ_R, λ_P, symmetric & asymmetric barriers)
+
+**Directory Structure:**
+
+.. code-block::
+
+   project/
+   ├── PC.xyz                    # Donor coordinates
+   ├── D1.xyz                    # Acceptor coordinates
+   ├── marcus.params             # Parameter file
+   ├── marcus_project_step_1_opt/    # Step 1: optimization inputs
+   ├── marcus_project_step_2_sp/     # Step 2: single point inputs
+   └── marcus_project_barrier/       # Step 3: barrier report
+
+**Basic Usage:**
+
+.. code-block:: bash
+
+   # Generate a parameter template (OSET)
+   cck marcus --genoset-params -o marcus.params
+
+   # Generate a parameter template (EnT)
+   cck marcus --genent-params -o marcus.params
+
+   # Edit marcus.params with your molecule names, XYZ paths, charges, multiplicities, etc.
+
+   # Step 1: Generate optimization inputs
+   cck marcus -p marcus.params -step 1
+   # Submit the .gau files to Gaussian, wait for completion
+
+   # Step 2: Generate single point inputs (reads step-1 checkpoints)
+   cck marcus -p marcus.params -step 2
+   # Submit the .gau files to Gaussian, wait for completion
+
+   # Step 3: Calculate barriers
+   cck marcus -p marcus.params -step 3 -mode symmetric
+   cck marcus -p marcus.params -step 3 -mode asymmetric
+
+**Command-Line Options:**
+
+.. table:: Marcus Options
+
+   +------------------+--------------------------------------------------+------------------+-----------+
+   | Option           | Description                                      | Values           | Default   |
+   +==================+==================================================+==================+===========+
+   | ``-p, --param, --param-file``  | Parameter file (required)                        | file path        | -         |
+   +------------------+--------------------------------------------------+------------------+-----------+
+   | ``-step``        | Workflow step                                    | 1, 2, 3          | 1         |
+   +------------------+--------------------------------------------------+------------------+-----------+
+   | ``-mode``        | Barrier mode                                     | symmetric, asymmetric | symmetric |
+   +------------------+--------------------------------------------------+------------------+-----------+
+   | ``-O, --out``    | Output report file                               | file path        | -         |
+   +------------------+--------------------------------------------------+------------------+-----------+
+   | ``-v, --verbose``| Verbose output                                   | (flag)           | false     |
+   +------------------+--------------------------------------------------+------------------+-----------+
+   | ``-t, --temp``   | Temperature (K)                                  | decimal          | 298.15    |
+   +------------------+--------------------------------------------------+------------------+-----------+
+   | ``-c, --conc``   | Concentration (mol/L)                            | decimal          | 1.0       |
+   +------------------+--------------------------------------------------+------------------+-----------+
+   | ``--pressure``   | Pressure (atm)                                   | decimal          | 1.0       |
+   +------------------+--------------------------------------------------+------------------+-----------+
+   | ``--lowvibmeth`` | Low-frequency treatment                          | harmonic|truhlar|grimme|minenkov|headgordon | grimme   |
+   +------------------+--------------------------------------------------+------------------+-----------+
+   | ``--ravib``      | Truhlar threshold (cm^-1)                        | decimal          | 100.0     |
+   +------------------+--------------------------------------------------+------------------+-----------+
+   | ``--genoset-params``| Generate OSET parameter template                 | (flag)           | -         |
+   +------------------+--------------------------------------------------+------------------+-----------+
+   | ``--genent-params`` | Generate EnT parameter template                  | (flag)           | -         |
+   +------------------+--------------------------------------------------+------------------+-----------+
+   | ``-o, --output-template`` | Template output path                      | file path        | -         |
+   +------------------+--------------------------------------------------+------------------+-----------+
+   | ``-h, --help``   | Show help                                        | (flag)           | -         |
+   +------------------+--------------------------------------------------+------------------+-----------+
+
+**Parameter File (`marcus.params`) Keys:**
+
+The parameter file uses ``key = value`` format (``#`` = comment). All step 3 thermo options are supported:
+
+**Project Identification:**
+
+.. table:: Project Identification Keys
+
+   +------------------+--------------------------------------------------+-----------+
+   | Key              | Description                                      | Default   |
+   +==================+==================================================+===========+
+   | ``project``      | Project name (used for directory names)          | marcus_project |
+   +------------------+--------------------------------------------------+-----------+
+   | ``calc_type``    | Calculation type (oset \| ent)                   | oset      |
+   +------------------+--------------------------------------------------+-----------+
+   | ``skip_existing``| Skip existing input files                        | true      |
+   +------------------+--------------------------------------------------+-----------+
+
+**Donor / Acceptor Definitions:**
+
+.. table:: Donor/Acceptor Keys
+
+   +---------------------------+--------------------------------------------------+-----------+
+   | Key                       | Description                                      | Default   |
+   +===========================+==================================================+===========+
+   | ``donor_name``            | Donor molecule name                              | (required)|
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``donor_xyz``             | Donor XYZ file path                              | (required)|
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``donor_init_charge``     | Donor initial state charge                       | 0         |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``donor_init_mult``       | Donor initial state multiplicity                 | 1         |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``donor_final_charge``    | Donor final state charge                         | 0         |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``donor_final_mult``      | Donor final state multiplicity                   | 1         |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``acceptor_name``         | Acceptor molecule name                           | (required)|
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``acceptor_xyz``          | Acceptor XYZ file path                           | (required)|
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``acceptor_init_charge``  | Acceptor initial state charge                    | 0         |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``acceptor_init_mult``    | Acceptor initial state multiplicity              | 1         |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``acceptor_final_charge`` | Acceptor final state charge                      | 0         |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``acceptor_final_mult``   | Acceptor final state multiplicity                | 1         |
+   +---------------------------+--------------------------------------------------+-----------+
+
+**Step 1 Theory (Geometry Optimization + Freq):**
+
+.. table:: Step 1 Theory Keys
+
+   +---------------------------+--------------------------------------------------+-----------+
+   | Key                       | Description                                      | Default   |
+   +===========================+==================================================+===========+
+   | ``step1_functional``      | DFT functional                                   | uwb97xd   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_basis``           | Basis set                                        | def2svpp  |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_basis_path``      | Custom basis path                                | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_solvent_model``   | Solvent model                                    | smd       |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_solvent``         | Solvent name                                     | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_solvent_extra``   | Extra SCRF keywords                              | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_scf_maxcycle``    | SCF max cycles                                   | 300       |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_opt_maxcycles``   | Opt max cycles                                   | 300       |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_opt_options``     | Extra opt keywords                               | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_scf_options``     | Extra SCF keywords                               | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_mem``             | Memory                                           | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_nprocshared``     | NProcShared                                      | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_cpu``             | CPU                                              | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_gpucpu``          | GPUCPU                                           | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_print_level``     | Print level                                      | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_tail``            | Basis tail block                                 | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step1_route_extra_keywords`` | Extra route keywords                        | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+
+**Step 2 Theory (Single Point):**
+
+.. table:: Step 2 Theory Keys
+
+   +---------------------------+--------------------------------------------------+-----------+
+   | Key                       | Description                                      | Default   |
+   +===========================+==================================================+===========+
+   | ``step2_functional``      | DFT functional                                   | uwb97xd   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step2_basis``           | Basis set                                        | def2tzvp  |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step2_basis_path``      | Custom basis path                                | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step2_solvent_model``   | Solvent model                                    | smd       |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step2_solvent``         | Solvent name                                     | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step2_solvent_extra``   | Extra SCRF keywords                              | ExternalIteration,NonEq=read |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step2_scf_maxcycle``    | SCF max cycles                                   | 500       |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step2_mem``             | Memory                                           | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step2_nprocshared``     | NProcShared                                      | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step2_cpu``             | CPU                                              | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step2_gpucpu``          | GPUCPU                                           | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step2_print_level``     | Print level                                      | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step2_tail``            | Basis tail block                                 | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``step2_route_extra_keywords`` | Extra route keywords                        | Geom=Check Guess(Read) |
+   +---------------------------+--------------------------------------------------+-----------+
+
+**Step 3 — Barrier Calculation & Thermo Options:**
+
+.. table:: Step 3 Thermo Keys
+
+   +---------------------------+--------------------------------------------------+-----------+
+   | Key                       | Description                                      | Default   |
+   +===========================+==================================================+===========+
+   | ``marcus_mode``           | Barrier mode                                     | symmetric |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``temperature``           | Temperature (K)                                  | 298.15    |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``concentration``         | Concentration (mol/L)                            | 1.0       |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``pressure``              | Pressure (atm)                                   | 1.0       |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``low_vib_method``        | Low-frequency treatment                          | grimme    |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``ravib``                 | Truhlar threshold (cm^-1)                        | 100.0     |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``scale_zpe``             | ZPE scaling factor                               | 1.0       |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``scale_heat``            | Heat capacity scaling factor                     | 1.0       |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``scale_entropy``         | Entropy scaling factor                           | 1.0       |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``scale_cv``              | CV scaling factor                                | 1.0       |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``interp_vib``            | Vibrational interpolation (cm^-1)                | 100.0     |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``imag_real``             | Imaginary frequency threshold                    | 0.0       |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``external_energy``       | External electronic energy (Hartree)             | 0.0       |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``mass_mode``             | Mass assignment mode                             | 3         |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``prt_level``             | Output verbosity (0-3)                           | 1         |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``print_vib``             | Print vibration contributions                    | 0         |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``ip_mode``               | Phase mode (0=gas, 1=condensed)                  | 0         |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``point_group``           | Point group label                                | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``hg_entropy``            | Head-Gordon entropy interpolation                | false     |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``bav_preset``            | Bav preset (qchem\|grimme)                       | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``output_otm``            | Output .otm file                                 | false     |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``use_input_temp``        | Activate thermo module T pathway                 | false     |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``use_input_concentration``| Activate thermo module C pathway                | false     |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``use_input_pressure``    | Activate pressure pathway                        | false     |
+   +---------------------------+--------------------------------------------------+-----------+
+   | ``out_file``              | Output report path                               | (empty)   |
+   +---------------------------+--------------------------------------------------+-----------+
+
+**Workflow Example:**
+
+.. code-block:: bash
+
+   # 1. Generate template
+   cck marcus --genoset-params -o my_marcus.params
+
+   # 2. Edit my_marcus.params — set donor_name, donor_xyz, acceptor_name,
+   #    acceptor_xyz, charges, multiplicities, and any thermo options
+
+   # 3. Step 1: Generate inputs
+   cck marcus -p my_marcus.params -step 1
+   # Submit .gau files to Gaussian
+
+   # 4. Step 2: Generate single point inputs
+   cck marcus -p my_marcus.params -step 2
+   # Submit .gau files to Gaussian
+
+   # 5. Step 3: Calculate barriers with thermo options
+   cck marcus -p my_marcus.params -step 3 -mode asymmetric
+
+**Output:**
+
+Step 3 writes a barrier report to ``<project>_barrier/<project>_barrier_report.txt``
+(or ``-O`` path) containing:
+
+- Gibbs free energy per state (Hartree)
+- Reaction free energy ΔG°r (Hartree and kcal/mol)
+- Phase correction (Hartree)
+- Reorganization energies λ_R and λ_P (kcal/mol)
+- Average reorganization energy λ (kcal/mol)
+- Symmetric barrier ΔG‡ (kcal/mol)
+- Asymmetric barrier ΔG‡ (kcal/mol) (if ``-mode asymmetric``)
 
 Configuration and Customization
 ===============================

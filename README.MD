@@ -34,6 +34,7 @@
 * **Create Input Files**: Generate Gaussian input files from XYZ coordinate files with customizable calculation parameters
 * **Imaginary mode coordinate displacement (ivcoord)**: Displace molecular geometry along imaginary normal modes (Quick Reaction Coordinate method) to generate reactant/product guess structures for transition state searches
 * **RMSD calculation (rmsd)**: Calculate root-mean-square deviation between molecular structures (XYZ/PDB) with optimal alignment, atom reordering, reflection search, and pairwise matrix mode for conformer/trajectory analysis
+* **Marcus theory barrier calculations (marcus)**: Marcus barrier calculations for Outer Sphere Single Electron Transfer (OSET) and Energy Transfer (EnT) using the four-point method, with full thermochemical parameter support
 
 **Windows interactive mode**: Windows users can use all features plus popular linux commands in the interactive mode
 
@@ -703,6 +704,201 @@ The module:
 - Reads high-level electronic energies from single-point calculations
 - Combines them to produce improved Gibbs free energies
 - Automatically handles phase corrections and temperature-dependent terms
+
+### 3.6 Marcus Theory Barrier Calculations (marcus)
+
+The **Marcus module** implements Marcus theory barrier calculations for **Outer Sphere Single Electron Transfer (OSET)** and **Energy Transfer (EnT)** using the **four-point method**. It follows a 3-step workflow:
+
+1. **Step 1** — Generate geometry optimization + frequency inputs (4 `.gau` files: donor-init, donor-final, acceptor-init, acceptor-final)
+2. **Step 2** — Generate single point inputs reading step-1 checkpoints (8 `.gau` files: 4 equilibrium + 4 cross/internal)
+3. **Step 3** — Calculate barriers from collected outputs (ΔG°r, reorganization energies λ_R/λ_P, symmetric & asymmetric barriers)
+
+**Directory Structure:**
+
+```
+project/
+├── PC.xyz                    # Donor coordinates
+├── D1.xyz                    # Acceptor coordinates
+├── marcus.params             # Parameter file
+├── marcus_project_step_1_opt/    # Step 1: optimization inputs (.gau, .chk)
+├── marcus_project_step_2_sp/     # Step 2: single point inputs (.gau, .chk)
+└── marcus_project_barrier/       # Step 3: barrier report
+```
+
+**Basic Usage:**
+
+```bash
+# Generate a parameter template
+cck marcus --genoset-params -o marcus.params
+# or for Energy Transfer:
+cck marcus --genent-params -o marcus.params
+
+# Edit marcus.params with your molecule names, XYZ paths, charges, multiplicities, etc.
+
+# Step 1: Generate optimization inputs
+cck marcus -p marcus.params -step 1
+# Submit the .gau files to Gaussian, wait for completion
+
+# Step 2: Generate single point inputs (reads step-1 checkpoints)
+cck marcus -p marcus.params -step 2
+# Submit the .gau files to Gaussian, wait for completion
+
+# Step 3: Calculate barriers
+cck marcus -p marcus.params -step 3 -mode symmetric
+cck marcus -p marcus.params -step 3 -mode asymmetric
+```
+
+**Command-Line Options:**
+
+| Option | Description | Values | Default |
+|--------|-------------|--------|---------|
+| `-p, --param, --param-file` | Parameter file | file path | (required) |
+| `-step` | Workflow step | 1, 2, 3 | 1 |
+| `-mode` | Barrier mode | symmetric, asymmetric | symmetric |
+| `-O, --out` | Output report file | file path | `<project>_barrier/<project>_barrier_report.txt` |
+| `-v, --verbose` | Verbose output | (flag) | false |
+| `-t, --temp` | Temperature (K) | decimal | 298.15 |
+| `-c, -C, --cm, --conc` | Concentration (mol/L) | decimal | 1.0 |
+| `--pressure` | Pressure (atm) | decimal | 1.0 |
+| `--lowvibmeth` | Low-frequency treatment | harmonic|truhlar|grimme|minenkov|headgordon | grimme |
+| `--ravib` | Truhlar threshold (cm⁻¹) | decimal | 100.0 |
+| `--genoset-params` | Generate OSET parameter template | (flag) | - |
+| `--genent-params` | Generate EnT parameter template | (flag) | - |
+| `-o, --output-template` | Template output path | file path | `marcus_oset.params` / `marcus_ent.params` |
+| `-h, --help` | Show help | (flag) | - |
+
+**Parameter File (`marcus.params`) Keys:**
+
+The parameter file uses `key = value` format (`#` = comment). All step 3 thermo options are supported:
+
+**Project Identification:**
+
+| Key | Description | Default |
+|-----|-------------|---------|
+| `project` | Project name (used for directory names) | `marcus_project` |
+| `calc_type` | Calculation type | `oset` \| `ent` |
+| `skip_existing` | Skip existing input files | `true` |
+
+**Donor / Acceptor Definitions:**
+
+| Key | Description | Default |
+|-----|-------------|---------|
+| `donor_name` | Donor molecule name | (required) |
+| `donor_xyz` | Donor XYZ file path | (required) |
+| `donor_init_charge` | Donor initial state charge | 0 |
+| `donor_init_mult` | Donor initial state multiplicity | 1 |
+| `donor_final_charge` | Donor final state charge | 0 |
+| `donor_final_mult` | Donor final state multiplicity | 1 |
+| `acceptor_name` | Acceptor molecule name | (required) |
+| `acceptor_xyz` | Acceptor XYZ file path | (required) |
+| `acceptor_init_charge` | Acceptor initial state charge | 0 |
+| `acceptor_init_mult` | Acceptor initial state multiplicity | 1 |
+| `acceptor_final_charge` | Acceptor final state charge | 0 |
+| `acceptor_final_mult` | Acceptor final state multiplicity | 1 |
+
+**Step 1 Theory (Geometry Optimization + Freq):**
+
+| Key | Description | Default |
+|-----|-------------|---------|
+| `step1_functional` | DFT functional | `uwb97xd` |
+| `step1_basis` | Basis set | `def2svpp` |
+| `step1_basis_path` | Custom basis path | (empty) |
+| `step1_solvent_model` | Solvent model | `smd` |
+| `step1_solvent` | Solvent name | (empty) |
+| `step1_solvent_extra` | Extra SCRF keywords | (empty) |
+| `step1_scf_maxcycle` | SCF max cycles | 300 |
+| `step1_opt_maxcycles` | Opt max cycles | 300 |
+| `step1_opt_options` | Extra opt keywords | (empty) |
+| `step1_scf_options` | Extra SCF keywords | (empty) |
+| `step1_mem` | Memory | (empty) |
+| `step1_nprocshared` | NProcShared | (empty) |
+| `step1_cpu` | CPU | (empty) |
+| `step1_gpucpu` | GPUCPU | (empty) |
+| `step1_print_level` | Print level | (empty) |
+| `step1_tail` | Basis tail block | (empty) |
+| `step1_route_extra_keywords` | Extra route keywords | (empty) |
+
+**Step 2 Theory (Single Point):**
+
+| Key | Description | Default |
+|-----|-------------|---------|
+| `step2_functional` | DFT functional | `uwb97xd` |
+| `step2_basis` | Basis set | `def2tzvp` |
+| `step2_basis_path` | Custom basis path | (empty) |
+| `step2_solvent_model` | Solvent model | `smd` |
+| `step2_solvent` | Solvent name | (empty) |
+| `step2_solvent_extra` | Extra SCRF keywords | `ExternalIteration,NonEq=read` |
+| `step2_scf_maxcycle` | SCF max cycles | 500 |
+| `step2_mem` | Memory | (empty) |
+| `step2_nprocshared` | NProcShared | (empty) |
+| `step2_cpu` | CPU | (empty) |
+| `step2_gpucpu` | GPUCPU | (empty) |
+| `step2_print_level` | Print level | (empty) |
+| `step2_tail` | Basis tail block | (empty) |
+| `step2_route_extra_keywords` | Extra route keywords | `Geom=Check Guess(Read)` |
+
+**Step 3 — Barrier Calculation & Thermo Options:**
+
+| Key | Description | Default |
+|-----|-------------|---------|
+| `marcus_mode` | Barrier mode | `symmetric` |
+| `temperature` | Temperature (K) | 298.15 |
+| `concentration` | Concentration (mol/L) | 1.0 |
+| `pressure` | Pressure (atm) | 1.0 |
+| `low_vib_method` | Low-frequency treatment | `grimme` |
+| `ravib` | Truhlar threshold (cm⁻¹) | 100.0 |
+| `scale_zpe` | ZPE scaling factor | 1.0 |
+| `scale_heat` | Heat capacity scaling factor | 1.0 |
+| `scale_entropy` | Entropy scaling factor | 1.0 |
+| `scale_cv` | CV scaling factor | 1.0 |
+| `interp_vib` | Vibrational interpolation (cm⁻¹) | 100.0 |
+| `imag_real` | Imaginary frequency threshold | 0.0 |
+| `external_energy` | External electronic energy (Hartree) | 0.0 |
+| `mass_mode` | Mass assignment mode | 3 |
+| `prt_level` | Output verbosity (0-3) | 1 |
+| `print_vib` | Print vibration contributions | 0 |
+| `ip_mode` | Phase mode (0=gas, 1=condensed) | 0 |
+| `point_group` | Point group label | (empty) |
+| `hg_entropy` | Head-Gordon entropy interpolation | `false` |
+| `bav_preset` | Bav preset (qchem\|grimme) | (empty) |
+| `output_otm` | Output .otm file | `false` |
+| `use_input_temp` | Activate thermo module T pathway | `false` |
+| `use_input_concentration` | Activate thermo module C pathway | `false` |
+| `use_input_pressure` | Activate pressure pathway | `false` |
+| `out_file` | Output report path | (empty) |
+
+**Workflow Example:**
+
+```bash
+# 1. Generate template
+cck marcus --genoset-params -o my_marcus.params
+
+# 2. Edit my_marcus.params — set donor_name, donor_xyz, acceptor_name, acceptor_xyz,
+#    charges, multiplicities, and any thermo options (uncomment to activate)
+
+# 3. Step 1: Generate inputs
+cck marcus -p my_marcus.params -step 1
+# Submit .gau files to Gaussian
+
+# 4. Step 2: Generate single point inputs
+cck marcus -p my_marcus.params -step 2
+# Submit .gau files to Gaussian
+
+# 5. Step 3: Calculate barriers with thermo options
+cck marcus -p my_marcus.params -step 3 -mode asymmetric
+```
+
+**Output:**
+
+Step 3 writes a barrier report to `<project>_barrier/<project>_barrier_report.txt` (or `-O` path) containing:
+
+- Gibbs free energy per state (Hartree)
+- Reaction free energy ΔG°r (Hartree and kcal/mol)
+- Phase correction (Hartree)
+- Reorganization energies λ_R and λ_P (kcal/mol)
+- Average reorganization energy λ (kcal/mol)
+- Symmetric barrier ΔG‡ (kcal/mol)
+- Asymmetric barrier ΔG‡ (kcal/mol) (if `-mode asymmetric`)
 
 ### 3.6 Coordinate Extraction Module
 
@@ -1420,20 +1616,8 @@ The thermo module implements advanced parallel processing specifically designed 
    - Preserves error order and context
    - Non-blocking error collection
 
-## Version History
+## Current version
 - **v0.1.5** Release version
-- **v0.1.4** Release version
-- **v0.1.3** Release version
-- **v0.1.2** Release version
-- **v0.1.1** Release version
-- **v0.000.8** Pre-release version
-- **v0.000.7** Pre-release version
-- **v0.000.6** Pre-release version
-- **v0.000.5** Pre-release version
-- **v0.000.4** Pre-release version
-- **v0.000.3** Pre-release version
-- **v0.000.2** Pre-release version
-- **v0.000.1** Pre-release version
 
 ## Contributing and Issues
 

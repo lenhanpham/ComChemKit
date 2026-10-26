@@ -99,6 +99,10 @@ set(SOURCES
     src/rmsd/struct_list.cpp
     src/rmsd/matrix.cpp
     src/commands/rmsd_command.cpp
+    src/commands/marcus_command.cpp
+    src/marcus/marcus_input_gen.cpp
+    src/marcus/marcus_calculator.cpp
+    src/marcus/marcus_io.cpp
 )
 
 # Add Windows resource file if building on Windows
@@ -149,6 +153,11 @@ set(HEADERS
     src/ivcoord/ivcoord_runner.h
     src/commands/ivcoord_command.h
     src/commands/rmsd_command.h
+    src/commands/marcus_command.h
+    src/marcus/marcus_types.h
+    src/marcus/marcus_input_gen.h
+    src/marcus/marcus_calculator.h
+    src/marcus/marcus_io.h
     src/rmsd/rmsd_types.h
     src/rmsd/elements.h
     src/rmsd/linalg.h

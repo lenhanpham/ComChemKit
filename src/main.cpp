@@ -34,6 +34,7 @@
 #include "commands/create_input_command.h"
 #include "commands/ivcoord_command.h"
 #include "commands/rmsd_command.h"
+#include "commands/marcus_command.h"
 #include <atomic>
 #include <csignal>
 #include <iostream>
@@ -143,6 +144,7 @@ int main(int argc, char* argv[])
     registry.register_command(std::make_unique<CreateInputCommand>());
     registry.register_command(std::make_unique<IVCoordCommand>());
     registry.register_command(std::make_unique<RmsdCommand>());
+    registry.register_command(std::make_unique<MarcusCommand>());
 
     // Install signal handlers for graceful shutdown
     std::signal(SIGINT, signalHandler);
