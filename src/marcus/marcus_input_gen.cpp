@@ -154,7 +154,7 @@ std::string build_step1_route(const MarcusProject& project, const MarcusState& /
     int scf_mc = (project.step1_scf_maxcycle != -1) ? project.step1_scf_maxcycle : 300;
     int opt_mc = (project.step1_opt_maxcycles != -1) ? project.step1_opt_maxcycles : 300;
 
-    oss << "opt(maxcycles=" << opt_mc;
+    oss << "#P opt(maxcycles=" << opt_mc;
     if (!project.step1_opt_options.empty()) {
         oss << "," << project.step1_opt_options;
     }
