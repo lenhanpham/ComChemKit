@@ -1,4 +1,5 @@
 #include "commands/extract_coords_command.h"
+#include "ui/help_utils.h"
 #include "commands/signal_handler.h"
 #include <sstream>
 #include <filesystem>
@@ -20,6 +21,29 @@ std::string ExtractCoordsCommand::get_name() const {
 
 std::string ExtractCoordsCommand::get_description() const {
     return "Extract coordinates from log files and organize XYZ files";
+}
+
+void ExtractCoordsCommand::print_help(const std::string& program_name) const {
+    std::string cmd_name = get_name();
+    std::cout << "Help for command: " << cmd_name << "\n\n";
+    std::cout << "Description: Extract final Cartesian coordinates from Gaussian log files\n";
+    std::cout << "             Saves coordinates in XYZ format and organizes based on job status\n\n";
+    std::cout << "This command processes specified or all Gaussian log files in the current directory,\n";
+    std::cout << "extracts the last set of coordinates, converts to XYZ format, and moves\n";
+    std::cout << "the XYZ files to:\n";
+    std::cout << "  - {current_dir}_final_coord/   for completed jobs\n";
+    std::cout << "  - {current_dir}_running_coord/ for incomplete/failed jobs\n\n";
+    std::cout << "Directories are created only if needed.\n\n";
+    std::cout << "Additional Options:\n";
+    std::cout << "  -f, --files <file1[,file2,...]> Single file or comma-separated list of files to process\n";
+    HelpUtils::print_common_options();
+    std::cout << "  -h, --help            Show this help message\n";
+    std::cout << "  -v, --version         Show version information\n\n";
+    std::cout << "Examples:\n";
+    std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
+    std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
+    std::cout << "  " << program_name << " " << cmd_name << " -f file1.log,file2.log  # Process specific files\n";
+    std::cout << "\n";
 }
 
 void ExtractCoordsCommand::parse_args(int argc, char* argv[], int& i, CommandContext& context) {

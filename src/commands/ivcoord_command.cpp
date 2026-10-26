@@ -1,4 +1,5 @@
 #include "commands/ivcoord_command.h"
+#include "ui/help_utils.h"
 #include "commands/signal_handler.h"
 #include "input_gen/parameter_parser.h"
 #include "utilities/config_manager.h"
@@ -70,6 +71,29 @@ std::string IVCoordCommand::get_name() const
 std::string IVCoordCommand::get_description() const
 {
     return "Displace geometry along imaginary normal modes and write XYZ files";
+}
+
+void IVCoordCommand::print_help(const std::string& program_name) const {
+    std::string cmd_name = get_name();
+    std::cout << "Help for command: " << cmd_name << "\n\n";
+    std::cout << "Usage: " << program_name << " ivcoord [options] [file1.log ...]\n\n";
+    std::cout << "Displace geometry along imaginary normal modes and write XYZ files.\n\n";
+    std::cout << "Output is written to <parent_dir>_ivcoord/ relative to each input file.\n";
+    std::cout << "Output filenames: <stem>_p.xyz (plus direction) and/or <stem>_m.xyz (minus).\n\n";
+    std::cout << "Options:\n";
+    std::cout << "  --iamp <float>         Displacement amplitude (default: 1.0)\n";
+    std::cout << "  --idirection <int>     +1 = plus only, -1 = minus only, 0 = both (default: 0)\n\n";
+    std::cout << "Examples:\n";
+    std::cout << "  " << program_name << " ivcoord *.log\n";
+    std::cout << "  " << program_name << " ivcoord --idirection 0 --iamp 0.5 ts.log\n";
+    HelpUtils::print_common_options();
+    std::cout << "  -h, --help            Show this help message\n";
+    std::cout << "  -v, --version         Show version information\n\n";
+    std::cout << "Examples:\n";
+    std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
+    std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
+    std::cout << "  " << program_name << " " << cmd_name << " -nt 4        # Use 4 threads\n";
+    std::cout << "\n";
 }
 
 // ---------------------------------------------------------------------------

@@ -2,6 +2,7 @@
 #include "utilities/config_manager.h"
 #include "input_gen/parameter_parser.h"
 #include "ui/help_utils.h"
+#include "thermo/help_utils.h"
 #include "commands/command_registry.h"
 #include "commands/icommand.h"
 #include "utilities/utils.h"
@@ -75,14 +76,26 @@ CommandContext CommandParser::parse(int argc, char* argv[])
         {
             if (command_index == -1)
             {
-                // No explicit command given — show general overview
+                // No explicit command given — show general overview (aggregated from registry)
                 HelpUtils::print_help();
             }
             else
             {
-                HelpUtils::print_command_help(context.command, "cck", &context);
+                // Dispatch to the owning module via the registry.
+                std::string cmd_name = CommandParser::get_command_name(context.command);
+                HelpUtils::print_command_help_by_name(cmd_name, "cck");
             }
             std::exit(0);
+        }
+        else if (context.command == CommandType::THERMO && arg.rfind("--help-", 0) == 0)
+        {
+            // Thermo sub-topics are owned by the thermo module.
+            std::string topic = arg.substr(7);
+            if (topic == "input" || topic == "output" || topic == "settings" || !topic.empty())
+            {
+                ThermoHelpUtils::print_topic(topic == "--help" ? "" : topic, "cck");
+                std::exit(0);
+            }
         }
 
         else if (arg == "--config-help")
@@ -526,27 +539,9 @@ void CommandParser::load_configuration()
 
 void CommandParser::create_default_config()
 {
-    std::cout << "Creating default configuration file...\n";
-
-    if (g_config_manager.create_default_config_file())
-    {
-        std::string home_dir = g_config_manager.get_user_home_directory();
-        if (!home_dir.empty())
-        {
-            std::cout << "Configuration file created at: " << home_dir << "/.cck.conf" << std::endl;
-        }
-        else
-        {
-            std::cout << "Configuration file created at: ./.cck.conf" << std::endl;
-        }
-        std::cout << "Edit this file to customize your default settings.\n";
-    }
-    else
-    {
-        std::cout << "Failed to create configuration file.\n";
-        std::cout << "You can create it manually using the template below:\n\n";
-        g_config_manager.print_config_file_template();
-    }
+    // Single source of truth lives in HelpUtils; keep CLI entry point as a forwarder
+    // so `interactive --create-config` and `cck --create-config` cannot drift.
+    HelpUtils::create_default_config();
 }
 
 std::unordered_map<std::string, std::string> CommandParser::extract_config_overrides(int argc, char* argv[])

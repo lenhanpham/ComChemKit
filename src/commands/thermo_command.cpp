@@ -1,4 +1,6 @@
 #include "commands/thermo_command.h"
+#include "ui/help_utils.h"
+#include "thermo/help_utils.h"
 #include "commands/signal_handler.h"
 #include "thermo/thermo.h"
 #include <iostream>
@@ -19,6 +21,22 @@ std::string ThermoCommand::get_name() const {
 
 std::string ThermoCommand::get_description() const {
     return "Advanced thermodynamic analysis for multiple quantum chemistry programs";
+}
+
+void ThermoCommand::print_help(const std::string& program_name) const {
+    if (!thermo_help_topic.empty()) {
+        ThermoHelpUtils::print_topic(thermo_help_topic, program_name);
+        return;
+    }
+    ThermoHelpUtils::print_help(program_name);
+    HelpUtils::print_common_options();
+    std::cout << "  -h, --help            Show this help message\n";
+    std::cout << "  -v, --version         Show version information\n\n";
+    std::cout << "Examples:\n";
+    std::cout << "  " << program_name << " thermo              # Basic usage\n";
+    std::cout << "  " << program_name << " thermo -q           # Quiet mode\n";
+    std::cout << "  " << program_name << " thermo -nt 4        # Use 4 threads\n";
+    std::cout << "\n";
 }
 
 void ThermoCommand::parse_args(int argc, char* argv[], int& i, CommandContext& context) {
@@ -333,6 +351,14 @@ void ThermoCommand::parse_args(int argc, char* argv[], int& i, CommandContext& c
 
 int ThermoCommand::execute(const CommandContext& context)
 {
+    // Help topics are owned by the thermo module. If parse_args captured
+    // --help-input / --help-output / --help-settings / --help-<opt>, honor it here
+    // too so registry-direct callers (interactive mode, tests) also work.
+    if (!thermo_help_topic.empty())
+    {
+        print_help("cck");
+        return 0;
+    }
 
     try
     {

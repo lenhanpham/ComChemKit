@@ -178,43 +178,6 @@ public:
     static CommandContext parse(int argc, char* argv[]);
 
     /**
-     * @brief Print general help information
-     * @param program_name Name of the program executable (for display)
-     *
-     * Displays comprehensive help including:
-     * - Application overview and description
-     * - Available commands and brief descriptions
-     * - Common options and their usage
-     * - Configuration file information
-     * - Usage examples
-     */
-    static void print_help(const std::string& program_name = "cck");
-
-    /**
-     * @brief Print help for a specific command
-     * @param command The command type to show help for
-     * @param program_name Name of the program executable (for display)
-     *
-     * Displays detailed help for a specific command including:
-     * - Command description and purpose
-     * - Command-specific options and parameters
-     * - Usage examples and common scenarios
-     * - Related commands and workflows
-     */
-    static void print_command_help(CommandType command, const std::string& program_name = "cck");
-
-    /**
-     * @brief Print configuration system help
-     *
-     * Displays information about:
-     * - Configuration file locations
-     * - Available configuration options
-     * - Configuration file format
-     * - How to create default configuration
-     */
-    static void print_config_help();
-
-    /**
      * @brief Create a default configuration file
      *
      * Generates a default configuration file with all available options

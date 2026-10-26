@@ -1,4 +1,5 @@
 #include "commands/high_level_command.h"
+#include "ui/help_utils.h"
 #include "commands/signal_handler.h"
 #include "utilities/config_manager.h"
 #include "high_level/high_level_energy.h"
@@ -52,6 +53,64 @@ std::string HighLevelCommand::get_name() const {
 
 std::string HighLevelCommand::get_description() const {
     return desc;
+}
+
+void HighLevelCommand::print_help(const std::string& program_name) const {
+    std::string cmd_name = get_name();
+    std::cout << "Help for command: " << cmd_name << "\n\n";
+    if (type == CommandType::HIGH_LEVEL_KJ) {
+        std::cout << "Description: Calculate high-level energies with output in kJ/mol units\n";
+        std::cout << "             Uses high-level electronic energy combined with low-level thermal corrections\n\n";
+        std::cout << "This command reads high-level electronic energies from current directory\n";
+        std::cout << "and thermal corrections from parent directory (../) to compute final\n";
+        std::cout << "thermodynamic quantities. Output format focuses on final Gibbs energies.\n\n";
+        std::cout << "Additional Options:\n";
+        std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";
+        std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
+        std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
+        std::cout << "  -col, --column <N>      Sort column 1-7 (default: 2)\n";
+        std::cout << "                        1=Name, 2=G kJ/mol, 3=G a.u, 4=G eV, 5=LowFQ, 6=Status, 7=PhCorr\n";
+        std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
+        std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
+        std::cout << "                          Applied when -t or -c is specified\n";
+        std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
+    } else {
+        std::cout << "Description: Calculate detailed energy components in atomic units\n";
+        std::cout << "             Uses high-level electronic energy combined with low-level thermal corrections\n\n";
+        std::cout << "This command reads high-level electronic energies from current directory\n";
+        std::cout << "and thermal corrections from parent directory (../) to compute detailed\n";
+        std::cout << "energy component breakdown including ZPE, TC, TS, H, and G values.\n\n";
+        std::cout << "Additional Options:\n";
+        std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";
+        std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
+        std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
+        std::cout << "  -col, --column <N>      Sort column 1-10 (default: 8 = G a.u)\n";
+        std::cout << "                          1=Name, 2=E high, 3=E low, 4=ZPE, 5=TC, 6=TS, 7=H, 8=G, 9=LowFQ, 10=PhCorr\n";
+        std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
+        std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
+        std::cout << "                          Applied when -t or -c is specified\n";
+        std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
+    }
+    HelpUtils::print_common_options();
+    std::cout << "  -h, --help            Show this help message\n";
+    std::cout << "  -v, --version         Show version information\n\n";
+    std::cout << "Examples:\n";
+    if (type == CommandType::HIGH_LEVEL_KJ) {
+        std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -col 5       # Sort by frequency\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -t 300 -col 2 -f csv  # Custom temp, sort by G kJ/mol, CSV\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -t 253.15 -c 1 -lowvibmeth harmonic  # Harmonic treatment\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -t 253.15 -lowvibmeth grimme -ravib 150  # Grimme with custom crossover\n";
+    } else {
+        std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -col 8       # Sort by Gibbs energy\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -t 273 -col 4 -f csv  # Custom temp, sort by ZPE, CSV\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -t 253.15 -c 1 -lowvibmeth harmonic  # Harmonic treatment\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -t 253.15 -lowvibmeth grimme -ravib 150  # Grimme with custom crossover\n";
+    }
+    std::cout << "\n";
 }
 
 void HighLevelCommand::parse_args(int argc, char* argv[], int& i, CommandContext& context) {

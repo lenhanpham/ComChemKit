@@ -27,6 +27,9 @@ class ThermoCommand : public ICommand {
 public:
     std::string get_name() const override;
     std::string get_description() const override;
+    void print_help(const std::string& program_name = "cck") const override;
+    bool has_help_topic() const { return !thermo_help_topic.empty(); }
+    const std::string& help_topic() const { return thermo_help_topic; }
     void parse_args(int argc, char* argv[], int& i, CommandContext& context) override;
     int execute(const CommandContext& context) override;
 

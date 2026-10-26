@@ -855,30 +855,12 @@ int run_interactive_loop()
 
         if (line == "help" || line == "--help" || line == "-h")
         {
-            std::cout << "\nAvailable commands:" << std::endl;
-            std::cout << "  extract           Extract thermodynamic data from log files" << std::endl;
-            std::cout << "  done              Check and organize completed jobs" << std::endl;
-            std::cout << "  errors            Check and organize failed jobs" << std::endl;
-            std::cout << "  pcm               Check PCM convergence failures" << std::endl;
-            std::cout << "  imode             Check jobs with imaginary frequencies" << std::endl;
-            std::cout << "  check             Run all job checks" << std::endl;
-            std::cout << "  high-kj           Calculate high-level energies in kJ/mol" << std::endl;
-            std::cout << "  high-au           Calculate high-level energies in atomic units" << std::endl;
-            std::cout << "  extract-au        Extract single-file energies with component breakdown in a.u." << std::endl;
-            std::cout << "  xyz               Extract coordinates to XYZ format" << std::endl;
-            std::cout << "  ci                Create Gaussian input files from XYZ files" << std::endl;
-            std::cout << "  thermo            Calculate thermochemical properties" << std::endl;
-            std::cout << "  help              Show this help message" << std::endl;
-            std::cout << "  --version         Show version information" << std::endl;
-            std::cout << "  --config-help     Show configuration help" << std::endl;
-            std::cout << "  --create-config   Create default configuration file" << std::endl;
-            std::cout << "  --show-config     Show current configuration" << std::endl;
-            std::cout << "  --genci-params [type] [dir]  Generate parameter template" << std::endl;
-            std::cout << "                                    (type defaults to general, dir defaults to current)"
-                      << std::endl;
-            std::cout << "  --genci-all-params [dir]    Generate all parameter templates in directory" << std::endl;
-            std::cout << "                                    (optional dir, defaults to current directory)"
-                      << std::endl;
+            // Aggregated from the registry so new modules appear automatically.
+            HelpUtils::print_help();
+            std::cout << "Interactive extras:\n";
+            std::cout << "  help <command>    Show help for a specific command (e.g. help ci)\n";
+            std::cout << "  --genci-params [type] [dir]  Generate parameter template\n";
+            std::cout << "  --genci-all-params [dir]    Generate all parameter templates in directory\n";
             std::cout << "\nYou can use command-line options with any command." << std::endl;
             std::cout << "Example: extract -q -nt 4" << std::endl;
             std::cout << "\nYou can also use shell commands like 'cd', 'ls', 'pwd', etc." << std::endl;
@@ -1121,29 +1103,20 @@ int run_interactive_loop()
                 help_arg = help_arg.substr(0, end + 1);
             }
 
-            // Map command names to CommandType
-            static const std::map<std::string, CommandType> command_map = {{"extract", CommandType::EXTRACT},
-                                                                           {"done", CommandType::CHECK_DONE},
-                                                                           {"errors", CommandType::CHECK_ERRORS},
-                                                                           {"pcm", CommandType::CHECK_PCM},
-                                                                           {"imode", CommandType::CHECK_IMAGINARY},
-                                                                           {"check", CommandType::CHECK_ALL},
-                                                                           {"high-kj", CommandType::HIGH_LEVEL_KJ},
-                                                                           {"high-au", CommandType::HIGH_LEVEL_AU},
-                                                                           {"extract-au", CommandType::EXTRACT_AU},
-                                                                           {"--extract-au", CommandType::EXTRACT_AU},
-                                                                           {"xyz", CommandType::EXTRACT_COORDS},
-                                                                           {"ci", CommandType::CREATE_INPUT}};
-
-            auto it = command_map.find(help_arg);
-            if (it != command_map.end())
+            // Dispatch to the owning module via the registry (covers all commands).
+            // Keep short interactive aliases; canonical names are registry names.
+            static const std::map<std::string, std::string> alias_map = {
+                {"done", "check-done"},     {"errors", "check-errors"}, {"pcm", "check-pcm"},
+                {"imode", "check-imaginary"}, {"check", "check-all"},   {"--extract-au", "extract-au"},
+            };
+            auto alias_it = alias_map.find(help_arg);
+            std::string lookup = (alias_it != alias_map.end()) ? alias_it->second : help_arg;
+            if (!lookup.empty())
             {
-                HelpUtils::print_command_help(it->second);
-            }
-            else if (!help_arg.empty())
-            {
-                std::cout << "Unknown command: " << help_arg << std::endl;
-                std::cout << "Type 'help' for a list of available commands." << std::endl;
+                if (!HelpUtils::print_command_help_by_name(lookup))
+                {
+                    std::cout << "Type 'help' for a list of available commands." << std::endl;
+                }
             }
             else
             {
