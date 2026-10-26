@@ -66,9 +66,9 @@ enum class CommandType
     CREATE_INPUT,     ///< Create Gaussian input files from XYZ files
     THERMO,           ///< Advanced thermodynamic analysis for multiple quantum chemistry programs
     IVCOORD,          ///< Displace geometry along imaginary normal modes and write XYZ files
-    RMSD              ///< Calculate RMSD between molecular structures
+    RMSD,             ///< Calculate RMSD between molecular structures
+    MARCUS            ///< Marcus theory barrier calculations (OSET & EnT)
 };
-;
 
 /**
  * @struct CommandContext

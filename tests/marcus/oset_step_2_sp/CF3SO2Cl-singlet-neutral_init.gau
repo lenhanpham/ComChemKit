@@ -1,0 +1,17 @@
+%OldChk=/absolute_path/my_marcus_project_step_1_opt/CF3SO2Cl-singlet-neutral_init.chk
+%chk=CF3SO2Cl-singlet-neutral_init.chk
+#P scf(maxcycle=500,xqc) uwb97xd/GenECP scrf=(pcm,solvent=acetonitrile,NonEq=write) Geom(Check) Guess(read) nosymm       
+
+Second step 
+
+0 1    
+
+@/path_to_basis_set/ma-def2-TZVP.gbs/N
+
+
+
+
+
+
+
+

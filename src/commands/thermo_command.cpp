@@ -324,7 +324,7 @@ void ThermoCommand::parse_args(int argc, char* argv[], int& i, CommandContext& c
         }
         else
         {
-            --i;  // Unrecognized option, let other parsers handle it
+            // Unrecognized option — skip it (outer loop advances past it)
         }
     }
 }

@@ -109,7 +109,11 @@ SOURCES = $(SRC_DIR)/main.cpp \
           $(SRC_DIR)/rmsd/rmsd_io.cpp \
           $(SRC_DIR)/rmsd/pipeline.cpp \
           $(SRC_DIR)/rmsd/struct_list.cpp \
-          $(SRC_DIR)/rmsd/matrix.cpp
+          $(SRC_DIR)/rmsd/matrix.cpp \
+          $(SRC_DIR)/marcus/marcus_input_gen.cpp \
+          $(SRC_DIR)/marcus/marcus_calculator.cpp \
+          $(SRC_DIR)/marcus/marcus_io.cpp \
+          $(SRC_DIR)/commands/marcus_command.cpp
 
 HEADERS = $(SRC_DIR)/commands/signal_handler.h \
           $(SRC_DIR)/extraction/qc_extractor.h \
@@ -159,7 +163,12 @@ HEADERS = $(SRC_DIR)/commands/signal_handler.h \
           $(SRC_DIR)/ivcoord/ivcoord_data.h \
           $(SRC_DIR)/ivcoord/ivcoord_parser_base.h \
           $(SRC_DIR)/ivcoord/gaussian_ivcoord_parser.h \
-          $(SRC_DIR)/ivcoord/ivcoord_runner.h
+          $(SRC_DIR)/ivcoord/ivcoord_runner.h \
+          $(SRC_DIR)/marcus/marcus_types.h \
+          $(SRC_DIR)/marcus/marcus_io.h \
+          $(SRC_DIR)/marcus/marcus_input_gen.h \
+          $(SRC_DIR)/marcus/marcus_calculator.h \
+          $(SRC_DIR)/commands/marcus_command.h
 
 OBJECTS = $(SOURCES:%.cpp=$(BUILD_DIR)/%.o)
 TARGET = $(BUILD_DIR)/bin/cck
@@ -178,6 +187,7 @@ $(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/thermo))
 $(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/commands))
 $(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/ivcoord))
 $(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/rmsd))
+$(shell $(call MKDIR_P,$(BUILD_DIR)/$(SRC_DIR)/marcus))
 
 # Default target
 all: $(TARGET)

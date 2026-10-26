@@ -113,6 +113,22 @@ namespace ThermoInterface
                                   const std::string& low_vib_method = "grimme", double ravib = 100.0);
 
     /**
+     * @brief Extract basic properties using full ThermoSettings configuration.
+     * @param file Path to the input quantum chemistry file
+     * @param scf_au [out] Calculated electronic energy in au
+     * @param corrG_au [out] Calculated Thermal Correction to Gibbs Free Energy in au
+     * @param corrH_au [out] Calculated Thermal Correction to Enthalpy in au
+     * @param zpe_au [out] Calculated Zero Point Energy in au
+     * @param nfreq [out] Number of parsed vibrational frequencies
+     * @param prog_name [out] Name of detected program
+     * @param settings Full thermo settings (temperature, pressure, scaling, low-vib treatment, etc.)
+     * @return true if successful
+     */
+    bool extract_basic_properties(const std::string& file,
+                                  double& scf_au, double& corrG_au, double& corrH_au, double& zpe_au, double& lf_cm, int& nfreq, std::string& prog_name,
+                                  const ThermoSettings& settings);
+
+    /**
      * @brief Identify the quantum chemistry program that generated the output file
      * @param file Path to the input quantum chemistry file
      * @return String representation of the program (e.g. "Gaussian", "ORCA", etc.)

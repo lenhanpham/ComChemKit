@@ -25,6 +25,7 @@ ComChemKit provides a comprehensive suite of tools for computational chemistry w
 * **Input Generation**: Create Gaussian input files from XYZ coordinate files
 * **Imaginary Mode Displacement**: Displace geometries along imaginary normal modes (QRC) to generate reactant/product guesses from transition states
 * **RMSD Calculation**: Compare molecular structures (XYZ/PDB) with optimal alignment, atom reordering, reflection search, and pairwise matrix mode
+* **Marcus Theory Barrier Calculations**: Marcus barrier calculations for OSET and EnT using the four-point method, with full thermochemical parameter support
 * **Input prarameters template**: Generate and reuse parameter templates for different calculation types
 * **Windows interactive mode**: Windows users can use all features plus popular linux commands in the interactive mode 
 
@@ -120,7 +121,7 @@ ComChemKit is released under the MIT License. See the LICENSE file for details.
 Version Information
 ===================
 
-Current Version: **v0.1.5**
+Current Version: **v0.1.6**
 
 - **v0.000.1**: Initial release featuring parallel data extraction, computational chemistry input generation, and thermo module for multi-program thermodynamic calculations
 - **v0.000.2**: Updated version with new calculation types and improvements in create input functionality
@@ -135,5 +136,6 @@ Current Version: **v0.1.5**
 - **v0.1.3**: New feature: calculation of RMSD to compare two geomtrical structures 
 - **v0.1.4**: New feature: extract-au and tabulate energy components in au like extract (opt freq) 
 - **v0.1.5**: Fixed bugs in the module rmsd  
+- **v0.1.6**: Support single electron transfer and energy transfer barrier calculations using four-point methods  
 .. note::
-    This documentation is for ComChemKit v0.1.2. For older versions, please refer to the archived documentation.
+    This documentation is for ComChemKit v0.1.6. For older versions, please refer to the archived documentation.

@@ -40,6 +40,7 @@ namespace HelpUtils
         std::cout << "  ivcoord           Displace geometry along imaginary normal modes\n";
         std::cout << "  rmsd              Calculate RMSD between molecular structures (XYZ/PDB)\n";
         std::cout << "  thermo            Advanced thermodynamic analysis for multiple quantum chemistry programs\n";
+        std::cout << "  marcus            Marcus theory barrier calculations (OSET / EnT, four-point method)\n";
         std::cout << "\nOptions:\n";
         std::cout << "  -h, --help        Show this help message\n";
         std::cout << "  -v, --version     Show version information\n";
@@ -316,6 +317,43 @@ namespace HelpUtils
                 std::cout << "  " << program_name << " rmsd --reorder --reorder-method hungarian a.xyz b.xyz\n";
                 std::cout << "  " << program_name << " rmsd --from-list list.txt\n";
                 std::cout << "  " << program_name << " rmsd --from-list big.txt --rows 0:250 --out part-0.csv\n";
+                break;
+            case CommandType::MARCUS:
+                std::cout << "Usage: " << program_name << " marcus -p <parameter_file> -step <1|2|3>\n";
+                std::cout << "       [options: -mode <symmetric|asymmetric>] [-O <outfile>] [-v]\n\n";
+                std::cout << "Marcus Theory Barrier Calculations (OSET / EnT, Four-Point Method)\n";
+                std::cout << "================================================================\n\n";
+                std::cout << "Calculates Marcus free-energy barriers for Outer Sphere Single\n";
+                std::cout << "Electron Transfer (OSET) and Energy Transfer (EnT) using the\n";
+                std::cout << "explicit four-point reorganization energy method.\n\n";
+                std::cout << "Workflow (3 steps, user submits Gaussian jobs between steps):\n";
+                std::cout << "  Step 1: Generate geometry optimization inputs in <project>_step_1_opt/\n";
+                std::cout << "          User submits to Gaussian, waits for completion.\n";
+                std::cout << "  Step 2: Generate single point inputs in <project>_step_2_sp/\n";
+                std::cout << "          (reads step-1 checkpoints via %OldChk + Geom=Check)\n";
+                std::cout << "          User submits to Gaussian, waits for completion.\n";
+                std::cout << "  Step 3: Calculate barriers in <project>_barrier/\n\n";
+                std::cout << "Options:\n";
+                std::cout << "  -p <file>      Parameter file (required, ComChemKit key=value format)\n";
+                std::cout << "  -step <n>      Workflow step: 1=opt inputs, 2=sp inputs, 3=barriers\n";
+                std::cout << "  -mode <m>      Barrier mode: symmetric (default) or asymmetric\n";
+                std::cout << "  -O <file>      Output file for barrier report (step 3)\n";
+                std::cout << "  -v             Verbose mode\n\n";
+                std::cout << "Thermo options (mirror high-kj/high-au):\n";
+                std::cout << "  -t <K>         Temperature in Kelvin for thermal corrections\n";
+                std::cout << "  -c <M>         Concentration in mol/L for phase correction\n";
+                std::cout << "  --pressure <atm> Pressure in atm for phase correction (default: 1.0)\n";
+                std::cout << "  --lowvibmeth <m> Low-freq vibrational treatment (default: grimme)\n";
+                std::cout << "                   Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
+                std::cout << "  --ravib <cm-1> Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
+                std::cout << "Parameter template generation:\n";
+                std::cout << "  --genoset-params  Generate OSET parameter template\n";
+                std::cout << "  --genent-params   Generate EnT parameter template\n";
+                std::cout << "  -o <file>      Output file for template (default: marcus_<type>.params)\n\n";
+                std::cout << "Examples:\n";
+                std::cout << "  " << program_name << " marcus -p params.ini -step 1\n";
+                std::cout << "  " << program_name << " marcus -p params.ini -step 2\n";
+                std::cout << "  " << program_name << " marcus -p params.ini -step 3 -mode symmetric\n";
                 break;
         }
 
