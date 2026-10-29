@@ -16,16 +16,16 @@ step = 1,2                             # 1 = gen opt inputs, 2 = gen sp inputs, 
 # DONOR / ACCEPTOR DEFINITIONS (shared by all steps)
 # ----------------------------------------------------------------------------
 # Donor
-donor_name        = Cudap2-10
-donor_xyz         = Cudap2-10.xyz
-donor_init_charge = 1
-donor_init_mult   = 3
-donor_final_charge = 2
+donor_name        = TEA
+donor_xyz         = TEA.xyz
+donor_init_charge = 0
+donor_init_mult   = 1 
+donor_final_charge = +1
 donor_final_mult  = 2
 
 # Acceptor
-acceptor_name        = CF3SO2Cl
-acceptor_xyz         = CF3SO2Cl.xyz
+acceptor_name        = p-terphenyl
+acceptor_xyz         = p-terphenyl.xyz
 acceptor_init_charge = 0
 acceptor_init_mult   = 1
 acceptor_final_charge = -1
@@ -36,10 +36,10 @@ acceptor_final_mult   = 2
 # All CreateInput opt_freq parameters supported, prefixed with step1_.
 # ----------------------------------------------------------------------------
 step1_functional      = uwb97xd
-step1_basis           = def2svpp
+step1_basis           = 6-31G(d) 
 #step1_basis_path      = /path/to/basis/ma-def2svpp.gbs
 step1_solvent_model   = smd
-step1_solvent         = THF
+step1_solvent         = n,n-DiMethylFormamide
 step1_scf_maxcycle    = 300
 step1_opt_maxcycles   = 300
 step1_opt_options     =
@@ -59,10 +59,10 @@ step1_scf_restart     = false
 # All CreateInput sp parameters supported, prefixed with step2_.
 # ----------------------------------------------------------------------------
 step2_functional      = uwb97xd
-step2_basis           = GenECP        # typically higher level than step1
-step2_basis_path      = /path/to/basis/ma-def2tzvp.gbs
+step2_basis           = Gen        # typically higher level than step1
+step2_basis_path      = /home/595/np9048/sources/BasisSetGaussian/ma-def2-TZVP.gbs/N 
 step2_solvent_model   = smd
-step2_solvent         = THF
+step2_solvent         = n,n-DiMethylFormamide 
 step2_solvent_extra   = ExternalIteration,NonEq=read
 step2_scf_maxcycle    = 500
 # step2_mem             = 20GB
@@ -71,7 +71,7 @@ step2_scf_maxcycle    = 500
 # step2_gpucpu          =
 # step2_print_level     =
 # step2_tail            =
-# step2_route_extra_keywords =
+ step2_route_extra_keywords = 5D 7F 
 
 # ----------------------------------------------------------------------------
 # STEP 3 — Barrier calculation

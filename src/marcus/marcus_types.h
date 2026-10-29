@@ -64,11 +64,28 @@ struct MarcusState {
     std::string xyz_path;      ///< Path to XYZ coordinate file (step 1 only)
     std::string chk_file;      ///< Checkpoint filename (e.g., "PC-doublet.chk")
     std::string log_file;      ///< Gaussian output log filename
-    double energy_elec = 0.0;  ///< Electronic energy from step 2 (Hartree)
+    // --- Two-level components (high-au style) ---
+    double energy_elec = 0.0;  ///< Electronic energy from step 2 (Hartree, alias of e_high)
+    double e_low = 0.0;        ///< Low-level SCF energy from step-1 log (Hartree)
+    double e_high = 0.0;       ///< High-level electronic energy from step-2 log (Hartree)
+    std::string e_high_source; ///< Which key won: "After PCM" (scfEqui) or "SCF Done"
+    double zpe = 0.0;          ///< Zero-point correction from step 1 (Hartree)
+    double tc_energy = 0.0;    ///< Thermal correction to Energy from step 1 (Hartree)
+    double tc_enthalpy = 0.0;  ///< Thermal correction to Enthalpy from step 1 (Hartree)
     double tc_gibbs = 0.0;     ///< Thermal correction to Gibbs from step 1 (Hartree)
-    double g_state = 0.0;      ///< Combined Gibbs free energy: E_elec + TC_G (Hartree)
+    double tc_only = 0.0;      ///< tc_energy - zpe (high-au "TC" column)
+    double ts_value = 0.0;     ///< tc_enthalpy - tc_gibbs (high-au "TS" column)
+    double h_state = 0.0;      ///< Enthalpy: E_high + TC_H (Hartree)
+    double g_raw = 0.0;        ///< Gibbs before phase: E_high + TC_G (Hartree)
+    double g_state = 0.0;      ///< Final Gibbs per state incl. phase (== g_corr, Hartree)
+    double g_corr = 0.0;       ///< Gibbs with phase correction (Hartree)
+    double phase_corr = 0.0;   ///< Per-state phase correction applied (Hartree)
+    bool has_scrf = false;     ///< Whether SCRF detected in step-1/step-2 logs
+    double lowest_freq = 0.0;  ///< Lowest vibrational frequency from step-1 log (cm^-1)
+    double temperature_used = 298.15; ///< T used for thermal/phase of this state (K)
     bool has_energy = false;   ///< Whether electronic energy was parsed
     bool has_tc_gibbs = false; ///< Whether thermal correction was parsed
+    bool has_full_thermal = false; ///< Whether full ZPE/TC_H/TC_E set was parsed
 };
 
 /**
@@ -174,20 +191,45 @@ struct MarcusProject {
 std::string state_suffix(const MarcusState& state);
 
 /**
+ * @struct MarcusElectronicSet
+ * @brief All 8 step-2 electronic energies for the four-point method.
+ */
+struct MarcusElectronicSet {
+    // Equilibrium (own geometry)
+    double E_R_D_qR_D = 0.0;
+    double E_P_D_qP_D = 0.0;
+    double E_R_A_qR_A = 0.0;
+    double E_P_A_qP_A = 0.0;
+    // Cross (other geometry, NonEq read)
+    double E_P_D_qR_D = 0.0;
+    double E_R_D_qP_D = 0.0;
+    double E_P_A_qR_A = 0.0;
+    double E_R_A_qP_A = 0.0;
+    std::string f_R_D_qR_D, f_P_D_qP_D, f_R_A_qR_A, f_P_A_qP_A;
+    std::string f_P_D_qR_D, f_R_D_qP_D, f_P_A_qR_A, f_R_A_qP_A;
+    bool success = false;
+};
+
+/**
  * @struct MarcusResult
  * @brief Results of the barrier calculation.
  */
 struct MarcusResult {
-    double dG_r_hartree = 0.0;      ///< Reaction free energy (Hartree)
-    double dG_r_kcal = 0.0;         ///< Reaction free energy (kcal/mol)
+    double dG_r_hartree = 0.0;      ///< Reaction free energy, phase-corrected (Hartree)
+    double dG_r_kcal = 0.0;         ///< Reaction free energy, phase-corrected (kcal/mol)
+    double dG_r_hartree_raw = 0.0;  ///< Reaction free energy before phase (Hartree)
+    double dG_r_kcal_raw = 0.0;     ///< Reaction free energy before phase (kcal/mol)
     double lambda_R_kcal = 0.0;     ///< Reorganization energy reactant side (kcal/mol)
     double lambda_P_kcal = 0.0;     ///< Reorganization energy product side (kcal/mol)
     double lambda_avg_kcal = 0.0;   ///< Average reorganization energy (kcal/mol)
+    double lambda_R_hartree = 0.0;  ///< Reactant-side reorganization (Hartree)
+    double lambda_P_hartree = 0.0;  ///< Product-side reorganization (Hartree)
     double barrier_sym_kcal = 0.0;  ///< Symmetric barrier (kcal/mol)
     double barrier_asym_kcal = 0.0; ///< Asymmetric barrier (kcal/mol)
-    double phase_correction = 0.0;  ///< Phase correction (Hartree)
-    double gibbs_hartree_corrected = 0.0;  ///< Gibbs with phase correction (Hartree)
-    bool phase_corr_applied = false;  ///< Whether phase correction applied
+    double phase_correction = 0.0;  ///< Net phase on dG_r (= sum products - sum reactants, Hartree)
+    double gibbs_hartree_corrected = 0.0;  ///< == dG_r_hartree (kept for compat)
+    bool phase_corr_applied = false;  ///< Whether any per-state phase was applied
+    MarcusElectronicSet elec;       ///< Full electronic audit trail
     bool success = false;           ///< Whether calculation succeeded
     std::string error_message;      ///< Error message if failed
 };

@@ -1,0 +1,15 @@
+                                                             
+*************************************************************
+* ComChemKit v0.1.6 developed by Le Nhan Pham               *
+* https://github.com/lenhanpham/ComChemKit                  *
+*************************************************************
+                                                             
+Temperature read from ../p-terphenyl-doublet-minus_final.log: 298.150 K. Make sure that temperature has been used in your input.
+The concentration for phase correction: 1.000 M or 1000.000 mol/m3
+Last Gibbs free correction for phase changing from 1 atm to 1.000 M: 0.003019 au
+Output                                         G kJ/mol         G a.u            G eV     LowFQ  Status  PhCorr
+------------------------------------    ---------------   -----------   -------------   -------   -----   -----
+p-terphenyl-doublet-minus_final.log     -1822663.557043   -694.215737   -18890.579781   23.3614    DONE     YES
+p-terphenyl-singlet-neutral_init.log    -1822483.354711   -694.147102   -18888.712116   36.0464    DONE     YES
+TEA-singlet-neutral_init.log             -767337.309634   -292.263284    -7952.892135   39.9878    DONE     YES
+TEA-doublet-plus_final.log               -766863.849846   -292.082952    -7947.985069   60.0421    DONE     YES
