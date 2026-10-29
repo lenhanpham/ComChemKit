@@ -67,7 +67,7 @@ lambda avg = 62.8805 kcal/mol
 
 Free Energy Barrier:
 --------------------
-Delta G‡ (symmetric):  70.2968 kcal/mol
+Delta G‡ (symmetric)  = 0.112025 Hartree  = 70.2968 kcal/mol  = 294.1221 kJ/mol  = 3.0484 eV
 
 Notes:
   lambda R: reorganization energy measured on the reactants parabola
