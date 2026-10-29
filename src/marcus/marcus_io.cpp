@@ -334,14 +334,20 @@ bool write_barrier_report(const std::string& dir_barrier,
     file << "Free Energy Barrier:\n";
     file << "--------------------\n";
     if (result.success) {
+        auto barrier_trio = [&file](const char* lab, double kcal) {
+            double h = kcal / HARTREE_TO_KCAL_MOL;
+            file << std::fixed << std::setprecision(6)
+                 << lab << " = " << h << " Hartree  = "
+                 << std::setprecision(4) << kcal << " kcal/mol  = "
+                 << h * HARTREE_TO_KJ_MOL << " kJ/mol  = "
+                 << h * HARTREE_TO_EV << " eV\n";
+        };
         if (project.barrier_mode == BarrierMode::SYMMETRIC ||
             project.barrier_mode == BarrierMode::ASYMMETRIC) {
-            file << std::fixed << std::setprecision(4)
-                 << "Delta G‡ (symmetric):  " << result.barrier_sym_kcal << " kcal/mol\n";
+            barrier_trio("Delta G‡ (symmetric) ", result.barrier_sym_kcal);
         }
         if (project.barrier_mode == BarrierMode::ASYMMETRIC) {
-            file << std::fixed << std::setprecision(4)
-                 << "Delta G‡ (asymmetric): " << result.barrier_asym_kcal << " kcal/mol\n";
+            barrier_trio("Delta G‡ (asymmetric)", result.barrier_asym_kcal);
         }
     } else {
         file << "Not available: " << result.error_message << "\n";
