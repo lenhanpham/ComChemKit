@@ -1,0 +1,18 @@
+                                                             
+*************************************************************
+* ComChemKit v0.1.6 developed by Le Nhan Pham               *
+* https://github.com/lenhanpham/ComChemKit                  *
+*************************************************************
+                                                             
+Temperature read per-file from output logs (representative default: 298.150 K); use -t <T> to apply a single temperature to all files
+The concentration for phase correction: 1.000 M or 1000 mol/m3
+Representative Gibbs free correction for phase changing at 298.150 K: 0.003019 au
+Using 4 threads for processing.
+Successfully processed 4/4 files.
+Peak memory usage: 253.59 KB
+Output                                       ETG kJ/mol   Low FC       ETG a.u   Nuclear E au          SCFE       ZPE    Status   PCorr   Round
+-----------------------------------------------------------------------------------------------------------------------------------------------
+p-terphenyl-doublet-minus_final.log     -1822024.205545    23.36   -693.972221    1086.882585   -694.194990   0.261710     DONE     YES       1
+p-terphenyl-singlet-neutral_init.log    -1821874.683308    36.05   -693.915271    1092.804938   -694.143946   0.266277     DONE     YES       1
+TEA-singlet-neutral_init.log             -767059.853499    39.99   -292.157606     339.068298   -292.335160   0.208637     DONE     YES       1
+TEA-doublet-plus_final.log               -766600.419845    60.04   -291.982617     339.106735   -292.160248   0.209126     DONE     YES       1

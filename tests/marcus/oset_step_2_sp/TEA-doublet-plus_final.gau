@@ -1,0 +1,10 @@
+%OldChk=/scratch/f81/np9048/CCK-marcus/oset_step_1_opt/TEA-doublet-plus_final.chk
+%chk=TEA-doublet-plus_final.chk
+#P scf(maxcycle=500,xqc) uwb97xd/Gen scrf=(smd,solvent=n,n-DiMethylFormamide,NonEq=write) Geom(Check) Guess(read) nosymm 5D 7F
+
+Second step
+
+1 2
+
+@/home/595/np9048/sources/BasisSetGaussian/ma-def2-TZVP.gbs/N
+

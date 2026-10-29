@@ -1,0 +1,10 @@
+%Oldchk=TEA-singlet-neutral_init.chk
+%chk=TEA-doublet-plus_final-from-TEA-singlet-neutral_init.chk
+# scf(maxcycle=500,xqc) uwb97xd/Gen scrf=(smd,solvent=n,n-DiMethylFormamide,ExternalIteration,NonEq=read) Geom=Check Guess(read) nosymm 5D 7F
+
+Second step
+
+1 2
+
+@/home/595/np9048/sources/BasisSetGaussian/ma-def2-TZVP.gbs/N
+

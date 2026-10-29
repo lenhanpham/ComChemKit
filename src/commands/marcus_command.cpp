@@ -592,7 +592,10 @@ int MarcusCommand::run_step3(const Marcus::MarcusProject& project) {
                     + std::to_string(proj.concentration) + " M)"
                   : "string-matching from log files") << std::endl;
     if (result.phase_corr_applied) {
-        std::cout << "Phase correction: " << result.phase_correction << " Hartree (applied)" << std::endl;
+        std::cout << "Per-state phase: " << proj.donor.init_state.phase_corr
+                  << " Hartree (SCRF, T=" << proj.donor.init_state.temperature_used
+                  << " K, C=" << proj.concentration << " M); net on dG_r = "
+                  << result.phase_correction << " Hartree" << std::endl;
     }
     std::cout << "Delta G°r = " << result.dG_r_kcal << " kcal/mol (" << result.dG_r_hartree << " Hartree)" << std::endl;
     std::cout << "lambda R  = " << result.lambda_R_kcal << " kcal/mol" << std::endl;

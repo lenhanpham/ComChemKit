@@ -30,6 +30,16 @@ namespace Marcus {
 bool extract_electronic_energy(const std::string& log_path, double& energy);
 
 /**
+ * @brief Extract electronic energy plus which key produced it.
+ * @param log_path Path to the .log file.
+ * @param energy Output energy in Hartree.
+ * @param source_out "After PCM" when scfEqui won, else "SCF Done".
+ * @return true on success.
+ */
+bool extract_electronic_energy_src(const std::string& log_path,
+                                   double& energy, std::string& source_out);
+
+/**
  * @brief Extract thermal correction to Gibbs free energy from a step-1 log file.
  * 
  * Pattern: "Thermal correction to Gibbs Free Energy" -> field 7.
@@ -39,6 +49,17 @@ bool extract_electronic_energy(const std::string& log_path, double& energy);
  * @return true on success.
  */
 bool extract_thermal_correction_gibbs(const std::string& log_path, double& tc_gibbs);
+
+/**
+ * @brief Extract the full low-level thermal block from a step-1 log.
+ * Reads SCF Done (E_low), ZPE, TC_E, TC_H, TC_G, lowest frequency and log temperature.
+ * Mirrors HighLevelEnergyCalculator::extract_low_level_thermal_data.
+ * @return true if at least TC_G was found.
+ */
+bool extract_full_thermal_step1(const std::string& log_path,
+                                 double& e_low, double& zpe, double& tc_e,
+                                 double& tc_h, double& tc_g,
+                                 double& lowest_freq, double& temp_k);
 
 /**
  * @brief Compute the Gibbs free energy for a state (high-kj/high-au).
@@ -99,6 +120,12 @@ bool compute_g_state(MarcusState& state,
                      bool hg_entropy = false,
                      const std::string& bav_preset = "",
                      bool output_otm = false);
+
+/**
+ * @brief Per-state phase correction (Hartree), high-au rule.
+ * Returns 0 when no SCRF found in either log.
+ */
+double per_state_phase_correction(bool has_scrf, double temp_k, double concentration_m);
 
 /**
  * @brief Compute the reaction free energy Delta G°r.
