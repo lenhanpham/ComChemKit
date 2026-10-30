@@ -302,9 +302,14 @@ install(FILES
     DESTINATION ${CMAKE_INSTALL_DOCDIR}
 )
 
-# Testing configuration (if tests are added in the future)
+# Testing configuration
 enable_testing()
-# add_subdirectory(tests)  # Uncomment when tests are added
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+    add_test(NAME marcus_report
+        COMMAND ${CMAKE_COMMAND} -E env "CCK_BINARY=$<TARGET_FILE:cck>"
+                ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/marcus/test_report.py)
+endif()
 
 # Print configuration summary
 message(STATUS "")

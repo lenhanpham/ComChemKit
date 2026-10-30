@@ -14,6 +14,7 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <filesystem>
 
 MarcusCommand::MarcusCommand() {}
 
@@ -33,84 +34,65 @@ Marcus::CalcType MarcusCommand::parse_calc_type(const std::string& s) {
     return Marcus::CalcType::OSET;  // default
 }
 
-Marcus::BarrierMode MarcusCommand::parse_barrier_mode(const std::string& s) {
-    std::string lower = s;
-    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-    if (lower == "asymmetric" || lower == "asym") return Marcus::BarrierMode::ASYMMETRIC;
-    return Marcus::BarrierMode::SYMMETRIC;  // default
-}
-
 void MarcusCommand::print_help(const std::string& program_name) const {
     std::string cmd_name = get_name();
     std::cout << "Help for command: " << cmd_name << "\n\n";
-    std::cout << "Usage: " << program_name << " marcus -p <parameter_file> -step <1|2|3>\n";
-    std::cout << "       [options: -mode <symmetric|asymmetric>] [-O <outfile>] [-v]\n\n";
+    std::cout << "Usage: " << program_name << " marcus <input_file> [-step <1|2|3>]\n";
+    std::cout << "       [-O <outfile>] [-v] [thermo options]\n\n";
     std::cout << "Marcus Theory Barrier Calculations (OSET / EnT, Four-Point Method)\n";
     std::cout << "================================================================\n\n";
     std::cout << "Calculates Marcus free-energy barriers for Outer Sphere Single\n";
     std::cout << "Electron Transfer (OSET) and Energy Transfer (EnT) using the\n";
     std::cout << "explicit four-point reorganization energy method.\n\n";
     std::cout << "Workflow (3 steps, user submits Gaussian jobs between steps):\n";
-    std::cout << "  Step 1: Generate geometry optimization inputs in <project>_step_1_opt/\n";
+    std::cout << "  Step 1: Generate geometry optimization inputs in <project>_step_1/\n";
     std::cout << "          User submits to Gaussian, waits for completion.\n";
-    std::cout << "  Step 2: Generate single point inputs in <project>_step_2_sp/\n";
+    std::cout << "  Step 2: Generate single point inputs in <project>_step_2/\n";
     std::cout << "          (reads step-1 checkpoints via %OldChk + Geom=Check)\n";
     std::cout << "          User submits to Gaussian, waits for completion.\n";
-    std::cout << "  Step 3: Calculate barriers in <project>_barrier/\n\n";
+    std::cout << "  Step 3: Calculate symmetric and asymmetric barriers in <project>.log\n\n";
     std::cout << "Options:\n";
-    std::cout << "  -p <file>      Parameter file (required, ComChemKit key=value format)\n";
+    std::cout << "  <input_file>   Input file in ComChemKit key=value format (any extension)\n";
+    std::cout << "                 Project defaults to the input filename without its last extension\n";
     std::cout << "  -step <n>      Workflow step: 1=opt inputs, 2=sp inputs, 3=barriers\n";
-    std::cout << "  -mode <m>      Barrier mode: symmetric (default) or asymmetric\n";
     std::cout << "  -O <file>      Output file for barrier report (step 3)\n";
-    std::cout << "  -v             Verbose mode\n\n";
+    std::cout << "  -v, --verbose  Verbose report and console diagnostics\n";
+    std::cout << "                 Input key report_level = default|verbose also selects report detail\n\n";
     std::cout << "Thermo options (mirror high-kj/high-au):\n";
     std::cout << "  -t <K>         Temperature in Kelvin for thermal corrections\n";
     std::cout << "  -c <M>         Concentration in mol/L for phase correction\n";
-    std::cout << "  --pressure <atm> Pressure in atm for phase correction (default: 1.0)\n";
+    std::cout << "  --pressure <atm> Pressure for thermo recalculation (default: 1.0)\n";
     std::cout << "  --lowvibmeth <m> Low-freq vibrational treatment (default: grimme)\n";
     std::cout << "                   Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
     std::cout << "  --ravib <cm-1> Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
-    std::cout << "Parameter template generation:\n";
-    std::cout << "  --genoset-params  Generate OSET parameter template\n";
-    std::cout << "  --genent-params   Generate EnT parameter template\n";
-    std::cout << "  -o <file>      Output file for template (default: marcus_<type>.params)\n\n";
+    std::cout << "Input template generation:\n";
+    std::cout << "  --genoset-input  Generate OSET input template\n";
+    std::cout << "  --genent-input   Generate EnT input template\n";
+    std::cout << "  -o <file>      Output file for template (default: marcus_<type>.inp)\n\n";
     std::cout << "Examples:\n";
-    std::cout << "  " << program_name << " marcus -p params.ini -step 1\n";
-    std::cout << "  " << program_name << " marcus -p params.ini -step 2\n";
-    std::cout << "  " << program_name << " marcus -p params.ini -step 3 -mode symmetric\n";
+    std::cout << "  " << program_name << " marcus reaction.inp -step 1\n";
+    std::cout << "  " << program_name << " marcus reaction.inp -step 2\n";
+    std::cout << "  " << program_name << " marcus reaction.inp -step 3\n";
+    std::cout << "  " << program_name << " marcus reaction.inp -step 3 -v\n";
     HelpUtils::print_common_options();
     std::cout << "  -h, --help            Show this help message\n";
-    std::cout << "  -v, --version         Show version information\n\n";
+    std::cout << "  --version             Show version information\n\n";
     std::cout << "Examples:\n";
-    std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
-    std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
-    std::cout << "  " << program_name << " " << cmd_name << " -nt 4        # Use 4 threads\n";
+    std::cout << "  " << program_name << " " << cmd_name << " reaction.inp -q           # Quiet mode\n";
+    std::cout << "  " << program_name << " " << cmd_name << " reaction.inp -nt 4        # Use 4 threads\n";
     std::cout << "\n";
 }
 
 void MarcusCommand::parse_args(int argc, char* argv[], int& i, CommandContext& /*context*/) {
     std::string arg = argv[i];
 
-    if (arg == "-p" || arg == "--param" || arg == "--parameter" || arg == "--param-file") {
-        if (i + 1 < argc) {
-            param_file = argv[++i];
-        } else {
-            std::cerr << "Error: -p requires a parameter file argument" << std::endl;
-        }
-    }
-    else if (arg == "-step") {
+    if (arg == "-step") {
         if (i + 1 < argc) {
             step_arg = argv[++i];
             step_cli_given = true;
         } else {
             std::cerr << "Error: -step requires an argument (1, 2, 3, or 1,2)" << std::endl;
-        }
-    }
-    else if (arg == "-mode") {
-        if (i + 1 < argc) {
-            barrier_mode = parse_barrier_mode(argv[++i]);
-        } else {
-            std::cerr << "Error: -mode requires symmetric or asymmetric" << std::endl;
+            parse_error = true;
         }
     }
     else if (arg == "-O" || arg == "--out" || arg == "--output") {
@@ -118,6 +100,7 @@ void MarcusCommand::parse_args(int argc, char* argv[], int& i, CommandContext& /
             out_file = argv[++i];
         } else {
             std::cerr << "Error: -O requires an output file argument" << std::endl;
+            parse_error = true;
         }
     }
     else if (arg == "-v" || arg == "--verbose") {
@@ -129,6 +112,7 @@ void MarcusCommand::parse_args(int argc, char* argv[], int& i, CommandContext& /
             use_input_temp = true;
         } else {
             std::cerr << "Error: -t requires a temperature argument" << std::endl;
+            parse_error = true;
         }
     }
     else if (arg == "-c" || arg == "-C" || arg == "--cm" || arg == "--conc") {
@@ -137,67 +121,96 @@ void MarcusCommand::parse_args(int argc, char* argv[], int& i, CommandContext& /
             use_input_concentration = true;
         } else {
             std::cerr << "Error: -c requires a concentration argument" << std::endl;
+            parse_error = true;
         }
     }
-    else if (arg == "-p" || arg == "--pressure") {
+    else if (arg == "--pressure") {
         if (i + 1 < argc) {
             project_pressure = std::stod(argv[++i]);
             use_input_pressure = true;
         } else {
-            std::cerr << "Error: -p requires a pressure argument" << std::endl;
+            std::cerr << "Error: --pressure requires a pressure argument" << std::endl;
+            parse_error = true;
         }
     }
     else if (arg == "--lowvibmeth") {
         if (i + 1 < argc) {
             project_low_vib_method = argv[++i];
+            low_vib_cli_given = true;
         } else {
             std::cerr << "Error: --lowvibmeth requires a method argument" << std::endl;
+            parse_error = true;
         }
     }
     else if (arg == "--ravib") {
         if (i + 1 < argc) {
             project_ravib = std::stod(argv[++i]);
+            ravib_cli_given = true;
         } else {
             std::cerr << "Error: --ravib requires a frequency argument" << std::endl;
+            parse_error = true;
         }
     }
     else if (arg == "-h" || arg == "--help") {
         print_help("cck");
         std::exit(0);
     }
-    else if (arg == "--genoset-params") {
+    else if (arg == "--genoset-input") {
         generate_template_flag = true;
         template_calc_type = "oset";
     }
-    else if (arg == "--genent-params") {
+    else if (arg == "--genent-input") {
         generate_template_flag = true;
         template_calc_type = "ent";
     }
     else if (arg == "-o" || arg == "--output-template" || arg == "--template-out") {
         if (i + 1 < argc) {
-            param_file = argv[++i];  // reuse param_file as output path
+            template_file = argv[++i];
         } else {
             std::cerr << "Error: -o requires an output file argument" << std::endl;
+            parse_error = true;
         }
     }
-    else {
-        // Unrecognized option for marcus command — skip it
-        // (the outer parse loop will advance past it)
+    else if (!arg.empty() && arg[0] != '-') {
+        if (!input_file.empty()) {
+            std::cerr << "Error: Only one Marcus input file may be specified" << std::endl;
+            parse_error = true;
+        } else {
+            input_file = arg;
+        }
+    }
+    else if (arg != "-q" && arg != "--quiet") {
+        // The outer parser handles common options; flag-only quiet is also passed here.
+        std::cerr << "Error: Unknown Marcus option: " << arg << std::endl;
+        parse_error = true;
     }
 }
 
-bool MarcusCommand::load_parameters(const std::string& filename,
+bool MarcusCommand::load_input(const std::string& filename,
                                      Marcus::MarcusProject& project) {
     ParameterParser parser;
     if (!parser.loadFromFile(filename)) {
-        std::cerr << "Error: Cannot load parameter file: " << filename << std::endl;
+        std::cerr << "Error: Cannot load input file: " << filename << std::endl;
+        return false;
+    }
+
+    if (parser.hasParameter("marcus_mode")) {
+        std::cerr << "Error: marcus_mode is no longer supported; remove it from the input. "
+                     "Both barriers are calculated automatically." << std::endl;
         return false;
     }
 
     // Project identification
-    project.name = parser.getString("project", "marcus_project");
+    project.name = parser.getString("project", "");
+    if (project.name.empty()) {
+        project.name = std::filesystem::path(filename).stem().string();
+    }
+    if (project.name.empty()) {
+        std::cerr << "Error: Cannot derive project name from input file: " << filename << std::endl;
+        return false;
+    }
     project.calc_type = parse_calc_type(parser.getString("calc_type", "oset"));
-    // Step selection: CLI -step overrides the params-file `step` key.
+    // Step selection: CLI -step overrides the input-file `step` key.
     // Default (key commented out / missing) generates both input sets: "1,2".
     std::string step_spec = step_cli_given ? step_arg : parser.getString("step", "1,2");
     std::vector<int> steps;
@@ -233,8 +246,6 @@ bool MarcusCommand::load_parameters(const std::string& filename,
     std::sort(steps.begin(), steps.end());
     project.requested_steps = steps;
     project.current_step = static_cast<Marcus::Step>(steps.front() - 1);
-    project.barrier_mode = barrier_mode;
-    project.skip_existing = parser.getBool("skip_existing", true);
 
     // Donor
     project.donor.name = parser.getString("donor_name", "");
@@ -324,8 +335,8 @@ bool MarcusCommand::load_parameters(const std::string& filename,
     project.temperature = use_input_temp ? project_temperature : parser.getDouble("temperature", 298.15);
     project.concentration = use_input_concentration ? project_concentration : parser.getDouble("concentration", 1.0);
     project.pressure = use_input_pressure ? project_pressure : parser.getDouble("pressure", 1.0);
-    project.low_vib_method = parser.getString("low_vib_method", "grimme");
-    project.ravib = parser.getDouble("ravib", 100.0);
+    project.low_vib_method = low_vib_cli_given ? project_low_vib_method : parser.getString("low_vib_method", "grimme");
+    project.ravib = ravib_cli_given ? project_ravib : parser.getDouble("ravib", 100.0);
     project.scale_zpe = parser.getDouble("scale_zpe", 1.0);
     project.scale_heat = parser.getDouble("scale_heat", 1.0);
     project.scale_entropy = parser.getDouble("scale_entropy", 1.0);
@@ -345,9 +356,17 @@ bool MarcusCommand::load_parameters(const std::string& filename,
     project.use_input_concentration = use_input_concentration || parser.getBool("use_input_concentration", false);
     project.use_input_pressure = use_input_pressure || parser.getBool("use_input_pressure", false);
     project.out_file = out_file.empty() ? parser.getString("out_file", "") : out_file;
+    std::string report_level = parser.getString("report_level", "default");
+    std::transform(report_level.begin(), report_level.end(), report_level.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (report_level != "default" && report_level != "verbose") {
+        std::cerr << "Error: report_level must be default or verbose" << std::endl;
+        return false;
+    }
+    project.verbose_report = verbose || report_level == "verbose";
 
     if (verbose) {
-        std::cout << "Loaded parameters from: " << filename << std::endl;
+        std::cout << "Loaded input from: " << filename << std::endl;
         std::cout << "  Project: " << project.name << std::endl;
         std::cout << "  Calc type: " << (project.calc_type == Marcus::CalcType::OSET ? "OSET" : "EnT") << std::endl;
         std::cout << "  Donor: " << project.donor.name << " (init: " << project.donor.init_state.charge
@@ -374,10 +393,10 @@ int MarcusCommand::generate_template(const std::string& filename) {
     bool is_ent = (template_calc_type == "ent");
 
     file << "# ============================================================================\n";
-    file << "# ComChemKit Marcus Barrier Parameter File\n";
+    file << "# ComChemKit Marcus Barrier Input File\n";
     file << "# Calculation type: " << (is_ent ? "EnT" : "OSET") << "\n";
-    file << "# Generated by: cck marcus --gen" << template_calc_type << "-params\n";
-    file << "# Edit this file and use with: cck marcus -p " << filename << " -step <1|2|3>\n";
+    file << "# Generated by: cck marcus --gen" << template_calc_type << "-input\n";
+    file << "# Edit this file and use with: cck marcus \"" << filename << "\" -step <1|2|3>\n";
     file << "# ============================================================================\n";
     file << "\n";
 
@@ -385,11 +404,11 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "# ----------------------------------------------------------------------------\n";
     file << "# PROJECT IDENTIFICATION\n";
     file << "# ----------------------------------------------------------------------------\n";
-    file << "project = my_marcus_project          # Project name; used for directory names\n";
-    file << "calc_type = " << template_calc_type << "          # oset | ent\n";
-    file << "step = 1,2                           # 1 = gen opt inputs, 2 = gen sp inputs, 3 = calc barriers\n";
-    file << "                                     # (default 1,2: generate both input sets up front;\n";
-    file << "                                     #  submit step-1 jobs first, then step-2 jobs)\n";
+    file << "# project = my_marcus_project        # Optional; defaults to input filename without extension\n";
+    file << "calc_type = " << template_calc_type << "                   # oset | ent\n";
+    file << "step = 1,2                     # 1 = gen opt inputs, 2 = gen sp inputs, 3 = calc barriers\n";
+    file << "                               # (default 1,2: generate both input sets up front;\n";
+    file << "                               #  submit step-1 jobs first, then step-2 jobs)\n";
     file << "\n";
 
     // Donor / Acceptor definitions
@@ -397,8 +416,8 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "# DONOR / ACCEPTOR DEFINITIONS (shared by all steps)\n";
     file << "# ----------------------------------------------------------------------------\n";
     file << "# Donor\n";
-    file << "donor_name        = PC\n";
-    file << "donor_xyz         = PC.xyz\n";
+    file << "donor_name        = Donor\n";
+    file << "donor_xyz         = Donor.xyz\n";
     if (is_ent) {
         file << "# For EnT, donor states are electronic states (e.g., S0, T1);\n";
         file << "# charge/mult refer to that state's charge and multiplicity\n";
@@ -406,21 +425,21 @@ int MarcusCommand::generate_template(const std::string& filename) {
         file << "donor_final_state = T1\n";
     }
     file << "donor_init_charge = 0\n";
-    file << "donor_init_mult   = 1\n";
-    file << "donor_final_charge = 0\n";
-    file << "donor_final_mult  = 1\n";
+    file << "donor_init_mult   = 3\n";
+    file << "donor_final_charge = 1\n";
+    file << "donor_final_mult  = 2\n";
     file << "\n";
     file << "# Acceptor\n";
-    file << "acceptor_name        = D1\n";
-    file << "acceptor_xyz         = D1.xyz\n";
+    file << "acceptor_name        = Acceptor\n";
+    file << "acceptor_xyz         = Acceptor.xyz\n";
     if (is_ent) {
         file << "acceptor_init_state  = S0\n";
         file << "acceptor_final_state = T1\n";
     }
     file << "acceptor_init_charge = 0\n";
     file << "acceptor_init_mult   = 1\n";
-    file << "acceptor_final_charge = 0\n";
-    file << "acceptor_final_mult   = 1\n";
+    file << "acceptor_final_charge = -1\n";
+    file << "acceptor_final_mult   = 2\n";
     file << "\n";
 
     // Step 1 theory
@@ -430,9 +449,9 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "# ----------------------------------------------------------------------------\n";
     file << "step1_functional      = uwb97xd\n";
     file << "step1_basis           = def2svpp\n";
-    file << "step1_basis_path      = /path/to/basis/ma-def2svpp.gbs\n";
+    file << "#step1_basis_path      = /path/to/basis/ma-def2svpp.gbs\n";
     file << "step1_solvent_model   = smd\n";
-    file << "step1_solvent         = n,n-DiMethylAcetamide\n";
+    file << "step1_solvent         = water\n";
     file << "step1_scf_maxcycle    = 300\n";
     file << "step1_opt_maxcycles   = 300\n";
     file << "step1_opt_options     =\n";
@@ -457,7 +476,7 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "step2_basis           = def2tzvp        # typically higher level than step1\n";
     file << "step2_basis_path      = /path/to/basis/ma-def2tzvp.gbs\n";
     file << "step2_solvent_model   = smd\n";
-    file << "step2_solvent         = n,n-DiMethylAcetamide\n";
+    file << "step2_solvent         = water\n";
     file << "step2_solvent_extra   = ExternalIteration,NonEq=read\n";
     file << "step2_scf_maxcycle    = 500\n";
     file << "# step2_mem             = 20GB\n";
@@ -473,13 +492,18 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "# ----------------------------------------------------------------------------\n";
     file << "# STEP 3 — Barrier calculation\n";
     file << "# ----------------------------------------------------------------------------\n";
-    file << "marcus_mode = symmetric       # symmetric | asymmetric\n";
-    file << "skip_existing = true\n";
-    file << "temperature = 298.15          # K (for thermal corrections & phase correction)\n";
-    file << "concentration = 1.0           # mol/L (for phase correction)\n";
-    file << "pressure = 1.0                # atm (for phase correction)\n";
-    file << "low_vib_method = grimme       # harmonic|truhlar|grimme|minenkov|headgordon\n";
-    file << "ravib = 100.0                 # cm^-1, crossover for quasi-RRHO\n";
+    file << "report_level = default       # default | verbose; -v also enables verbose reporting\n";
+    file << "out_file =                   # optional; default: <project>.log in current directory\n";
+    file << "\n";
+
+    file << "# ----------------------------------------------------------------------------\n";
+    file << "# Thermochemistry settings for Barrier calculation\n";
+    file << "# ----------------------------------------------------------------------------\n";
+    file << "#temperature = 298.15          # K (for thermal corrections & phase correction)\n";
+    file << "#concentration = 1.0           # mol/L (for phase correction)\n";
+    file << "#pressure = 1.0                # atm (thermo recalculation; phase standard is fixed at 1 atm)\n";
+    file << "#low_vib_method = grimme       # harmonic|truhlar|grimme|minenkov|headgordon\n";
+    file << "#ravib = 100.0                 # cm^-1, crossover for quasi-RRHO\n";
     file << "# scale_zpe = 1.0             # ZPE scaling factor\n";
     file << "# scale_heat = 1.0            # Heat capacity scaling factor\n";
     file << "# scale_entropy = 1.0         # Entropy scaling factor\n";
@@ -497,41 +521,40 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "# output_otm = false          # Output .otm file flag\n";
     file << "# use_input_temp = true       # uncomment to use -t pathway (thermo module)\n";
     file << "# use_input_concentration = true  # uncomment to use -c pathway\n";
-    file << "# use_input_pressure = true   # uncomment to use -p pathway (phase correction)\n";
-    file << "out_file =                   # optional; default: <project>_barrier/<project>_barrier_report.txt\n";
+    file << "# use_input_pressure = true   # uncomment to use thermo-module pressure pathway\n";
     file << "\n";
 
     file << "# ----------------------------------------------------------------------------\n";
     file << "# WORKFLOW INSTRUCTIONS\n";
     file << "# ----------------------------------------------------------------------------\n";
     file << "# Step 1: Generate geometry optimization inputs:\n";
-    file << "#   cck marcus -p " << filename << " -step 1\n";
-    file << "#   -> Creates .gau files in <project>_step_1_opt/\n";
+    file << "#   cck marcus \"" << filename << "\" -step 1\n";
+    file << "#   -> Creates .gau files in <project>_step_1/\n";
     file << "#   Submit these to Gaussian, wait for completion.\n";
     file << "\n";
     file << "# Step 2: Generate single point inputs (reads step-1 checkpoints):\n";
-    file << "#   cck marcus -p " << filename << " -step 2\n";
-    file << "#   -> Creates .gau files in <project>_step_2_sp/\n";
+    file << "#   cck marcus \"" << filename << "\" -step 2\n";
+    file << "#   -> Creates .gau files in <project>_step_2/\n";
     file << "#   Submit these to Gaussian, wait for completion.\n";
     file << "\n";
     file << "# Step 3: Calculate barriers:\n";
-    file << "#   cck marcus -p " << filename << " -step 3 -mode symmetric\n";
-    file << "#   cck marcus -p " << filename << " -step 3 -mode asymmetric\n";
-    file << "#   -> Writes barrier report to <project>_barrier/\n";
+    file << "#   cck marcus \"" << filename << "\" -step 3\n";
+    file << "#   -> Calculates both symmetric and asymmetric barriers\n";
+    file << "#   -> Writes <project>.log in the current directory\n";
     file << "\n";
 
     file.close();
 
     std::cout << "Template file created: " << filename << std::endl;
-    std::cout << "Edit the parameters and use with:" << std::endl;
-    std::cout << "  cck marcus -p " << filename << " -step 1" << std::endl;
+    std::cout << "Edit the input file and use with:" << std::endl;
+    std::cout << "  cck marcus \"" << filename << "\" -step 1" << std::endl;
     return 0;
 }
 
 int MarcusCommand::run_step1(const Marcus::MarcusProject& project) {
     std::cout << "=== Step 1: Geometry Optimization Input Generation ===" << std::endl;
     std::cout << "Project: " << project.name << std::endl;
-    std::cout << "Output directory: " << project.name << "_step_1_opt/" << std::endl;
+    std::cout << "Output directory: " << project.name << "_step_1/" << std::endl;
 
     if (!generate_step1_inputs(project)) {
         std::cerr << "Error: Step 1 input generation failed." << std::endl;
@@ -539,15 +562,15 @@ int MarcusCommand::run_step1(const Marcus::MarcusProject& project) {
     }
 
     std::cout << "\nStep 1 complete." << std::endl;
-    std::cout << "Next: Submit the .gau files in " << project.name << "_step_1_opt/ to Gaussian." << std::endl;
-    std::cout << "      After completion, run: cck marcus -p <param> -step 2" << std::endl;
+    std::cout << "Next: Submit the .gau files in " << project.name << "_step_1/ to Gaussian." << std::endl;
+    std::cout << "      After completion, run: cck marcus <input_file> -step 2" << std::endl;
     return 0;
 }
 
 int MarcusCommand::run_step2(const Marcus::MarcusProject& project) {
     std::cout << "=== Step 2: Single Point Input Generation ===" << std::endl;
     std::cout << "Project: " << project.name << std::endl;
-    std::cout << "Output directory: " << project.name << "_step_2_sp/" << std::endl;
+    std::cout << "Output directory: " << project.name << "_step_2/" << std::endl;
     std::cout << "Non-cross inputs read step-1 checkpoints via absolute path." << std::endl;
 
     if (!generate_step2_inputs(project)) {
@@ -556,25 +579,32 @@ int MarcusCommand::run_step2(const Marcus::MarcusProject& project) {
     }
 
     std::cout << "\nStep 2 complete." << std::endl;
-    std::cout << "Next: In " << project.name << "_step_2_sp/, first submit the non-cross" << std::endl;
+    std::cout << "Next: In " << project.name << "_step_2/, first submit the non-cross" << std::endl;
     std::cout << "      (<mol>-<state>_{init,final}.gau) jobs, then the cross" << std::endl;
     std::cout << "      (*-from-*.gau) jobs (they read the non-cross .chk files)." << std::endl;
-    std::cout << "      After completion, run: cck marcus -p <param> -step 3" << std::endl;
+    std::cout << "      After completion, run: cck marcus <input_file> -step 3" << std::endl;
     return 0;
 }
 
 int MarcusCommand::run_step3(const Marcus::MarcusProject& project) {
     std::cout << "=== Step 3: Marcus Barrier Calculation ===" << std::endl;
     std::cout << "Project: " << project.name << std::endl;
-    std::cout << "Mode: " << (project.barrier_mode == Marcus::BarrierMode::SYMMETRIC ? "symmetric" : "asymmetric") << std::endl;
+    std::cout << "Calculating symmetric and asymmetric barriers." << std::endl;
 
     // Set directory paths on the project (needed by calculator)
     Marcus::MarcusProject proj = project;
-    std::string dir_step1, dir_step2, dir_barrier;
-    Marcus::create_project_directories(proj.name, dir_step1, dir_step2, dir_barrier);
-    proj.dir_step1_opt = dir_step1;
-    proj.dir_step2_sp = dir_step2;
-    proj.dir_barrier = dir_barrier;
+    proj.dir_step1_opt = proj.name + "_step_1";
+    proj.dir_step2_sp = proj.name + "_step_2";
+
+    // A .log input (or explicit output path) must never be overwritten by the report.
+    std::filesystem::path report_path = proj.out_file.empty()
+        ? std::filesystem::path(proj.name).filename().string() + ".log"
+        : proj.out_file;
+    std::error_code ec;
+    if (std::filesystem::equivalent(input_file, report_path, ec)) {
+        std::cerr << "Error: Report path would overwrite the input file; choose a different -O path." << std::endl;
+        return 1;
+    }
 
     Marcus::MarcusResult result;
     if (!calculate_barrier_step3(proj, result)) {
@@ -587,49 +617,71 @@ int MarcusCommand::run_step3(const Marcus::MarcusProject& project) {
     std::cout << "Results:" << std::endl;
     std::cout << "--------" << std::endl;
     std::cout << "Thermo pathway: "
-              << (proj.use_input_temp || proj.use_input_concentration
-                  ? "thermo module (T=" + std::to_string(proj.temperature) + " K, C="
-                    + std::to_string(proj.concentration) + " M)"
-                  : "string-matching from log files") << std::endl;
+              << (proj.use_input_temp || proj.use_input_concentration || proj.use_input_pressure
+                  ? "thermo module requested (see report for per-state provenance)"
+                  : "values read from step-1 logs") << std::endl;
     if (result.phase_corr_applied) {
         std::cout << "Per-state phase: " << proj.donor.init_state.phase_corr
                   << " Hartree (SCRF, T=" << proj.donor.init_state.temperature_used
                   << " K, C=" << proj.concentration << " M); net on dG_r = "
                   << result.phase_correction << " Hartree" << std::endl;
     }
-    std::cout << "Delta G°r = " << result.dG_r_kcal << " kcal/mol (" << result.dG_r_hartree << " Hartree)" << std::endl;
+    if (result.gibbs_valid)
+        std::cout << "Delta G°r = " << result.dG_r_kcal << " kcal/mol (" << result.dG_r_hartree << " Hartree)" << std::endl;
+    else
+        std::cout << "Delta G°r = N/A (missing Gibbs corrections)" << std::endl;
     std::cout << "lambda R  = " << result.lambda_R_kcal << " kcal/mol" << std::endl;
     std::cout << "lambda P  = " << result.lambda_P_kcal << " kcal/mol" << std::endl;
     std::cout << "lambda    = " << result.lambda_avg_kcal << " kcal/mol" << std::endl;
-    std::cout << "Delta G‡  = " << result.barrier_sym_kcal << " kcal/mol (symmetric)" << std::endl;
-    if (project.barrier_mode == Marcus::BarrierMode::ASYMMETRIC) {
+    if (result.barrier_sym_valid)
+        std::cout << "Delta G‡  = " << result.barrier_sym_kcal << " kcal/mol (symmetric)" << std::endl;
+    else
+        std::cout << "Delta G‡  = N/A (symmetric barrier unavailable)" << std::endl;
+    if (result.barrier_asym_valid)
         std::cout << "Delta G‡  = " << result.barrier_asym_kcal << " kcal/mol (asymmetric)" << std::endl;
-    }
+    else
+        std::cout << "Delta G‡  = N/A (asymmetric barrier unavailable; see report)" << std::endl;
 
     // Write report
-    Marcus::write_barrier_report(proj.dir_barrier, proj, result, proj.out_file);
+    if (!Marcus::write_barrier_report(proj, result, proj.out_file)) {
+        std::cerr << "Error: Failed to write barrier report." << std::endl;
+        return 1;
+    }
 
-    std::cout << "\nStep 3 complete. Report written to " << proj.name << "_barrier/" << std::endl;
+    if (!result.gibbs_valid || !result.barrier_sym_valid) {
+        std::cerr << "Error: Barrier calculation is incomplete; see report for details." << std::endl;
+        return 1;
+    }
+    std::cout << "\nStep 3 complete." << std::endl;
     return 0;
 }
 
 int MarcusCommand::execute(const CommandContext& /*context*/) {
-    // Template generation mode: generate a parameter template and exit
+    if (parse_error) return 1;
+
     if (generate_template_flag) {
-        std::string output_file = param_file.empty() 
-            ? ("marcus_" + template_calc_type + ".params") 
-            : param_file;
+        if (!input_file.empty()) {
+            std::cerr << "Error: Input file cannot be combined with template generation; use -o for its output." << std::endl;
+            return 1;
+        }
+        std::string output_file = template_file.empty()
+            ? ("marcus_" + template_calc_type + ".inp")
+            : template_file;
         return generate_template(output_file);
     }
 
-    if (param_file.empty()) {
-        std::cerr << "Error: No parameter file specified. Use -p <file>." << std::endl;
+    if (!template_file.empty()) {
+        std::cerr << "Error: -o is only for input template generation; use -O for reports." << std::endl;
+        return 1;
+    }
+    if (input_file.empty()) {
+        std::cerr << "Error: No input file specified. Use cck marcus <input_file>." << std::endl;
         print_help("cck");
         return 1;
     }
 
     Marcus::MarcusProject project;
-    if (!load_parameters(param_file, project)) {
+    if (!load_input(input_file, project)) {
         return 1;
     }
 

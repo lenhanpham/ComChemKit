@@ -39,15 +39,6 @@ enum class Step {
 };
 
 /**
- * @enum BarrierMode
- * @brief Barrier expression mode: symmetric or asymmetric.
- */
-enum class BarrierMode {
-    SYMMETRIC,   ///< lambda = (lambdaR + lambdaP)/2, standard Marcus expression
-    ASYMMETRIC   ///< lambdaR and lambdaP used separately, asymmetric expression
-};
-
-/**
  * @struct MarcusState
  * @brief Represents one electronic state (initial or final) of one molecule.
  *
@@ -82,10 +73,17 @@ struct MarcusState {
     double phase_corr = 0.0;   ///< Per-state phase correction applied (Hartree)
     bool has_scrf = false;     ///< Whether SCRF detected in step-1/step-2 logs
     double lowest_freq = 0.0;  ///< Lowest vibrational frequency from step-1 log (cm^-1)
-    double temperature_used = 298.15; ///< T used for thermal/phase of this state (K)
+    double temperature_used = 298.15; ///< T used for thermal corrections (K)
+    double phase_temperature_used = 298.15; ///< T used in the phase correction (K)
+    double phase_concentration_used = 1.0; ///< Concentration used in phase correction (mol/L)
     bool has_energy = false;   ///< Whether electronic energy was parsed
     bool has_tc_gibbs = false; ///< Whether thermal correction was parsed
     bool has_full_thermal = false; ///< Whether full ZPE/TC_H/TC_E set was parsed
+    bool has_e_low = false, has_zpe = false, has_tc_energy = false;
+    bool has_tc_enthalpy = false, has_lowest_freq = false;
+    bool thermo_recalculated = false; ///< Thermo module provided the corrections
+    bool thermo_fallback = false;     ///< Recalculation failed; log values used
+    bool temperature_from_log = false; ///< Log temperature used instead of input T
 };
 
 /**
@@ -107,12 +105,11 @@ struct MarcusProject {
     CalcType calc_type = CalcType::OSET;        ///< OSET or EnT
     Step current_step = Step::STEP_1_OPT;       ///< Current workflow step
     std::vector<int> requested_steps = {1, 2}; ///< Requested steps from `step` key/CLI (default: 1,2)
-    BarrierMode barrier_mode = BarrierMode::SYMMETRIC;
+    bool verbose_report = false;                 ///< Include detailed audit sections
 
     // Directories
-    std::string dir_step1_opt;                  ///< <project>_step_1_opt/
-    std::string dir_step2_sp;                   ///< <project>_step_2_sp/
-    std::string dir_barrier;                    ///< <project>_barrier/
+    std::string dir_step1_opt;                  ///< <project>_step_1/
+    std::string dir_step2_sp;                   ///< <project>_step_2/
 
     // Molecules
     MarcusMolecule donor;
@@ -158,7 +155,7 @@ struct MarcusProject {
     // Step 3 parameters
     double temperature = 298.15;                ///< K, for thermal corrections & phase correction
     double concentration = 1.0;                 ///< mol/L, for phase correction
-    double pressure = 1.0;                      ///< atm, for phase correction
+    double pressure = 1.0;                      ///< atm, for thermo recalculation
     std::string low_vib_method = "grimme";      ///< harmonic|truhlar|grimme|minenkov|headgordon
     double ravib = 100.0;                       ///< cm⁻¹, crossover for quasi-RRHO
     double scale_zpe = 1.0;                     ///< ZPE scaling factor
@@ -178,9 +175,8 @@ struct MarcusProject {
     bool output_otm = false;                    ///< Output .otm file flag
     bool use_input_temp = false;                ///< Whether -t was specified
     bool use_input_concentration = false;       ///< Whether -c was specified
-    bool use_input_pressure = false;            ///< Whether -p was specified
+    bool use_input_pressure = false;            ///< Whether pressure override was specified
     std::string out_file = "";                  ///< Optional output file path
-    bool skip_existing = true;                  ///< Skip existing input files
 };
 
 /**
@@ -207,6 +203,8 @@ struct MarcusElectronicSet {
     double E_R_A_qP_A = 0.0;
     std::string f_R_D_qR_D, f_P_D_qP_D, f_R_A_qR_A, f_P_A_qP_A;
     std::string f_P_D_qR_D, f_R_D_qP_D, f_P_A_qR_A, f_R_A_qP_A;
+    std::string s_R_D_qR_D, s_P_D_qP_D, s_R_A_qR_A, s_P_A_qP_A;
+    std::string s_P_D_qR_D, s_R_D_qP_D, s_P_A_qR_A, s_R_A_qP_A;
     bool success = false;
 };
 
@@ -229,6 +227,9 @@ struct MarcusResult {
     double phase_correction = 0.0;  ///< Net phase on dG_r (= sum products - sum reactants, Hartree)
     double gibbs_hartree_corrected = 0.0;  ///< == dG_r_hartree (kept for compat)
     bool phase_corr_applied = false;  ///< Whether any per-state phase was applied
+    bool gibbs_valid = false;         ///< All Gibbs corrections are available
+    bool barrier_sym_valid = false;
+    bool barrier_asym_valid = false;
     MarcusElectronicSet elec;       ///< Full electronic audit trail
     bool success = false;           ///< Whether calculation succeeded
     std::string error_message;      ///< Error message if failed

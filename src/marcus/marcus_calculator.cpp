@@ -35,7 +35,9 @@ static std::string read_file_content(const std::string& path) {
 static double extract_field_after_pattern(const std::string& content,
                                           const std::string& pattern,
                                           int field_index_1based,
-                                          int occurrence = -1) {
+                                          int occurrence = -1,
+                                          bool* found = nullptr) {
+    if (found) *found = false;
     // Find all line positions containing the pattern
     std::vector<size_t> line_starts;
     size_t pos = 0;
@@ -75,7 +77,10 @@ static double extract_field_after_pattern(const std::string& content,
             std::replace(field.begin(), field.end(), 'D', 'E');
             std::replace(field.begin(), field.end(), 'd', 'e');
             try {
-                return std::stod(field);
+                double value = std::stod(field);
+                if (!std::isfinite(value)) return 0.0;
+                if (found) *found = true;
+                return value;
             } catch (...) {
                 return 0.0;
             }
@@ -93,10 +98,11 @@ bool extract_electronic_energy_src(const std::string& log_path,
     if (content.empty()) return false;
 
     // Priority 1: "After PCM corrections, the energy is" -> field 7 (scfEqui)
+    bool found = false;
     double scf_equi = extract_field_after_pattern(content,
                                                   "After PCM corrections, the energy is",
-                                                  7, -1);
-    if (scf_equi != 0.0) {
+                                                  7, -1, &found);
+    if (found) {
         energy = scf_equi;
         source_out = "After PCM";
         return true;
@@ -105,8 +111,8 @@ bool extract_electronic_energy_src(const std::string& log_path,
     // Priority 2: "SCF Done:" -> field 5
     double scf_done = extract_field_after_pattern(content,
                                                   "SCF Done:",
-                                                  5, -1);
-    if (scf_done != 0.0) {
+                                                  5, -1, &found);
+    if (found) {
         energy = scf_done;
         source_out = "SCF Done";
         return true;
@@ -128,7 +134,7 @@ static bool content_has_scrf(const std::string& content) {
 }
 
 // Lowest frequency: minimum value on any "Frequencies --" line.
-static double extract_lowest_frequency_content(const std::string& content) {
+static double extract_lowest_frequency_content(const std::string& content, bool* available = nullptr) {
     std::istringstream iss(content);
     std::string line;
     double best = 0.0;
@@ -143,6 +149,7 @@ static double extract_lowest_frequency_content(const std::string& content) {
             if (!found || v < best) { best = v; found = true; }
         }
     }
+    if (available) *available = found;
     return found ? best : 0.0;
 }
 
@@ -156,19 +163,16 @@ bool extract_full_thermal_step1(const std::string& log_path,
     zpe    = extract_field_after_pattern(content, "Zero-point correction", 3, -1);
     tc_e   = extract_field_after_pattern(content, "Thermal correction to Energy", 5, -1);
     tc_h   = extract_field_after_pattern(content, "Thermal correction to Enthalpy", 5, -1);
+    bool found_g = false;
     tc_g   = extract_field_after_pattern(content,
-                                          "Thermal correction to Gibbs Free Energy", 7, -1);
-    if (tc_g == 0.0) {
-        tc_g = extract_field_after_pattern(content,
-                                            "Thermal correction to Gibbs Free Energy=", 1, -1);
-    }
+                                          "Thermal correction to Gibbs Free Energy", 7, -1, &found_g);
     lowest_freq = extract_lowest_frequency_content(content);
     double t = extract_field_after_pattern(content, "Kelvin.", 2, -1);
     // "Temperature 298.150 Kelvin. Pressure ...": field layout puts T elsewhere;
     // fall back to the high-level pattern "Kelvin.  Pressure" field search via Temperature.
     if (t == 0.0) t = extract_field_after_pattern(content, "Temperature", 2, 0);
     temp_k = t;
-    return tc_g != 0.0;
+    return found_g;
 }
 
 double per_state_phase_correction(bool has_scrf, double temp_k, double concentration_m) {
@@ -185,16 +189,11 @@ bool extract_thermal_correction_gibbs(const std::string& log_path, double& tc_gi
     std::string content = read_file_content(log_path);
     if (content.empty()) return false;
 
+    bool found = false;
     tc_gibbs = extract_field_after_pattern(content,
                                            "Thermal correction to Gibbs Free Energy",
-                                           7, -1);
-    if (tc_gibbs == 0.0) {
-        // Try fallback: "Thermal correction to Gibbs Free Energy=" 
-        tc_gibbs = extract_field_after_pattern(content,
-                                               "Thermal correction to Gibbs Free Energy=",
-                                               1, -1);
-    }
-    return tc_gibbs != 0.0;
+                                           7, -1, &found);
+    return found;
 }
 
 /**
@@ -339,6 +338,14 @@ bool compute_g_state(MarcusState& state,
     double e_low = 0.0, zpe = 0.0, tc_e = 0.0, tc_h = 0.0, tc_g = 0.0;
     double lf = 0.0, log_t = 0.0;
     bool have_string = extract_full_thermal_step1(step1_log, e_low, zpe, tc_e, tc_h, tc_g, lf, log_t);
+    extract_field_after_pattern(c1, "SCF Done:", 5, -1, &state.has_e_low);
+    extract_field_after_pattern(c1, "Zero-point correction", 3, -1, &state.has_zpe);
+    extract_field_after_pattern(c1, "Thermal correction to Energy", 5, -1, &state.has_tc_energy);
+    extract_field_after_pattern(c1, "Thermal correction to Enthalpy", 5, -1, &state.has_tc_enthalpy);
+    extract_lowest_frequency_content(c1, &state.has_lowest_freq);
+    state.thermo_fallback = false;
+    state.thermo_recalculated = false;
+    state.temperature_from_log = false;
 
     double T_used = temperature;
     bool thermo_used = false;
@@ -362,19 +369,23 @@ bool compute_g_state(MarcusState& state,
             // extract_thermal_correction_gibbs_thermo; keep string lf as fallback.
             T_used = temperature;
             thermo_used = true;
+            state.thermo_recalculated = true;
+            state.has_zpe = state.has_tc_energy = state.has_tc_enthalpy = true;
             have_string = true;
         } else {
+            state.thermo_fallback = true;
             std::cerr << "Warning: Thermo-module recalculation failed for " << step1_log
                       << "; falling back to values read from file" << std::endl;
         }
     }
     if (!thermo_used) {
-        T_used = (log_t > 0.0) ? log_t : temperature;
+        state.temperature_from_log = log_t > 0.0;
+        T_used = state.temperature_from_log ? log_t : temperature;
     }
 
-    if (!have_string || tc_g == 0.0) {
+    if (!have_string) {
         std::cerr << "Warning: Could not extract TC_G from " << step1_log
-                  << " (will use 0)" << std::endl;
+                  << "; Gibbs energy and barrier are unavailable" << std::endl;
         state.tc_gibbs = 0.0;
         state.has_tc_gibbs = false;
     } else {
@@ -389,11 +400,14 @@ bool compute_g_state(MarcusState& state,
     state.ts_value = tc_h - tc_g;
     state.lowest_freq = lf;
     state.temperature_used = T_used;
-    state.has_full_thermal = (zpe != 0.0 && tc_h != 0.0 && tc_g != 0.0);
+    state.has_full_thermal = state.has_zpe && state.has_tc_energy &&
+                             state.has_tc_enthalpy && state.has_tc_gibbs;
 
     // High-au identities: H = E_high + TC_H, G_raw = E_high + TC_G.
     state.h_state = e_high + tc_h;
     state.g_raw = e_high + tc_g;
+    state.phase_temperature_used = T_used > 0.0 ? T_used : 298.15;
+    state.phase_concentration_used = concentration_m > 0.0 ? concentration_m : 1.0;
     state.phase_corr = per_state_phase_correction(state.has_scrf, T_used, concentration_m);
     state.g_corr = state.g_raw + state.phase_corr;
     state.g_state = state.g_corr;  // final solution-phase Gibbs (matches high-kJ)
@@ -403,14 +417,14 @@ bool compute_g_state(MarcusState& state,
 // ---------------------------------------------------------------------------
 // compute_reaction_free_energy
 // ---------------------------------------------------------------------------
-bool compute_reaction_free_energy(const MarcusProject& project,
+bool compute_reaction_free_energy(MarcusProject& project,
                                   double& dG_r_hartree, double& dG_r_kcal) {
     // Thermo recalc when user overrides T/C/P (mirrors high-au single-file rule).
     bool use_thermo = project.use_input_temp || project.use_input_concentration ||
                        project.use_input_pressure;
 
     // Ensure all 4 states have G values
-    if (!compute_g_state(const_cast<MarcusState&>(project.donor.init_state),
+    if (!compute_g_state(project.donor.init_state,
                          project.dir_step1_opt, project.dir_step2_sp,
                          use_thermo, project.temperature, project.pressure,
                          project.concentration, project.low_vib_method, project.ravib,
@@ -419,7 +433,7 @@ bool compute_reaction_free_energy(const MarcusProject& project,
                          project.mass_mode, project.prt_level, project.print_vib, project.ip_mode,
                          project.point_group, project.hg_entropy, project.bav_preset, project.output_otm))
         return false;
-    if (!compute_g_state(const_cast<MarcusState&>(project.donor.final_state),
+    if (!compute_g_state(project.donor.final_state,
                          project.dir_step1_opt, project.dir_step2_sp,
                          use_thermo, project.temperature, project.pressure,
                          project.concentration, project.low_vib_method, project.ravib,
@@ -428,7 +442,7 @@ bool compute_reaction_free_energy(const MarcusProject& project,
                          project.mass_mode, project.prt_level, project.print_vib, project.ip_mode,
                          project.point_group, project.hg_entropy, project.bav_preset, project.output_otm))
         return false;
-    if (!compute_g_state(const_cast<MarcusState&>(project.acceptor.init_state),
+    if (!compute_g_state(project.acceptor.init_state,
                          project.dir_step1_opt, project.dir_step2_sp,
                          use_thermo, project.temperature, project.pressure,
                          project.concentration, project.low_vib_method, project.ravib,
@@ -437,7 +451,7 @@ bool compute_reaction_free_energy(const MarcusProject& project,
                          project.mass_mode, project.prt_level, project.print_vib, project.ip_mode,
                          project.point_group, project.hg_entropy, project.bav_preset, project.output_otm))
         return false;
-    if (!compute_g_state(const_cast<MarcusState&>(project.acceptor.final_state),
+    if (!compute_g_state(project.acceptor.final_state,
                          project.dir_step1_opt, project.dir_step2_sp,
                          use_thermo, project.temperature, project.pressure,
                          project.concentration, project.low_vib_method, project.ravib,
@@ -561,14 +575,14 @@ static bool collect_electronic_set(const MarcusProject& project,
         state_suffix(project.acceptor.init_state) + "_init-from-" +
         project.acceptor.final_state.name + state_suffix(project.acceptor.final_state) + "_final.log");
     bool ok = true;
-    ok &= extract_electronic_energy(out.f_R_D_qR_D, out.E_R_D_qR_D);
-    ok &= extract_electronic_energy(out.f_P_D_qP_D, out.E_P_D_qP_D);
-    ok &= extract_electronic_energy(out.f_R_A_qR_A, out.E_R_A_qR_A);
-    ok &= extract_electronic_energy(out.f_P_A_qP_A, out.E_P_A_qP_A);
-    ok &= extract_electronic_energy(out.f_P_D_qR_D, out.E_P_D_qR_D);
-    ok &= extract_electronic_energy(out.f_R_D_qP_D, out.E_R_D_qP_D);
-    ok &= extract_electronic_energy(out.f_P_A_qR_A, out.E_P_A_qR_A);
-    ok &= extract_electronic_energy(out.f_R_A_qP_A, out.E_R_A_qP_A);
+    ok &= extract_electronic_energy_src(out.f_R_D_qR_D, out.E_R_D_qR_D, out.s_R_D_qR_D);
+    ok &= extract_electronic_energy_src(out.f_P_D_qP_D, out.E_P_D_qP_D, out.s_P_D_qP_D);
+    ok &= extract_electronic_energy_src(out.f_R_A_qR_A, out.E_R_A_qR_A, out.s_R_A_qR_A);
+    ok &= extract_electronic_energy_src(out.f_P_A_qP_A, out.E_P_A_qP_A, out.s_P_A_qP_A);
+    ok &= extract_electronic_energy_src(out.f_P_D_qR_D, out.E_P_D_qR_D, out.s_P_D_qR_D);
+    ok &= extract_electronic_energy_src(out.f_R_D_qP_D, out.E_R_D_qP_D, out.s_R_D_qP_D);
+    ok &= extract_electronic_energy_src(out.f_P_A_qR_A, out.E_P_A_qR_A, out.s_P_A_qR_A);
+    ok &= extract_electronic_energy_src(out.f_R_A_qP_A, out.E_R_A_qP_A, out.s_R_A_qP_A);
     out.success = ok;
     return ok;
 }
@@ -583,27 +597,33 @@ bool compute_barriers(double dG_r_kcal,
     result.lambda_R_kcal = lambda_R_kcal;
     result.lambda_P_kcal = lambda_P_kcal;
     result.lambda_avg_kcal = (lambda_R_kcal + lambda_P_kcal) / 2.0;
+    result.barrier_sym_valid = false;
+    result.barrier_asym_valid = false;
 
     double lambda = result.lambda_avg_kcal;
 
     // Symmetric barrier: (lambda + dG)^2 / (4 lambda)
-    if (lambda > 0.0) {
+    if (lambda_R_kcal > 0.0 && lambda_P_kcal > 0.0 && std::isfinite(lambda) && std::isfinite(dG_r_kcal)) {
         result.barrier_sym_kcal = (lambda + dG_r_kcal) * (lambda + dG_r_kcal) / (4.0 * lambda);
+        result.barrier_sym_valid = std::isfinite(result.barrier_sym_kcal);
     } else {
         result.barrier_sym_kcal = 0.0;
-        std::cerr << "Warning: lambda <= 0, symmetric barrier not computable" << std::endl;
+        std::cerr << "Warning: non-positive or invalid reorganization energy; symmetric barrier unavailable" << std::endl;
     }
 
     // Asymmetric barrier:
     // Delta G‡ = lambdaR * [(-lambdaP + sqrt(lambdaR*lambdaP + (lambdaR-lambdaP)*dG)) / (lambdaR - lambdaP)]^2
     double diff = lambda_R_kcal - lambda_P_kcal;
-    if (std::fabs(diff) > 1e-10) {
+    if (!result.barrier_sym_valid) {
+        result.barrier_asym_kcal = 0.0;
+    } else if (std::fabs(diff) > 1e-10) {
         double inner = lambda_R_kcal * lambda_P_kcal + diff * dG_r_kcal;
         if (inner >= 0.0) {
             double sqrt_inner = std::sqrt(inner);
             double numerator = -lambda_P_kcal + sqrt_inner;
             double ratio = numerator / diff;
             result.barrier_asym_kcal = lambda_R_kcal * ratio * ratio;
+            result.barrier_asym_valid = std::isfinite(result.barrier_asym_kcal);
         } else {
             result.barrier_asym_kcal = 0.0;
             std::cerr << "Warning: asymmetric barrier inner term negative, not computable" << std::endl;
@@ -611,6 +631,7 @@ bool compute_barriers(double dG_r_kcal,
     } else {
         // lambdaR == lambdaP, falls back to symmetric
         result.barrier_asym_kcal = result.barrier_sym_kcal;
+        result.barrier_asym_valid = result.barrier_sym_valid;
     }
 
     result.success = true;
@@ -620,7 +641,7 @@ bool compute_barriers(double dG_r_kcal,
 // ---------------------------------------------------------------------------
 // calculate_barrier_step3
 // ---------------------------------------------------------------------------
-bool calculate_barrier_step3(const MarcusProject& project, MarcusResult& result) {
+bool calculate_barrier_step3(MarcusProject& project, MarcusResult& result) {
     // Per-state Gibbs already includes phase (high-au rule), so dG here is corrected.
     double dG_corr_h = 0.0, dG_corr_kcal = 0.0;
     if (!compute_reaction_free_energy(project, dG_corr_h, dG_corr_kcal)) {
@@ -628,6 +649,8 @@ bool calculate_barrier_step3(const MarcusProject& project, MarcusResult& result)
         result.error_message = "Failed to compute reaction free energy";
         return false;
     }
+    result.gibbs_valid = project.donor.init_state.has_tc_gibbs && project.donor.final_state.has_tc_gibbs &&
+                         project.acceptor.init_state.has_tc_gibbs && project.acceptor.final_state.has_tc_gibbs;
     // Raw dG for audit: sum of g_raw instead of g_state.
     double dG_raw_h = (project.donor.final_state.g_raw + project.acceptor.final_state.g_raw) -
                       (project.donor.init_state.g_raw + project.acceptor.init_state.g_raw);
@@ -666,6 +689,10 @@ bool calculate_barrier_step3(const MarcusProject& project, MarcusResult& result)
         result.success = false;
         result.error_message = "Failed to compute barriers";
         return false;
+    }
+    if (!result.gibbs_valid) {
+        result.barrier_sym_valid = false;
+        result.barrier_asym_valid = false;
     }
     // compute_barriers overwrote dG fields; restore both raw and corrected.
     result.dG_r_hartree = dG_corr_h;

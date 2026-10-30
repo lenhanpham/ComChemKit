@@ -16,17 +16,15 @@
 namespace Marcus {
 
 /**
- * @brief Create the three project directories if they don't exist.
+ * @brief Create the step-1 and step-2 project directories if they don't exist.
  * @param project_name Project name (directories will be created from name).
  * @param dir_step1 Output: step 1 directory path.
  * @param dir_step2 Output: step 2 directory path.
- * @param dir_barrier Output: barrier directory path.
  * @return true on success, false on failure.
  */
 bool create_project_directories(const std::string& project_name,
                                 std::string& dir_step1,
-                                std::string& dir_step2,
-                                std::string& dir_barrier);
+                                std::string& dir_step2);
 
 /**
  * @brief Write the step-1 manifest file recording checkpoint names.
@@ -89,14 +87,12 @@ bool step1_log_exists(const std::string& dir_step1,
 
 /**
  * @brief Write the barrier calculation report to a file.
- * @param dir_barrier Barrier directory path.
  * @param project Project configuration.
  * @param result Calculation results.
  * @param out_file Optional explicit output file path.
  * @return true on success.
  */
-bool write_barrier_report(const std::string& dir_barrier,
-                          const MarcusProject& project,
+bool write_barrier_report(const MarcusProject& project,
                           const MarcusResult& result,
                           const std::string& out_file = "");
 
@@ -115,14 +111,6 @@ std::string step1_path(const std::string& dir_step1, const std::string& filename
  * @return Full path string.
  */
 std::string step2_path(const std::string& dir_step2, const std::string& filename);
-
-/**
- * @brief Construct the full path to a barrier directory file.
- * @param dir_barrier Barrier directory.
- * @param filename Filename.
- * @return Full path string.
- */
-std::string barrier_path(const std::string& dir_barrier, const std::string& filename);
 
 }  // namespace Marcus
 

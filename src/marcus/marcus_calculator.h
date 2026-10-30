@@ -137,7 +137,7 @@ double per_state_phase_correction(bool has_scrf, double temp_k, double concentra
  * @param dG_r_kcal Output in kcal/mol.
  * @return true on success.
  */
-bool compute_reaction_free_energy(const MarcusProject& project,
+bool compute_reaction_free_energy(MarcusProject& project,
                                   double& dG_r_hartree, double& dG_r_kcal);
 
 /**
@@ -184,7 +184,7 @@ bool compute_barriers(double dG_r_kcal,
  * @param result Output results.
  * @return true on success.
  */
-bool calculate_barrier_step3(const MarcusProject& project, MarcusResult& result);
+bool calculate_barrier_step3(MarcusProject& project, MarcusResult& result);
 
 }  // namespace Marcus
 

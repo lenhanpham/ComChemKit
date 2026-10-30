@@ -717,67 +717,66 @@ The **Marcus module** implements Marcus theory barrier calculations for **Outer 
 
 ```
 project/
-├── PC.xyz                    # Donor coordinates
-├── D1.xyz                    # Acceptor coordinates
-├── marcus.params             # Parameter file
-├── marcus_project_step_1_opt/    # Step 1: optimization inputs (.gau, .chk)
-├── marcus_project_step_2_sp/     # Step 2: single point inputs (.gau, .chk)
-└── marcus_project_barrier/       # Step 3: barrier report
+├── Donor.xyz                  # Donor coordinates
+├── Acceptor.xyz               # Acceptor coordinates
+├── marcus_project.inp         # Marcus input file
+├── marcus_project_step_1/     # Step 1: optimization inputs (.gau, .chk)
+├── marcus_project_step_2/     # Step 2: single point inputs (.gau, .chk)
+└── marcus_project.log  # Step 3: barrier report
 ```
+
+Steps 1 and 2 overwrite matching generated `.gau` files and manifests. Existing Gaussian `.log` and `.chk` files are not overwritten by input generation.
 
 **Basic Usage:**
 
 ```bash
-# Generate a parameter template
-cck marcus --genoset-params -o marcus.params
+# Generate an input template
+cck marcus --genoset-input -o marcus_project.inp
 # or for Energy Transfer:
-cck marcus --genent-params -o marcus.params
+cck marcus --genent-input -o marcus_project.inp
 
-# Edit marcus.params with your molecule names, XYZ paths, charges, multiplicities, etc.
+# Edit marcus_project.inp with your molecule names, XYZ paths, charges, multiplicities, etc.
 
 # Step 1: Generate optimization inputs
-cck marcus -p marcus.params -step 1
+cck marcus marcus_project.inp -step 1
 # Submit the .gau files to Gaussian, wait for completion
 
 # Step 2: Generate single point inputs (reads step-1 checkpoints)
-cck marcus -p marcus.params -step 2
+cck marcus marcus_project.inp -step 2
 # Submit the .gau files to Gaussian, wait for completion
 
 # Step 3: Calculate barriers
-cck marcus -p marcus.params -step 3 -mode symmetric
-cck marcus -p marcus.params -step 3 -mode asymmetric
+cck marcus marcus_project.inp -step 3   # reports both barriers
 ```
 
 **Command-Line Options:**
 
 | Option | Description | Values | Default |
 |--------|-------------|--------|---------|
-| `-p, --param, --param-file` | Parameter file | file path | (required) |
-| `-step` | Workflow step | 1, 2, 3 | 1 |
-| `-mode` | Barrier mode | symmetric, asymmetric | symmetric |
-| `-O, --out` | Output report file | file path | `<project>_barrier/<project>_barrier_report.txt` |
-| `-v, --verbose` | Verbose output | (flag) | false |
+| `<input_file>` | Input file (positional) | file path | (required) |
+| `-step` | Workflow step | 1, 2, 3 | 1,2 |
+| `-O, --out` | Output report file | file path | `<project>.log` |
+| `-v, --verbose` | Verbose report and console diagnostics | (flag) | false |
 | `-t, --temp` | Temperature (K) | decimal | 298.15 |
 | `-c, -C, --cm, --conc` | Concentration (mol/L) | decimal | 1.0 |
 | `--pressure` | Pressure (atm) | decimal | 1.0 |
 | `--lowvibmeth` | Low-frequency treatment | harmonic|truhlar|grimme|minenkov|headgordon | grimme |
 | `--ravib` | Truhlar threshold (cm⁻¹) | decimal | 100.0 |
-| `--genoset-params` | Generate OSET parameter template | (flag) | - |
-| `--genent-params` | Generate EnT parameter template | (flag) | - |
-| `-o, --output-template` | Template output path | file path | `marcus_oset.params` / `marcus_ent.params` |
+| `--genoset-input` | Generate OSET input template | (flag) | - |
+| `--genent-input` | Generate EnT input template | (flag) | - |
+| `-o, --output-template` | Template output path | file path | `marcus_oset.inp` / `marcus_ent.inp` |
 | `-h, --help` | Show help | (flag) | - |
 
-**Parameter File (`marcus.params`) Keys:**
+**Input File (`marcus_project.inp`) Keys:**
 
-The parameter file uses `key = value` format (`#` = comment). All step 3 thermo options are supported:
+The input file uses `key = value` format (`#` = comment) and can have any extension. Unless `project` is set, its filename without the last extension determines the project name (e.g. `reaction.inp` → `reaction`). Relative paths are resolved from the current working directory. All step 3 thermo options are supported:
 
 **Project Identification:**
 
 | Key | Description | Default |
 |-----|-------------|---------|
-| `project` | Project name (used for directory names) | `marcus_project` |
+| `project` | Project name (used for directory names) | input filename stem |
 | `calc_type` | Calculation type | `oset` \| `ent` |
-| `skip_existing` | Skip existing input files | `true` |
 
 **Donor / Acceptor Definitions:**
 
@@ -841,10 +840,9 @@ The parameter file uses `key = value` format (`#` = comment). All step 3 thermo 
 
 | Key | Description | Default |
 |-----|-------------|---------|
-| `marcus_mode` | Barrier mode | `symmetric` |
 | `temperature` | Temperature (K) | 298.15 |
 | `concentration` | Concentration (mol/L) | 1.0 |
-| `pressure` | Pressure (atm) | 1.0 |
+| `pressure` | Thermo-recalculation pressure (atm) | 1.0 |
 | `low_vib_method` | Low-frequency treatment | `grimme` |
 | `ravib` | Truhlar threshold (cm⁻¹) | 100.0 |
 | `scale_zpe` | ZPE scaling factor | 1.0 |
@@ -855,7 +853,7 @@ The parameter file uses `key = value` format (`#` = comment). All step 3 thermo 
 | `imag_real` | Imaginary frequency threshold | 0.0 |
 | `external_energy` | External electronic energy (Hartree) | 0.0 |
 | `mass_mode` | Mass assignment mode | 3 |
-| `prt_level` | Output verbosity (0-3) | 1 |
+| `prt_level` | Thermo-module output verbosity (0-3), independent of report level | 1 |
 | `print_vib` | Print vibration contributions | 0 |
 | `ip_mode` | Phase mode (0=gas, 1=condensed) | 0 |
 | `point_group` | Point group label | (empty) |
@@ -865,40 +863,41 @@ The parameter file uses `key = value` format (`#` = comment). All step 3 thermo 
 | `use_input_temp` | Activate thermo module T pathway | `false` |
 | `use_input_concentration` | Activate thermo module C pathway | `false` |
 | `use_input_pressure` | Activate pressure pathway | `false` |
+| `report_level` | Marcus report detail: `default` or `verbose` (`-v` enables verbose) | `default` |
 | `out_file` | Output report path | (empty) |
 
 **Workflow Example:**
 
 ```bash
 # 1. Generate template
-cck marcus --genoset-params -o my_marcus.params
+cck marcus --genoset-input -o my_marcus.inp
 
-# 2. Edit my_marcus.params — set donor_name, donor_xyz, acceptor_name, acceptor_xyz,
+# 2. Edit my_marcus.inp — set donor_name, donor_xyz, acceptor_name, acceptor_xyz,
 #    charges, multiplicities, and any thermo options (uncomment to activate)
 
 # 3. Step 1: Generate inputs
-cck marcus -p my_marcus.params -step 1
+cck marcus my_marcus.inp -step 1
 # Submit .gau files to Gaussian
 
 # 4. Step 2: Generate single point inputs
-cck marcus -p my_marcus.params -step 2
+cck marcus my_marcus.inp -step 2
 # Submit .gau files to Gaussian
 
 # 5. Step 3: Calculate barriers with thermo options
-cck marcus -p my_marcus.params -step 3 -mode asymmetric
+cck marcus my_marcus.inp -step 3
 ```
 
 **Output:**
 
-Step 3 writes a barrier report to `<project>_barrier/<project>_barrier_report.txt` (or `-O` path) containing:
+Step 3 writes `<project>.log` in the current directory (or to the explicit `-O` / `out_file` path). The report cannot overwrite the input file; if they would have the same name, use a different `-O` path. It contains:
 
-- Gibbs free energy per state (Hartree)
-- Reaction free energy ΔG°r (Hartree and kcal/mol)
-- Phase correction (Hartree)
-- Reorganization energies λ_R and λ_P (kcal/mol)
-- Average reorganization energy λ (kcal/mol)
-- Symmetric barrier ΔG‡ (kcal/mol)
-- Asymmetric barrier ΔG‡ (kcal/mol) (if `-mode asymmetric`)
+The default report includes the configured levels of theory and thermochemistry, per-state provenance, four equilibrium energies and Gibbs components, four cross energies, reorganization components, reaction free energy and barriers. Theory settings are taken from the input file; they are not verified against the Gaussian logs. The reaction energy, reorganization energies, and both barriers are reported in kJ/mol, kcal/mol, atomic units (Hartree), and eV.
+
+Use `-v` / `--verbose` or set `report_level = verbose` for the detailed thermal breakdown, electronic energy sources and paths, numerical audit, and full configured settings. `-v` enables verbose output even when `report_level = default`; `prt_level` controls the thermo module independently. For Marcus, use `--version` to show the program version.
+
+Thermo recalculation is activated by `-t`, `-c`, `--pressure`, or the corresponding `use_input_*` setting. Otherwise thermal corrections are read from step-1 logs, and low-frequency and scaling settings do not recalculate those values. The report distinguishes per-state fallback and temperatures; the phase correction uses a fixed 1 atm standard pressure.
+
+Missing Gibbs corrections or invalid symmetric barriers are reported as `N/A`; the report is written and step 3 returns a nonzero status. If the asymmetric expression is undefined but the symmetric result is valid, the asymmetric barrier is `N/A` with a warning and step 3 succeeds. Missing electronic energies stop the calculation before a report can be written.
 
 ### 3.6 Coordinate Extraction Module
 

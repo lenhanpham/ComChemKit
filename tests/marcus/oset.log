@@ -1,0 +1,108 @@
+                                                             
+*************************************************************
+* ComChemKit v0.1.6 developed by Le Nhan Pham               *
+* https://github.com/lenhanpham/ComChemKit                  *
+*************************************************************
+                                                             
+Marcus Theory Barrier Calculation (Four-Point Method)
+==========================================================================
+Project          : oset
+Calculation type : OSET
+Barrier models   : symmetric and asymmetric
+Report level     : default
+Step 1 directory: oset_step_1
+Step 2 directory: oset_step_2
+
+LEVELS OF THEORY AND THERMOCHEMISTRY
+--------------------------------------------------------------------------
+Theory settings below are configured in the input; log routes are not verified.
+
+Step 1 — optimization and frequencies
+  Functional    : uwb97xd
+  Basis set     : def2svpp
+  Solvent model : smd
+  Solvent       : n,n-DiMethylFormamide
+
+Step 2 — single-point electronic energies
+  Functional    : uwb97xd
+  Basis set     : Gen
+  Basis file    : ma-def2-TZVP.gbs/N
+  Solvent model : smd
+  Solvent       : n,n-DiMethylFormamide
+  Job types     : equilibrium and cross (configured routes)
+
+Thermochemistry
+  Requested     : step-1 log values
+  Actual source : step-1 log values
+  Input T       : 298.15 K
+  Concentration : 1.000 mol/L (phase correction)
+  Input pressure: 1.000 atm (thermo recalculation only)
+  Phase standard: 1 atm (fixed)
+  Low-vib method: grimme; ravib=100.000 cm^-1
+  Scale factors : ZPE=1.000, heat=1.000, entropy=1.000, Cv=1.000
+  Interpolation : 100.000 cm^-1; imaginary threshold=0.000 cm^-1
+  Other settings: mass mode=3, phase mode=0, external energy=0.000000000 Hartree
+  Point group   : (not specified); HG entropy=off; Bav=(not specified)
+  Low-vib, scaling and other thermo settings apply only to recalculated states.
+
+RESULTS
+--------------------------------------------------------------------------
+All reaction and activation energies use phase-corrected Gibbs energies.
+Atomic units (au) are Hartree.
+  Reaction free energy, Delta G°           32.0636 kJ/mol        7.6634 kcal/mol   0.012212371 au        0.3323 eV
+  Reorganization energy, lambda R         234.9132 kJ/mol       56.1455 kcal/mol   0.089473678 au        2.4347 eV
+  Reorganization energy, lambda P         262.2653 kJ/mol       62.6829 kcal/mol   0.099891558 au        2.7182 eV
+  Average reorganization, lambda          248.5892 kJ/mol       59.4142 kcal/mol   0.094682618 au        2.5764 eV
+
+  Delta G‡ (symmetric)                     79.2130 kJ/mol       18.9323 kcal/mol   0.030170635 au        0.8210 eV
+  Delta G‡ (asymmetric)                    78.6395 kJ/mol       18.7953 kcal/mol   0.029952213 au        0.8150 eV
+
+STATE ASSIGNMENTS AND THERMAL PROVENANCE
+--------------------------------------------------------------------------
+R = initial/reactant state; P = final/product state.
+  D-R  Donor initial: TEA (charge +0, multiplicity 1)
+       Thermal: step-1 log; T=298.15 K (log)
+  D-P  Donor final: TEA (charge +1, multiplicity 2)
+       Thermal: step-1 log; T=298.15 K (log)
+  A-R  Acceptor initial: p-terphenyl (charge +0, multiplicity 3)
+       Thermal: step-1 log; T=298.15 K (log)
+  A-P  Acceptor final: p-terphenyl (charge -1, multiplicity 2)
+       Thermal: step-1 log; T=298.15 K (log)
+
+EQUILIBRIUM ELECTRONIC AND GIBBS ENERGIES (Hartree)
+--------------------------------------------------------------------------
+G = E(equilibrium) + thermal Gibbs correction + phase correction.
+State      E(equilibrium)       Thermal G           Phase       G corrected
+D-R        -292.440837438     0.174535000     0.003018804    -292.263283634
+D-P        -292.260583167     0.174612000     0.003018804    -292.082952363
+A-R        -694.268572173     0.217935000     0.003018804    -694.047618369
+A-P        -694.438506073     0.219750000     0.003018804    -694.215737269
+
+CROSS ELECTRONIC ENERGIES (Hartree)
+--------------------------------------------------------------------------
+Electronic state evaluated at the other state's geometry.
+Molecule      State              Geometry                       Energy
+Donor         final (D-P)        initial (D-R)          -292.194765457
+Donor         initial (D-R)      final (D-P)            -292.386773813
+Acceptor      final (A-P)        initial (A-R)          -694.404432225
+Acceptor      initial (A-R)      final (A-P)            -694.233162120
+
+REORGANIZATION ENERGY COMPONENTS (kcal/mol)
+--------------------------------------------------------------------------
+lambda R: initial state; lambda P: final state. Total = donor + acceptor.
+                            Donor       Acceptor          Total
+lambda R                  33.9254        22.2201        56.1455
+lambda P                  41.3012        21.3816        62.6829
+
+DEFINITIONS
+--------------------------------------------------------------------------
+  Delta G° = G(D-P) + G(A-P) - G(D-R) - G(A-R)
+  lambda R = [E(D-R at D-P) - E(D-R at D-R)]
+           + [E(A-R at A-P) - E(A-R at A-R)]
+  lambda P = [E(D-P at D-R) - E(D-P at D-P)]
+           + [E(A-P at A-R) - E(A-P at A-P)]
+  lambda = (lambda R + lambda P) / 2
+  Delta G‡ (symmetric) = (lambda + Delta G°)^2 / (4 lambda)
+  Delta G‡ (asymmetric) = lambda R * [(-lambda P +
+    sqrt(lambda R * lambda P + (lambda R - lambda P) * Delta G°))
+    / (lambda R - lambda P)]^2; equal lambdas use the symmetric limit.
