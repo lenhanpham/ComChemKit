@@ -15,6 +15,8 @@
 #include <algorithm>
 #include <regex>
 #include <filesystem>
+#include <system_error>
+#include <vector>
 
 namespace Marcus {
 
@@ -570,26 +572,78 @@ static bool collect_electronic_set(const MarcusProject& project,
     bool gas_phase = project.step2_solvent.empty();
     out.pcm_lines_in_gas_logs.clear();
     out.scrf_text_in_gas_logs.clear();
-    auto collect = [&](const std::string& path, double& value, std::string& source) {
+    struct LogStatus {
+        std::string role;
+        std::string path;
+        std::string status;
+    };
+    std::vector<LogStatus> logs;
+    int paths_found = 0, energies_found = 0;
+    auto collect = [&](const char* role, const std::string& path, double& value, std::string& source) {
+        std::error_code ec;
+        auto file_status = std::filesystem::status(path, ec);
+        if (ec && ec != std::errc::no_such_file_or_directory && ec != std::errc::not_a_directory) {
+            logs.push_back({role, path, "cannot inspect: " + ec.message()});
+            return false;
+        }
+        if (!std::filesystem::exists(file_status)) {
+            logs.push_back({role, path, "missing"});
+            return false;
+        }
+        ++paths_found;
+        if (!std::filesystem::is_regular_file(file_status)) {
+            logs.push_back({role, path, "not a regular file"});
+            return false;
+        }
+        std::ifstream probe(path, std::ios::binary);
+        if (!probe.is_open()) {
+            logs.push_back({role, path, "cannot open for reading"});
+            return false;
+        }
+        if (probe.peek() == std::ifstream::traits_type::eof()) {
+            logs.push_back({role, path, probe.bad() ? "cannot read" : "empty file"});
+            return false;
+        }
+        probe.close();
+
         bool pcm_present = false, scrf_present = false;
         bool found = extract_electronic_energy_src(path, value, source, gas_phase, &pcm_present,
                                                    gas_phase ? &scrf_present : nullptr);
         if (gas_phase && pcm_present) out.pcm_lines_in_gas_logs.push_back(path);
         if (gas_phase && scrf_present) out.scrf_text_in_gas_logs.push_back(path);
-        if (!found)
-            std::cerr << "Error: Could not extract " << (gas_phase ? "SCF Done energy" : "electronic energy")
-                      << " from " << path << std::endl;
+        if (found) {
+            ++energies_found;
+            logs.push_back({role, path, "energy found: " + source});
+        } else {
+            logs.push_back({role, path, gas_phase ? "no usable SCF Done energy"
+                                                  : "no usable After PCM or SCF Done energy"});
+        }
         return found;
     };
     bool ok = true;
-    ok &= collect(out.f_R_D_qR_D, out.E_R_D_qR_D, out.s_R_D_qR_D);
-    ok &= collect(out.f_P_D_qP_D, out.E_P_D_qP_D, out.s_P_D_qP_D);
-    ok &= collect(out.f_R_A_qR_A, out.E_R_A_qR_A, out.s_R_A_qR_A);
-    ok &= collect(out.f_P_A_qP_A, out.E_P_A_qP_A, out.s_P_A_qP_A);
-    ok &= collect(out.f_P_D_qR_D, out.E_P_D_qR_D, out.s_P_D_qR_D);
-    ok &= collect(out.f_R_D_qP_D, out.E_R_D_qP_D, out.s_R_D_qP_D);
-    ok &= collect(out.f_P_A_qR_A, out.E_P_A_qR_A, out.s_P_A_qR_A);
-    ok &= collect(out.f_R_A_qP_A, out.E_R_A_qP_A, out.s_R_A_qP_A);
+    ok &= collect("Donor initial (equilibrium)", out.f_R_D_qR_D, out.E_R_D_qR_D, out.s_R_D_qR_D);
+    ok &= collect("Donor final (equilibrium)", out.f_P_D_qP_D, out.E_P_D_qP_D, out.s_P_D_qP_D);
+    ok &= collect("Acceptor initial (equilibrium)", out.f_R_A_qR_A, out.E_R_A_qR_A, out.s_R_A_qR_A);
+    ok &= collect("Acceptor final (equilibrium)", out.f_P_A_qP_A, out.E_P_A_qP_A, out.s_P_A_qP_A);
+    ok &= collect("Donor final at initial geometry (cross)", out.f_P_D_qR_D, out.E_P_D_qR_D, out.s_P_D_qR_D);
+    ok &= collect("Donor initial at final geometry (cross)", out.f_R_D_qP_D, out.E_R_D_qP_D, out.s_R_D_qP_D);
+    ok &= collect("Acceptor final at initial geometry (cross)", out.f_P_A_qR_A, out.E_P_A_qR_A, out.s_P_A_qR_A);
+    ok &= collect("Acceptor initial at final geometry (cross)", out.f_R_A_qP_A, out.E_R_A_qP_A, out.s_R_A_qP_A);
+    if (!ok) {
+        std::cerr << "Error: Step 3 requires all 8 step-2 single-point output logs with usable energies.\n"
+                  << "  Step-2 directory: " << dir_step2 << "\n"
+                  << "  Expected: 4 equilibrium and 4 cross logs; paths found: " << paths_found
+                  << "/8; usable energies: " << energies_found << "/8.\n"
+                  << "  Required energy: " << (gas_phase ? "SCF Done (gas phase)"
+                                                    : "After PCM or SCF Done (solution phase)") << ".\n";
+        for (const auto& log : logs)
+            std::cerr << "  [" << log.status << "] " << log.role << ":\n    " << log.path << "\n";
+        std::cerr << "  An energy found in a log does not confirm normal Gaussian termination.\n"
+                  << "  Submit the step-2 equilibrium jobs first, then the cross jobs; wait for completion\n"
+                  << "  and ensure their .log files are in the step-2 directory above. For empty or\n"
+                  << "  unusable logs, check Gaussian termination and SCF convergence.\n"
+                  << "  No new report was written; any existing report may be stale." << std::endl;
+    }
     out.success = ok;
     return ok;
 }
@@ -649,6 +703,14 @@ bool compute_barriers(double dG_r_kcal,
 // calculate_barrier_step3
 // ---------------------------------------------------------------------------
 bool calculate_barrier_step3(MarcusProject& project, MarcusResult& result) {
+    // Check all equilibrium and cross outputs before Gibbs extraction so users
+    // receive a complete list of missing or unusable step-2 logs at once.
+    if (!collect_electronic_set(project, project.dir_step2_sp, result.elec)) {
+        result.success = false;
+        result.error_message = "Step-2 single-point outputs are missing or unusable";
+        return false;
+    }
+
     // Per-state Gibbs already includes phase (high-au rule), so dG here is corrected.
     double dG_corr_h = 0.0, dG_corr_kcal = 0.0;
     if (!compute_reaction_free_energy(project, dG_corr_h, dG_corr_kcal)) {
@@ -673,13 +735,6 @@ bool calculate_barrier_step3(MarcusProject& project, MarcusResult& result) {
          project.donor.final_state.phase_corr != 0.0 ||
          project.acceptor.init_state.phase_corr != 0.0 ||
          project.acceptor.final_state.phase_corr != 0.0);
-
-    // Full electronic audit trail (Section B).
-    if (!collect_electronic_set(project, project.dir_step2_sp, result.elec)) {
-        result.success = false;
-        result.error_message = "Failed to collect electronic energies";
-        return false;
-    }
 
     // Compute reorganization energies
     double lambda_R = 0.0, lambda_P = 0.0;

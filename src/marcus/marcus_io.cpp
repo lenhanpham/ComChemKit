@@ -10,11 +10,39 @@
 #include <sstream>
 #include <iomanip>
 #include <cmath>
+#include <ctime>
 #include <algorithm>
 #include <array>
 #include <vector>
+#include <cstdio>
+#include <cerrno>
+#include <cstring>
 
 namespace Marcus {
+
+bool write_generated_file(const std::string& path, const std::string& content, bool exclusive) {
+    if (exclusive) {
+        std::FILE* file = std::fopen(path.c_str(), "wbx");
+        if (!file) {
+            std::cerr << "Error: Cannot create generated file without overwriting " << path
+                      << ": " << std::strerror(errno) << std::endl;
+            return false;
+        }
+        bool ok = std::fwrite(content.data(), 1, content.size(), file) == content.size();
+        if (std::fclose(file) != 0) ok = false;
+        if (!ok) std::cerr << "Error: Cannot finish writing generated file: " << path << std::endl;
+        return ok;
+    }
+    std::ofstream file(path);
+    if (!file) {
+        std::cerr << "Error: Cannot write generated file: " << path << std::endl;
+        return false;
+    }
+    file << content;
+    file.close();
+    if (!file) std::cerr << "Error: Cannot finish writing generated file: " << path << std::endl;
+    return static_cast<bool>(file);
+}
 
 bool create_project_directories(const std::string& project_name,
                                 std::string& dir_step1,
@@ -38,18 +66,11 @@ bool create_project_directories(const std::string& project_name,
 }
 
 bool write_step1_manifest(const std::string& dir_step1,
-                          const std::map<std::string, std::string>& states) {
-    std::string manifest_path = dir_step1 + "/.marcus_manifest_step1";
-    std::ofstream file(manifest_path);
-    if (!file.is_open()) {
-        std::cerr << "Error: Cannot write step-1 manifest: " << manifest_path << std::endl;
-        return false;
-    }
-    for (const auto& [key, chk] : states) {
-        file << key << "=" << chk << "\n";
-    }
-    file.close();
-    return true;
+                          const std::map<std::string, std::string>& states,
+                          bool exclusive) {
+    std::ostringstream content;
+    for (const auto& [key, chk] : states) content << key << "=" << chk << "\n";
+    return write_generated_file(dir_step1 + "/.marcus_manifest_step1", content.str(), exclusive);
 }
 
 std::map<std::string, std::string> read_step1_manifest(const std::string& dir_step1) {
@@ -73,18 +94,11 @@ std::map<std::string, std::string> read_step1_manifest(const std::string& dir_st
 }
 
 bool write_step2_manifest(const std::string& dir_step2,
-                          const std::map<std::string, std::string>& inputs) {
-    std::string manifest_path = dir_step2 + "/.marcus_manifest_step2";
-    std::ofstream file(manifest_path);
-    if (!file.is_open()) {
-        std::cerr << "Error: Cannot write step-2 manifest: " << manifest_path << std::endl;
-        return false;
-    }
-    for (const auto& [key, fname] : inputs) {
-        file << key << "=" << fname << "\n";
-    }
-    file.close();
-    return true;
+                          const std::map<std::string, std::string>& inputs,
+                          bool exclusive) {
+    std::ostringstream content;
+    for (const auto& [key, fname] : inputs) content << key << "=" << fname << "\n";
+    return write_generated_file(dir_step2 + "/.marcus_manifest_step2", content.str(), exclusive);
 }
 
 std::map<std::string, std::string> read_step2_manifest(const std::string& dir_step2) {
@@ -122,18 +136,31 @@ bool step1_log_exists(const std::string& dir_step1,
     return std::filesystem::exists(dir_step1 + "/" + log_file);
 }
 
-bool write_barrier_report(const MarcusProject& project,
-                          const MarcusResult& result,
-                          const std::string& out_file) {
-    const std::string report_path = out_file.empty()
-        ? std::filesystem::path(project.name).filename().string() + ".log"
-        : out_file;
-    std::ofstream file(report_path);
-    if (!file.is_open()) {
-        std::cerr << "Error: Cannot write barrier report: " << report_path << std::endl;
-        return false;
+// Use a local tm rather than ctime's shared buffer; preserve ctime-style spacing.
+static std::string format_completion_footer() {
+    const std::time_t now = std::time(nullptr);
+    std::tm local_time{};
+#ifdef _WIN32
+    bool have_time = localtime_s(&local_time, &now) == 0;
+#else
+    bool have_time = localtime_r(&now, &local_time) != nullptr;
+#endif
+    std::ostringstream out;
+    out << "\nCalculation completed at: ";
+    if (have_time) {
+        out << std::put_time(&local_time, "%a %b ") << std::setw(2) << local_time.tm_mday
+            << std::put_time(&local_time, " %H:%M:%S %Y");
+    } else {
+        out << "time unavailable";
     }
+    out << "\n\n                    ---------- Happy calculation ----------\n"
+        << "                    ---- ComChemKit normally terminated ---\n";
+    return out.str();
+}
 
+bool write_barrier_report_to_stream(std::ostream& file, const MarcusProject& project,
+                                    const MarcusResult& result, bool include_header,
+                                    std::string* completion_footer) {
     struct StateRow { const char* id; const char* role; const MarcusState* state; };
     const StateRow states[] = {
         {"D-R", "Donor initial", &project.donor.init_state},
@@ -171,7 +198,7 @@ bool write_barrier_report(const MarcusProject& project,
         any_fallback |= row.state->thermo_fallback;
     }
 
-    file << Metadata::header();
+    if (include_header) file << Metadata::header();
     file << "Marcus Theory Barrier Calculation (Four-Point Method)\n"
          << "==========================================================================\n"
          << "Project          : " << project.name << "\n"
@@ -499,11 +526,37 @@ bool write_barrier_report(const MarcusProject& project,
              << "; output OTM=" << (project.output_otm ? "yes" : "no") << "\n";
     }
 
+    std::string footer;
+    if (result.success && result.gibbs_valid && result.barrier_sym_valid) {
+        footer = format_completion_footer();
+        file << footer;
+    }
+    file.flush();
+    if (!file) return false;
+    if (completion_footer) *completion_footer = footer;
+    return true;
+}
+
+bool write_barrier_report(const MarcusProject& project,
+                          const MarcusResult& result,
+                          const std::string& out_file,
+                          std::string* completion_footer) {
+    const std::string report_path = out_file.empty()
+        ? std::filesystem::path(project.name).filename().string() + ".log"
+        : out_file;
+    std::ofstream file(report_path);
+    if (!file.is_open()) {
+        std::cerr << "Error: Cannot write barrier report: " << report_path << std::endl;
+        return false;
+    }
+    std::string footer;
+    bool ok = write_barrier_report_to_stream(file, project, result, true, &footer);
     file.close();
-    if (!file) {
+    if (!ok || !file) {
         std::cerr << "Error: Cannot finish writing barrier report: " << report_path << std::endl;
         return false;
     }
+    if (completion_footer) *completion_footer = footer;
     std::cout << "Barrier report written to: " << report_path << std::endl;
     return true;
 }

@@ -270,19 +270,13 @@ bool generate_step1_inputs(const MarcusProject& project) {
 
         // Write file
         std::string full_path = dir_step1 + "/" + gau_file;
-        std::ofstream out(full_path);
-        if (!out.is_open()) {
-            std::cerr << "Error: Cannot write input file: " << full_path << std::endl;
-            return false;
-        }
-        out << content.str();
-        out.close();
+        if (!write_generated_file(full_path, content.str(), project.automatic_workflow)) return false;
 
         std::cout << "Created: " << full_path << std::endl;
     }
 
     // Write manifest
-    if (!write_step1_manifest(dir_step1, manifest)) {
+    if (!write_step1_manifest(dir_step1, manifest, project.automatic_workflow)) {
         return false;
     }
 
@@ -383,13 +377,7 @@ bool generate_step2_inputs(const MarcusProject& project) {
         content << "\n";
 
         std::string full_path = dir_step2 + "/" + filename;
-        std::ofstream out(full_path);
-        if (!out.is_open()) {
-            std::cerr << "Error: Cannot write input file: " << full_path << std::endl;
-            return false;
-        }
-        out << content.str();
-        out.close();
+        if (!write_generated_file(full_path, content.str(), project.automatic_workflow)) return false;
 
         std::cout << "Created: " << full_path << std::endl;
 
@@ -479,7 +467,7 @@ bool generate_step2_inputs(const MarcusProject& project) {
               + "-from-" + project.acceptor.final_state.state_label] = cross_A_if;
 
     // Write manifest
-    if (!write_step2_manifest(dir_step2, manifest2)) {
+    if (!write_step2_manifest(dir_step2, manifest2, project.automatic_workflow)) {
         return false;
     }
 

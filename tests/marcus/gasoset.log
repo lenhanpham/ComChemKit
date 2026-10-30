@@ -1,0 +1,124 @@
+                                                             
+*************************************************************
+* ComChemKit v0.1.6 developed by Le Nhan Pham               *
+* https://github.com/lenhanpham/ComChemKit                  *
+*************************************************************
+                                                             
+Marcus Theory Barrier Calculation (Four-Point Method)
+==========================================================================
+Project          : gasoset
+Calculation type : OSET
+Configured phase : gas phase
+Barrier models   : symmetric and asymmetric
+Report level     : default
+Step 1 directory: gasoset_step_1
+Step 2 directory: gasoset_step_2
+
+LEVELS OF THEORY AND THERMOCHEMISTRY
+--------------------------------------------------------------------------
+Theory settings below are configured in the input; log routes are not verified.
+
+Step 1 — optimization and frequencies
+  Functional    : uwb97xd
+  Basis set     : def2svpp
+  Solvent model : none (gas phase)
+  Solvent       : none (gas phase)
+
+Step 2 — single-point electronic energies
+  Functional    : uwb97xd
+  Basis set     : Gen
+  Basis file    : ma-def2-TZVP.gbs/N
+  Solvent model : none (gas phase)
+  Solvent       : none (gas phase)
+  Job types     : equilibrium and cross (configured routes)
+  Energy source : SCF Done (gas phase)
+
+Thermochemistry
+  Requested     : step-1 log values
+  Actual source : step-1 log values
+  Input T       : 298.15 K
+  Concentration : 1.000 mol/L (no solution-phase correction)
+  Input pressure: 1.000 atm (thermo recalculation only)
+  Phase standard: gas phase; no solution-phase correction
+  Low-vib method: grimme; ravib=100.000 cm^-1
+  Scale factors : ZPE=1.000, heat=1.000, entropy=1.000, Cv=1.000
+  Interpolation : 100.000 cm^-1; imaginary threshold=0.000 cm^-1
+  Other settings: mass mode=3, phase mode=0, external energy=0.000000000 Hartree
+  Point group   : (not specified); HG entropy=off; Bav=(not specified)
+  Low-vib, scaling and other thermo settings apply only to recalculated states.
+
+RESULTS
+--------------------------------------------------------------------------
+All reaction and activation energies use gas-phase Gibbs energies.
+Atomic units (au) are Hartree.
+  Reaction free energy, Delta G°    412.1959 kJ/mol    98.5171 kcal/mol   0.156997107 au   4.2721 eV
+  Reorganization energy, lambda R    50.1891 kJ/mol    11.9955 kcal/mol   0.019116031 au   0.5202 eV
+  Reorganization energy, lambda P    69.2575 kJ/mol    16.5529 kcal/mol   0.026378802 au   0.7178 eV
+  Average reorganization, lambda     59.7233 kJ/mol    14.2742 kcal/mol   0.022747417 au   0.6190 eV
+
+  Delta G‡ (symmetric)              932.2477 kJ/mol   222.8123 kcal/mol   0.355074319 au   9.6621 eV
+  Delta G‡ (asymmetric)                  N/A kJ/mol        N/A kcal/mol           N/A au      N/A eV
+
+STATE ASSIGNMENTS AND THERMAL PROVENANCE
+--------------------------------------------------------------------------
+R = initial/reactant state; P = final/product state.
+  D-R  Donor initial: TEA (charge +0, multiplicity 1)
+       Thermal: step-1 log; T=298.15 K (log)
+  D-P  Donor final: TEA (charge +1, multiplicity 2)
+       Thermal: step-1 log; T=298.15 K (log)
+  A-R  Acceptor initial: p-terphenyl (charge +0, multiplicity 3)
+       Thermal: step-1 log; T=298.15 K (log)
+  A-P  Acceptor final: p-terphenyl (charge -1, multiplicity 2)
+       Thermal: step-1 log; T=298.15 K (log)
+
+EQUILIBRIUM ELECTRONIC AND GIBBS ENERGIES (Hartree)
+--------------------------------------------------------------------------
+G = E(equilibrium) + thermal Gibbs correction + phase correction.
+State      E(equilibrium)       Thermal G           Phase       G corrected
+D-R        -292.433374733     0.173435000     0.000000000    -292.259939733
+D-P        -292.167704328     0.172471000     0.000000000    -291.995233328
+A-R        -694.247123034     0.216456000     0.000000000    -694.030667034
+A-P        -694.357133332     0.218757000     0.000000000    -694.138376332
+
+CROSS ELECTRONIC ENERGIES (Hartree)
+--------------------------------------------------------------------------
+Electronic state evaluated at the other state's geometry.
+Molecule      State              Geometry                       Energy
+Donor         final (D-P)        initial (D-R)          -292.146946365
+Donor         initial (D-R)      final (D-P)            -292.421201894
+Acceptor      final (A-P)        initial (A-R)          -694.351512493
+Acceptor      initial (A-R)      final (A-P)            -694.240179842
+
+REORGANIZATION ENERGY COMPONENTS (kcal/mol)
+--------------------------------------------------------------------------
+lambda R: initial state; lambda P: final state. Total = donor + acceptor.
+                            Donor       Acceptor          Total
+lambda R                   7.6386         4.3569        11.9955
+lambda P                  13.0258         3.5271        16.5529
+
+DEFINITIONS
+--------------------------------------------------------------------------
+  Delta G° = G(D-P) + G(A-P) - G(D-R) - G(A-R)
+  lambda R = [E(D-R at D-P) - E(D-R at D-R)]
+           + [E(A-R at A-P) - E(A-R at A-R)]
+  lambda P = [E(D-P at D-R) - E(D-P at D-P)]
+           + [E(A-P at A-R) - E(A-P at A-P)]
+  lambda = (lambda R + lambda P) / 2
+  Delta G‡ (symmetric) = (lambda + Delta G°)^2 / (4 lambda)
+  Delta G‡ (asymmetric) = lambda R * [(-lambda P +
+    sqrt(lambda R * lambda P + (lambda R - lambda P) * Delta G°))
+    / (lambda R - lambda P)]^2; equal lambdas use the symmetric limit.
+
+WARNINGS
+--------------------------------------------------------------------------
+  Asymmetric barrier unavailable: invalid reorganization energies or negative discriminant.
+  SCRF text detected in equilibrium logs despite configured gas phase; verify input logs:
+    D-R: gasoset_step_1/TEA-singlet-neutral_init.log and gasoset_step_2/TEA-singlet-neutral_init.log
+    D-P: gasoset_step_1/TEA-doublet-plus_final.log and gasoset_step_2/TEA-doublet-plus_final.log
+    A-R: gasoset_step_1/p-terphenyl-triplet-neutral_init.log and gasoset_step_2/p-terphenyl-triplet-neutral_init.log
+    A-P: gasoset_step_1/p-terphenyl-doublet-minus_final.log and gasoset_step_2/p-terphenyl-doublet-minus_final.log
+
+Calculation completed at: Fri Oct 30 23:40:28 2026
+
+                    ---------- Happy calculation ----------
+                    ---- ComChemKit normally terminated ---

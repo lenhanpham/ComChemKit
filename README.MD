@@ -725,7 +725,7 @@ project/
 └── marcus_project.log  # Step 3: barrier report
 ```
 
-Steps 1 and 2 overwrite matching generated `.gau` files and manifests. Existing Gaussian `.log` and `.chk` files are not overwritten by input generation.
+In manual mode, steps 1 and 2 overwrite matching generated `.gau` files and manifests. Existing Gaussian `.log` and `.chk` files are not overwritten by input generation. Automatic mode refuses to overwrite an existing report or nonempty step directory.
 
 **Basic Usage:**
 
@@ -743,10 +743,40 @@ cck marcus marcus_project.inp -step 1
 
 # Step 2: Generate single point inputs (reads step-1 checkpoints)
 cck marcus marcus_project.inp -step 2
-# Submit the .gau files to Gaussian, wait for completion
+# Submit equilibrium jobs first, then cross jobs; wait for completion
 
 # Step 3: Calculate barriers
 cck marcus marcus_project.inp -step 3   # reports both barriers
+```
+
+**Automatic workflow:** Set `workflow = auto` and `qc_engine = g16` (or an executable path) in the input, then submit job script and call the marcus module `cck marcus marcus_project.inp`. 
+
+For example, the input can contain:
+
+```ini
+workflow = auto
+qc_engine = g16
+step1_nprocshared = 16
+step2_nprocshared = 16
+step1_mem = 24GB
+step2_mem = 24GB
+out_file = marcus_project.out
+```
+
+Example SLURM script (adjust module and resource settings to your cluster):
+
+```bash
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=32G
+#SBATCH --time=24:00:00
+#SBATCH --output=marcus-%j.scheduler.log
+
+module load gaussian
+cd "$SLURM_SUBMIT_DIR"
+cck marcus marcus_project.inp
 ```
 
 **Command-Line Options:**
@@ -777,6 +807,8 @@ The input file uses `key = value` format (`#` = comment) and can have any extens
 |-----|-------------|---------|
 | `project` | Project name (used for directory names) | input filename stem |
 | `calc_type` | Calculation type | `oset` \| `ent` |
+| `workflow` | `manual` or sequential `auto` | `manual` |
+| `qc_engine` | Gaussian executable name or path; required in auto mode | (empty) |
 
 **Donor / Acceptor Definitions:**
 
@@ -887,17 +919,7 @@ cck marcus my_marcus.inp -step 2
 cck marcus my_marcus.inp -step 3
 ```
 
-**Output:**
-
-Step 3 writes `<project>.log` in the current directory (or to the explicit `-O` / `out_file` path). The report cannot overwrite the input file; if they would have the same name, use a different `-O` path. It contains:
-
-The default report includes the configured levels of theory and thermochemistry, per-state provenance, four equilibrium energies and Gibbs components, four cross energies, reorganization components, reaction free energy and barriers. Theory settings are taken from the input file; they are not verified against the Gaussian logs. The reaction energy, reorganization energies, and both barriers are reported in kJ/mol, kcal/mol, atomic units (Hartree), and eV.
-
-Use `-v` / `--verbose` or set `report_level = verbose` for the detailed thermal breakdown, electronic energy sources and paths, numerical audit, and full configured settings. `-v` enables verbose output even when `report_level = default`; `prt_level` controls the thermo module independently. For Marcus, use `--version` to show the program version.
-
-Thermo recalculation is activated by `-t`, `-c`, `--pressure`, or the corresponding `use_input_*` setting. Otherwise thermal corrections are read from step-1 logs, and low-frequency and scaling settings do not recalculate those values. The report distinguishes per-state fallback and temperatures; for solution-phase corrections it uses a fixed 1 atm standard pressure. Fully gas-phase calculations do not apply the solution-phase correction.
-
-Missing Gibbs corrections or invalid symmetric barriers are reported as `N/A`; the report is written and step 3 returns a nonzero status. If the asymmetric expression is undefined but the symmetric result is valid, the asymmetric barrier is `N/A` with a warning and step 3 succeeds. Missing electronic energies stop the calculation before a report can be written.
+If step-2 electronic outputs are missing or unusable, step 3 lists the status and path of all eight expected logs, states the required energy type, and stops without writing a report. An energy being present does not confirm normal Gaussian termination; check the jobs before rerunning.
 
 ### 3.6 Coordinate Extraction Module
 

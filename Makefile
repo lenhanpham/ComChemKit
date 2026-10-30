@@ -111,6 +111,7 @@ SOURCES = $(SRC_DIR)/main.cpp \
           $(SRC_DIR)/rmsd/struct_list.cpp \
           $(SRC_DIR)/rmsd/matrix.cpp \
           $(SRC_DIR)/marcus/marcus_input_gen.cpp \
+          $(SRC_DIR)/marcus/marcus_auto.cpp \
           $(SRC_DIR)/marcus/marcus_calculator.cpp \
           $(SRC_DIR)/marcus/marcus_io.cpp \
           $(SRC_DIR)/commands/marcus_command.cpp
@@ -167,6 +168,7 @@ HEADERS = $(SRC_DIR)/commands/signal_handler.h \
           $(SRC_DIR)/marcus/marcus_types.h \
           $(SRC_DIR)/marcus/marcus_io.h \
           $(SRC_DIR)/marcus/marcus_input_gen.h \
+          $(SRC_DIR)/marcus/marcus_auto.h \
           $(SRC_DIR)/marcus/marcus_calculator.h \
           $(SRC_DIR)/commands/marcus_command.h
 

@@ -8,6 +8,7 @@
 #include "marcus/marcus_input_gen.h"
 #include "marcus/marcus_calculator.h"
 #include "marcus/marcus_io.h"
+#include "marcus/marcus_auto.h"
 #include "input_gen/parameter_parser.h"
 #include <iostream>
 #include <fstream>
@@ -45,14 +46,17 @@ void MarcusCommand::print_help(const std::string& program_name) const {
     std::cout << "Calculates Marcus free-energy barriers for Outer Sphere Single\n";
     std::cout << "Electron Transfer (OSET) and Energy Transfer (EnT) using the\n";
     std::cout << "explicit four-point reorganization energy method.\n\n";
-    std::cout << "Workflow (3 steps, user submits Gaussian jobs between steps):\n";
+    std::cout << "Manual workflow (user submits Gaussian jobs between steps):\n";
     std::cout << "  Step 1: Generate geometry optimization inputs in <project>_step_1/\n";
     std::cout << "          User submits to Gaussian, waits for completion.\n";
     std::cout << "  Step 2: Generate single point inputs in <project>_step_2/\n";
     std::cout << "          (reads step-1 checkpoints via %OldChk + Geom=Check)\n";
     std::cout << "          User submits to Gaussian, waits for completion.\n";
     std::cout << "  Step 3: Calculate symmetric and asymmetric barriers in <project>.log\n";
-    std::cout << "  Leave step1_solvent and step2_solvent blank for gas-phase calculations.\n\n";
+    std::cout << "  Leave step1_solvent and step2_solvent blank for gas-phase calculations.\n";
+    std::cout << "Automatic: set workflow = auto and qc_engine = g16 (or executable path).\n";
+    std::cout << "  Runs 4 optimization, 4 equilibrium and 4 cross jobs sequentially.\n";
+    std::cout << "  Input step is ignored in auto mode; CLI -step is not allowed.\n\n";
     std::cout << "Options:\n";
     std::cout << "  <input_file>   Input file in ComChemKit key=value format (any extension)\n";
     std::cout << "                 Project defaults to the input filename without its last extension\n";
@@ -212,42 +216,65 @@ bool MarcusCommand::load_input(const std::string& filename,
         return false;
     }
     project.calc_type = parse_calc_type(parser.getString("calc_type", "oset"));
-    // Step selection: CLI -step overrides the input-file `step` key.
-    // Default (key commented out / missing) generates both input sets: "1,2".
-    std::string step_spec = step_cli_given ? step_arg : parser.getString("step", "1,2");
-    std::vector<int> steps;
-    {
-        std::string tok;
-        std::istringstream ss(step_spec);
-        while (std::getline(ss, tok, ',')) {
-            // trim whitespace
-            size_t b = tok.find_first_not_of(" \t\r\n");
-            if (b == std::string::npos) continue;
-            size_t e = tok.find_last_not_of(" \t\r\n");
-            std::string t = tok.substr(b, e - b + 1);
-            try {
-                int n = std::stoi(t);
-                if (n < 1 || n > 3) {
-                    std::cerr << "Error: Invalid step number '" << t
-                              << "' (must be 1, 2, or 3)" << std::endl;
-                    return false;
-                }
-                if (std::find(steps.begin(), steps.end(), n) == steps.end())
-                    steps.push_back(n);
-            } catch (const std::exception&) {
-                std::cerr << "Error: Invalid step spec '" << step_spec
-                          << "' (expected e.g. 1, 2, 1,2, or 3)" << std::endl;
-                return false;
-            }
-        }
-    }
-    if (steps.empty()) {
-        std::cerr << "Error: No workflow step selected (step = '" << step_spec << "')" << std::endl;
+    std::string workflow = parser.getString("workflow", "manual");
+    std::transform(workflow.begin(), workflow.end(), workflow.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (workflow != "manual" && workflow != "auto") {
+        std::cerr << "Error: workflow must be manual or auto" << std::endl;
         return false;
     }
-    std::sort(steps.begin(), steps.end());
-    project.requested_steps = steps;
-    project.current_step = static_cast<Marcus::Step>(steps.front() - 1);
+    project.automatic_workflow = workflow == "auto";
+    project.qc_engine = parser.getString("qc_engine", "");
+    if (project.automatic_workflow) {
+        if (step_cli_given) {
+            std::cerr << "Error: -step cannot be combined with workflow = auto; automatic mode runs all stages."
+                      << std::endl;
+            return false;
+        }
+        if (project.qc_engine.empty()) {
+            std::cerr << "Error: workflow = auto requires qc_engine (e.g. qc_engine = g16)." << std::endl;
+            return false;
+        }
+        project.requested_steps = {1, 2, 3};
+        project.current_step = Marcus::Step::STEP_1_OPT;
+    } else {
+        // Step selection: CLI -step overrides the input-file `step` key.
+        // Default (key commented out / missing) generates both input sets: "1,2".
+        std::string step_spec = step_cli_given ? step_arg : parser.getString("step", "1,2");
+        std::vector<int> steps;
+        {
+            std::string tok;
+            std::istringstream ss(step_spec);
+            while (std::getline(ss, tok, ',')) {
+                // trim whitespace
+                size_t b = tok.find_first_not_of(" \t\r\n");
+                if (b == std::string::npos) continue;
+                size_t e = tok.find_last_not_of(" \t\r\n");
+                std::string t = tok.substr(b, e - b + 1);
+                try {
+                    int n = std::stoi(t);
+                    if (n < 1 || n > 3) {
+                        std::cerr << "Error: Invalid step number '" << t
+                                  << "' (must be 1, 2, or 3)" << std::endl;
+                        return false;
+                    }
+                    if (std::find(steps.begin(), steps.end(), n) == steps.end())
+                        steps.push_back(n);
+                } catch (const std::exception&) {
+                    std::cerr << "Error: Invalid step spec '" << step_spec
+                              << "' (expected e.g. 1, 2, 1,2, or 3)" << std::endl;
+                    return false;
+                }
+            }
+        }
+        if (steps.empty()) {
+            std::cerr << "Error: No workflow step selected (step = '" << step_spec << "')" << std::endl;
+            return false;
+        }
+        std::sort(steps.begin(), steps.end());
+        project.requested_steps = steps;
+        project.current_step = static_cast<Marcus::Step>(steps.front() - 1);
+    }
 
     // Donor
     project.donor.name = parser.getString("donor_name", "");
@@ -424,7 +451,9 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "# ----------------------------------------------------------------------------\n";
     file << "# project = my_marcus_project        # Optional; defaults to input filename without extension\n";
     file << "calc_type = " << template_calc_type << "                   # oset | ent\n";
-    file << "step = 1,2                     # 1 = gen opt inputs, 2 = gen sp inputs, 3 = calc barriers\n";
+    file << "workflow = manual              # manual | auto (auto runs all stages sequentially)\n";
+    file << "# qc_engine = g16              # required for auto; executable name or path\n";
+    file << "step = 1,2                     # manual: 1 = opt, 2 = sp, 3 = barriers; ignored in auto\n";
     file << "                               # (default 1,2: generate both input sets up front;\n";
     file << "                               #  submit step-1 jobs first, then step-2 jobs)\n";
     file << "\n";
@@ -492,7 +521,7 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "# ----------------------------------------------------------------------------\n";
     file << "step2_functional      = uwb97xd\n";
     file << "step2_basis           = def2tzvp        # typically higher level than step1\n";
-    file << "step2_basis_path      = /path/to/basis/ma-def2tzvp.gbs\n";
+    file << "# step2_basis_path    = /path/to/basis/ma-def2tzvp.gbs  # for a custom basis\n";
     file << "step2_solvent_model   = smd\n";
     file << "step2_solvent         = water          # leave blank for gas phase\n";
     file << "step2_solvent_extra   = ExternalIteration,NonEq=read  # ignored in gas phase\n";
@@ -511,7 +540,7 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "# STEP 3 — Barrier calculation\n";
     file << "# ----------------------------------------------------------------------------\n";
     file << "report_level = default       # default | verbose; -v also enables verbose reporting\n";
-    file << "out_file =                   # optional; default: <project>.log in current directory\n";
+    file << "out_file =                   # progress/report path; default: <project>.log in current directory\n";
     file << "\n";
 
     file << "# ----------------------------------------------------------------------------\n";
@@ -559,6 +588,7 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "#   cck marcus \"" << filename << "\" -step 3\n";
     file << "#   -> Calculates both symmetric and asymmetric barriers\n";
     file << "#   Gas phase: leave both step1_solvent and step2_solvent blank.\n";
+    file << "# Automatic: set workflow = auto and qc_engine = g16, then run without -step.\n";
     file << "#   -> Writes <project>.log in the current directory\n";
     file << "\n";
 
@@ -627,7 +657,14 @@ int MarcusCommand::run_step3(const Marcus::MarcusProject& project) {
 
     Marcus::MarcusResult result;
     if (!calculate_barrier_step3(proj, result)) {
-        std::cerr << "Error: Barrier calculation failed: " << result.error_message << std::endl;
+        if (!result.elec.success) {
+            // The collector already printed the complete step-2 diagnostic.
+            std::cerr << "  Once the jobs are complete, re-run from the same project directory,\n"
+                      << "  retaining any other options. For example:\n"
+                      << "    cck marcus \"" << input_file << "\" -step 3" << std::endl;
+        } else {
+            std::cerr << "Error: Barrier calculation failed: " << result.error_message << std::endl;
+        }
         return 1;
     }
     bool step1_gas = proj.step1_solvent.empty();
@@ -671,8 +708,9 @@ int MarcusCommand::run_step3(const Marcus::MarcusProject& project) {
     else
         std::cout << "Delta G‡  = N/A (asymmetric barrier unavailable; see report)" << std::endl;
 
-    // Write report
-    if (!Marcus::write_barrier_report(proj, result, proj.out_file)) {
+    // Write report; use the same completion timestamp in the console.
+    std::string completion_footer;
+    if (!Marcus::write_barrier_report(proj, result, proj.out_file, &completion_footer)) {
         std::cerr << "Error: Failed to write barrier report." << std::endl;
         return 1;
     }
@@ -681,11 +719,11 @@ int MarcusCommand::run_step3(const Marcus::MarcusProject& project) {
         std::cerr << "Error: Barrier calculation is incomplete; see report for details." << std::endl;
         return 1;
     }
-    std::cout << "\nStep 3 complete." << std::endl;
+    std::cout << "\nStep 3 complete.\n" << completion_footer;
     return 0;
 }
 
-int MarcusCommand::execute(const CommandContext& /*context*/) {
+int MarcusCommand::execute(const CommandContext& context) {
     if (parse_error) return 1;
 
     if (generate_template_flag) {
@@ -713,6 +751,9 @@ int MarcusCommand::execute(const CommandContext& /*context*/) {
     if (!load_input(input_file, project)) {
         return 1;
     }
+
+    if (project.automatic_workflow)
+        return Marcus::run_automatic(project, input_file, context.job_resources);
 
     // Run the requested steps in order (default: 1,2 generates both input sets
     // up front; submit step-1 jobs first, then step-2 jobs).
