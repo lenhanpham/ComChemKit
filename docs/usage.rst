@@ -1403,7 +1403,8 @@ The default report includes configured levels of theory and thermochemistry,
 per-state provenance, equilibrium and cross electronic energies, Gibbs
 components, reorganization components, reaction energy and barriers. Theory
 settings come from the input file and are not verified against Gaussian logs.
-Both symmetric and asymmetric barriers are reported automatically.
+The reaction energy, reorganization energies and both barriers are reported in
+kJ/mol, kcal/mol, atomic units (Hartree) and eV.
 
 Use ``-v`` / ``--verbose`` or ``report_level = verbose`` for thermal breakdowns,
 electronic-energy sources and paths, numerical audits and complete configured

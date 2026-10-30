@@ -10,6 +10,9 @@
 #include <sstream>
 #include <iomanip>
 #include <cmath>
+#include <algorithm>
+#include <array>
+#include <vector>
 
 namespace Marcus {
 
@@ -218,28 +221,44 @@ bool write_barrier_report(const MarcusProject& project,
 
     section("RESULTS");
     file << "All reaction and activation energies use phase-corrected Gibbs energies.\n"
-         << std::fixed << std::setprecision(4);
-    auto result_line = [&file](const char* label, double value, bool valid) {
-        std::string text(label);
-        size_t width = 0;
-        for (unsigned char c : text) if ((c & 0xC0) != 0x80) ++width;
-        file << "  " << text << std::string(width < 34 ? 34 - width : 1, ' ') << std::right;
-        if (valid) file << std::setw(14) << value << " kcal/mol";
-        else file << std::setw(14) << "N/A";
-        file << "\n";
+         << "Atomic units (au) are Hartree.\n";
+    struct ResultRow {
+        const char* label;
+        std::array<std::string, 4> values;
     };
-    result_line("Reaction free energy, Delta G°", result.dG_r_kcal, result.gibbs_valid);
-    result_line("Reorganization energy, lambda R", result.lambda_R_kcal, result.elec.success);
-    result_line("Reorganization energy, lambda P", result.lambda_P_kcal, result.elec.success);
-    result_line("Average reorganization, lambda", result.lambda_avg_kcal, result.elec.success);
-    result_line("Delta G‡ (symmetric)", result.barrier_sym_kcal, result.barrier_sym_valid);
-    result_line("Delta G‡ (asymmetric)", result.barrier_asym_kcal, result.barrier_asym_valid);
-    if (result.barrier_sym_valid)
-        file << "  Symmetric barrier: " << result.barrier_sym_kcal * HARTREE_TO_KJ_MOL / HARTREE_TO_KCAL_MOL
-             << " kJ/mol\n";
-    if (result.barrier_asym_valid)
-        file << "  Asymmetric barrier: " << result.barrier_asym_kcal * HARTREE_TO_KJ_MOL / HARTREE_TO_KCAL_MOL
-             << " kJ/mol\n";
+    std::vector<ResultRow> rows;
+    auto add_result = [&rows, &number](const char* label, double hartree, bool valid) {
+        rows.push_back({label, {number(hartree * HARTREE_TO_KJ_MOL, valid, 4),
+                                number(hartree * HARTREE_TO_KCAL_MOL, valid, 4),
+                                number(hartree, valid, 9),
+                                number(hartree * HARTREE_TO_EV, valid, 4)}});
+    };
+    add_result("Reaction free energy, Delta G°", result.dG_r_hartree, result.gibbs_valid);
+    add_result("Reorganization energy, lambda R", result.lambda_R_hartree, result.elec.success);
+    add_result("Reorganization energy, lambda P", result.lambda_P_hartree, result.elec.success);
+    add_result("Average reorganization, lambda",
+               (result.lambda_R_hartree + result.lambda_P_hartree) / 2.0, result.elec.success);
+    add_result("Delta G‡ (symmetric)", result.barrier_sym_kcal / HARTREE_TO_KCAL_MOL, result.barrier_sym_valid);
+    add_result("Delta G‡ (asymmetric)", result.barrier_asym_kcal / HARTREE_TO_KCAL_MOL, result.barrier_asym_valid);
+
+    std::array<size_t, 4> widths{};
+    for (const auto& row : rows)
+        for (size_t i = 0; i < widths.size(); ++i)
+            widths[i] = std::max(widths[i], row.values[i].size());
+    const std::array<const char*, 4> units = {"kJ/mol", "kcal/mol", "au", "eV"};
+    for (size_t row_index = 0; row_index < rows.size(); ++row_index) {
+        if (row_index == 4) file << "\n";
+        const auto& row = rows[row_index];
+        std::string label(row.label);
+        size_t label_width = 0;
+        for (unsigned char c : label) if ((c & 0xC0) != 0x80) ++label_width;
+        file << "  " << label << std::string(label_width < 34 ? 34 - label_width : 1, ' ') << std::right;
+        for (size_t i = 0; i < units.size(); ++i) {
+            if (i > 0) file << "   ";
+            file << std::setw(static_cast<int>(widths[i])) << row.values[i] << " " << units[i];
+        }
+        file << "\n";
+    }
 
     section("STATE ASSIGNMENTS AND THERMAL PROVENANCE");
     file << "R = initial/reactant state; P = final/product state.\n";
@@ -258,8 +277,8 @@ bool write_barrier_report(const MarcusProject& project,
                  << st.phase_temperature_used << " K (fallback if SCRF)\n";
     }
 
-    section("EQUILIBRIUM ELECTRONIC AND GIBBS ENERGIES");
-    file << "Hartree; G = E(equilibrium) + thermal Gibbs correction + phase.\n"
+    section("EQUILIBRIUM ELECTRONIC AND GIBBS ENERGIES (Hartree)");
+    file << "G = E(equilibrium) + thermal Gibbs correction + phase correction.\n"
          << std::left << std::setw(7) << "State" << std::right << std::setw(18) << "E(equilibrium)"
          << std::setw(16) << "Thermal G" << std::setw(16) << "Phase" << std::setw(18) << "G corrected" << "\n";
     for (const auto& row : states) {
@@ -271,8 +290,8 @@ bool write_barrier_report(const MarcusProject& project,
              << std::setw(18) << number(st.g_corr, st.has_energy && st.has_tc_gibbs) << "\n";
     }
 
-    section("CROSS ELECTRONIC ENERGIES");
-    file << "Hartree; electronic state evaluated at the other state's geometry.\n"
+    section("CROSS ELECTRONIC ENERGIES (Hartree)");
+    file << "Electronic state evaluated at the other state's geometry.\n"
          << std::left << std::setw(14) << "Molecule" << std::setw(19) << "State" << std::setw(19) << "Geometry"
          << std::right << std::setw(18) << "Energy" << "\n";
     auto cross = [&file, &number](const char* molecule, const char* state, const char* geometry, double value, bool valid) {
@@ -284,8 +303,8 @@ bool write_barrier_report(const MarcusProject& project,
     cross("Acceptor", "final (A-P)", "initial (A-R)", e.E_P_A_qR_A, e.success);
     cross("Acceptor", "initial (A-R)", "final (A-P)", e.E_R_A_qP_A, e.success);
 
-    section("REORGANIZATION ENERGY COMPONENTS");
-    file << "kcal/mol; each component is a cross energy minus its corresponding equilibrium energy.\n"
+    section("REORGANIZATION ENERGY COMPONENTS (kcal/mol)");
+    file << "lambda R: initial state; lambda P: final state. Total = donor + acceptor.\n"
          << std::left << std::setw(18) << "" << std::right << std::setw(15) << "Donor"
          << std::setw(15) << "Acceptor" << std::setw(15) << "Total" << "\n";
     auto lambda_row = [&file](const char* name, double donor, double acceptor, double total) {

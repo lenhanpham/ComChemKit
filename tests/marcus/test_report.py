@@ -47,6 +47,33 @@ class MarcusReportTests(unittest.TestCase):
     def input_without_project(self):
         return re.sub(r"(?m)^project\s*=.*\n", "", (self.work / "oset.inp").read_text(encoding="utf-8"))
 
+    def result_values(self, report, label):
+        value = r"([-\d.]+|N/A)"
+        pattern = (r"^\s*" + re.escape(label) + r"\s+" + value + r" kJ/mol\s+" + value +
+                   r" kcal/mol\s+" + value + r" au\s+" + value + r" eV$")
+        match = re.search(pattern, report, re.MULTILINE)
+        self.assertIsNotNone(match, label)
+        return tuple(None if v == "N/A" else float(v) for v in match.groups())
+
+    def assert_results_alignment(self, report, max_gap=None):
+        labels = ("Reaction free energy, Delta G°", "Reorganization energy, lambda R",
+                  "Reorganization energy, lambda P", "Average reorganization, lambda",
+                  "Delta G‡ (symmetric)", "Delta G‡ (asymmetric)")
+        unit_columns = []
+        for label in labels:
+            line = next(line for line in report.splitlines()
+                        if line.startswith("  " + label) and " kJ/mol" in line)
+            fields = list(re.finditer(r"(-?\d+\.\d+|N/A) (kJ/mol|kcal/mol|au|eV)", line))
+            self.assertEqual(len(fields), 4, line)
+            self.assertEqual([field.group(2) for field in fields], ["kJ/mol", "kcal/mol", "au", "eV"])
+            unit_columns.append([field.start(2) for field in fields])
+            for previous, following in zip(fields, fields[1:]):
+                gap = following.start() - previous.end()
+                self.assertGreaterEqual(gap, 3, line)
+                if max_gap is not None:
+                    self.assertLessEqual(gap, max_gap, line)
+        self.assertTrue(all(columns == unit_columns[0] for columns in unit_columns))
+
     def assert_report_header(self, report):
         version_header = (FIXTURES.parent.parent / "src/utilities/version.h").read_text(encoding="utf-8")
         def macro(name):
@@ -83,6 +110,8 @@ class MarcusReportTests(unittest.TestCase):
         self.assertIn("Basis file    : ma-def2-TZVP.gbs/N", content)
         self.assertIn("configured in the input; log routes are not verified", content)
         self.assertIn("Low-vib, scaling and other thermo settings apply only to recalculated states", content)
+        self.assertIn("lambda R: initial state; lambda P: final state. Total = donor + acceptor.", content)
+        self.assertNotIn("Each component is a cross energy minus", content)
         for value in ("-292.440837438", "-292.260583167", "-694.375776644", "-694.438506073",
                       "-292.194765457", "-292.386773813", "-694.397845878", "-694.335905255"):
             self.assertIn(value, content)
@@ -107,6 +136,7 @@ class MarcusReportTests(unittest.TestCase):
         self.assertIn("multiplicity 3", content)
         self.assertNotIn("[selected]", content)
         self.assertNotIn("[reference]", content)
+        self.assert_results_alignment(content, max_gap=4)
 
         # Independently reconstruct the barriers from the nine-decimal Hartree
         # values printed in the report, rather than only testing the labels.
@@ -133,11 +163,25 @@ class MarcusReportTests(unittest.TestCase):
         lp = (cross["D-PR"] - rows["D-P"][0] + cross["A-PR"] - rows["A-P"][0]) * factor
         symmetric = ((lr + lp) / 2 + dg) ** 2 / (2 * (lr + lp))
         asymmetric = lr * ((-lp + math.sqrt(lr * lp + (lr - lp) * dg)) / (lr - lp)) ** 2
-        for label, expected in (("asymmetric", asymmetric), ("symmetric", symmetric)):
-            match = re.search(r"Delta G‡ \(" + label + r"\)\s+([-\d.]+) kcal/mol", content)
-            self.assertIsNotNone(match, label)
-            self.assertAlmostEqual(float(match.group(1)), expected, delta=0.00006)
+        # Check all four columns against independently reconstructed values.
+        expected_hartree = {
+            "Reaction free energy, Delta G°": dg / factor,
+            "Reorganization energy, lambda R": lr / factor,
+            "Reorganization energy, lambda P": lp / factor,
+            "Average reorganization, lambda": (lr + lp) / (2 * factor),
+            "Delta G‡ (symmetric)": symmetric / factor,
+            "Delta G‡ (asymmetric)": asymmetric / factor,
+        }
+        for label, hartree in expected_hartree.items():
+            with self.subTest(quantity=label):
+                values = self.result_values(content, label)
+                self.assertAlmostEqual(values[0], hartree * 2625.5002, delta=0.00008)
+                self.assertAlmostEqual(values[1], hartree * factor, delta=0.00006)
+                self.assertAlmostEqual(values[2], hartree, delta=0.000000003)
+                self.assertAlmostEqual(values[3], hartree * 27.211396641308, delta=0.00006)
         self.assertGreater(abs(symmetric - asymmetric), 0.001)
+        self.assertNotIn("  Symmetric barrier:", content)
+        self.assertNotIn("  Asymmetric barrier:", content)
 
     def test_removed_mode_options_are_rejected(self):
         params = self.work / "oset.inp"
@@ -155,6 +199,24 @@ class MarcusReportTests(unittest.TestCase):
         self.assertIn("Unknown Marcus option: -mode", result.stderr)
         self.assertFalse((self.work / "oset.log").exists())
 
+    def test_negative_reaction_energy_converts_with_sign(self):
+        self.copy_logs()
+        log = self.work / "oset_step_1/TEA-doublet-plus_final.log"
+        content = log.read_text(encoding="utf-8")
+        content, count = re.subn(r"(Thermal correction to Gibbs Free Energy=\s+)[-+0-9.EeDd]+",
+                                 r"\g<1>-0.025388", content)
+        self.assertGreater(count, 0)
+        log.write_text(content, encoding="utf-8")
+        result = self.run_cck("-step", "3")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        content = (self.work / "oset.log").read_text(encoding="utf-8")
+        kj, kcal, hartree, ev = self.result_values(content, "Reaction free energy, Delta G°")
+        self.assertTrue(all(v < 0 for v in (kj, kcal, hartree, ev)))
+        self.assert_results_alignment(content)
+        self.assertAlmostEqual(kj, hartree * 2625.5002, delta=0.00006)
+        self.assertAlmostEqual(kcal, hartree * 627.509, delta=0.00006)
+        self.assertAlmostEqual(ev, hartree * 27.211396641308, delta=0.00006)
+
     def test_energy_transfer_uses_same_report_levels(self):
         self.copy_logs()
         params = self.work / "oset.inp"
@@ -169,6 +231,9 @@ class MarcusReportTests(unittest.TestCase):
     def test_verbose_report_settings_and_cli_override(self):
         self.copy_logs()
         params = self.work / "oset.inp"
+        result = self.run_cck("-step", "3")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        default_report = (self.work / "oset.log").read_text(encoding="utf-8")
         params.write_text(params.read_text(encoding="utf-8") + "\nreport_level = verbose\n", encoding="utf-8")
         result = self.run_cck("-step", "3")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -180,6 +245,10 @@ class MarcusReportTests(unittest.TestCase):
                       "Step 1 log", "Step 2 log", "lambda R acceptor", "Net phase on Delta G°"):
             self.assertIn(label, content)
         self.assertIn("70.2968 kcal/mol", content)
+        for label in ("Reaction free energy, Delta G°", "Reorganization energy, lambda R",
+                      "Reorganization energy, lambda P", "Average reorganization, lambda",
+                      "Delta G‡ (symmetric)", "Delta G‡ (asymmetric)"):
+            self.assertEqual(self.result_values(default_report, label), self.result_values(content, label))
         params.write_text(params.read_text(encoding="utf-8") + "\nreport_level = default\n", encoding="utf-8")
         (self.work / "oset.log").unlink()
         result = self.run_cck("-step", "3", "-v")
@@ -207,7 +276,7 @@ class MarcusReportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         content = (self.work / "oset.log").read_text(encoding="utf-8")
         self.assertIn("Delta G‡ (symmetric)", content)
-        self.assertRegex(content, r"Delta G‡ \(asymmetric\)\s+\d+\.\d+ kcal/mol")
+        self.assertIsNotNone(self.result_values(content, "Delta G‡ (asymmetric)")[0])
         cross = self.work / "oset_step_2/TEA-doublet-plus_final-from-TEA-singlet-neutral_init.log"
         content = cross.read_text(encoding="utf-8")
         content = re.sub(r"(After PCM corrections, the energy is\s+)[-+0-9.EeDd]+", r"\g<1>-290.0", content)
@@ -215,8 +284,9 @@ class MarcusReportTests(unittest.TestCase):
         result = self.run_cck("-step", "3", "-v")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         content = (self.work / "oset.log").read_text(encoding="utf-8")
-        self.assertRegex(content, r"Delta G‡ \(symmetric\)\s+\d+\.\d+ kcal/mol")
-        self.assertRegex(content, r"Delta G‡ \(asymmetric\)\s+N/A")
+        self.assertIsNotNone(self.result_values(content, "Delta G‡ (symmetric)")[0])
+        self.assertEqual(self.result_values(content, "Delta G‡ (asymmetric)"), (None, None, None, None))
+        self.assert_results_alignment(content)
         self.assertIn("negative discriminant", content)
         self.assertIn("Asymmetric barrier: N/A", content)
         self.assertIn("asymmetric barrier unavailable", result.stdout)
@@ -239,12 +309,9 @@ class MarcusReportTests(unittest.TestCase):
         result = self.run_cck("-step", "3")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         content = (self.work / "oset.log").read_text(encoding="utf-8")
-        values = []
-        for mode in ("symmetric", "asymmetric"):
-            match = re.search(r"Delta G‡ \(" + mode + r"\)\s+([-\d.]+) kcal/mol", content)
-            self.assertIsNotNone(match, mode)
-            values.append(float(match.group(1)))
-        self.assertEqual(values[0], values[1])
+        symmetric = self.result_values(content, "Delta G‡ (symmetric)")
+        asymmetric = self.result_values(content, "Delta G‡ (asymmetric)")
+        self.assertEqual(symmetric, asymmetric)
 
     def test_missing_and_zero_gibbs_corrections(self):
         self.copy_logs()
@@ -255,8 +322,8 @@ class MarcusReportTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         content = (self.work / "oset.log").read_text(encoding="utf-8")
         self.assertIn("Missing thermal Gibbs corrections", content)
-        self.assertRegex(content, r"Reaction free energy, Delta G°\s+N/A")
-        self.assertRegex(content, r"Delta G‡ \(symmetric\)\s+N/A")
+        self.assertEqual(self.result_values(content, "Reaction free energy, Delta G°"), (None, None, None, None))
+        self.assertEqual(self.result_values(content, "Delta G‡ (symmetric)"), (None, None, None, None))
         self.assertRegex(content, r"TC\(G\)\s+: N/A")
         self.assertIn("Reorganization energy, lambda R", content)
         log.write_text(re.sub(r"(Thermal correction to Gibbs Free Energy=\s+)[-+0-9.EeDd]+",
@@ -499,7 +566,9 @@ class MarcusReportTests(unittest.TestCase):
                                 cwd=self.work, text=True, capture_output=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         path = self.work / "chemistry.in"
-        template = path.read_text(encoding="utf-8").replace("PC.xyz", "TEA.xyz").replace("D1.xyz", "p-terphenyl.xyz")
+        template = path.read_text(encoding="utf-8")
+        template = re.sub(r"(?m)^(donor_xyz\s*=\s*).*$", r"\g<1>TEA.xyz", template)
+        template = re.sub(r"(?m)^(acceptor_xyz\s*=\s*).*$", r"\g<1>p-terphenyl.xyz", template)
         path.write_text(template, encoding="utf-8")
         for xyz in FIXTURES.glob("*.xyz"):
             shutil.copy(xyz, self.work / xyz.name)

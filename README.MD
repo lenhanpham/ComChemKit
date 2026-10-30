@@ -717,17 +717,15 @@ The **Marcus module** implements Marcus theory barrier calculations for **Outer 
 
 ```
 project/
-├── PC.xyz                    # Donor coordinates
-├── D1.xyz                    # Acceptor coordinates
-├── marcus_project.inp        # Marcus input file
-├── marcus_project_step_1/    # Step 1: optimization inputs (.gau, .chk)
+├── Donor.xyz                  # Donor coordinates
+├── Acceptor.xyz               # Acceptor coordinates
+├── marcus_project.inp         # Marcus input file
+├── marcus_project_step_1/     # Step 1: optimization inputs (.gau, .chk)
 ├── marcus_project_step_2/     # Step 2: single point inputs (.gau, .chk)
 └── marcus_project.log  # Step 3: barrier report
 ```
 
 Steps 1 and 2 overwrite matching generated `.gau` files and manifests. Existing Gaussian `.log` and `.chk` files are not overwritten by input generation.
-
-Existing projects using `<project>_step_1_opt/` and `<project>_step_2_sp/` must rename them to `<project>_step_1/` and `<project>_step_2/`. Regenerate step-2 inputs if needed: their `%OldChk` paths refer to the original step-1 directory.
 
 **Basic Usage:**
 
@@ -893,7 +891,7 @@ cck marcus my_marcus.inp -step 3
 
 Step 3 writes `<project>.log` in the current directory (or to the explicit `-O` / `out_file` path). The report cannot overwrite the input file; if they would have the same name, use a different `-O` path. It contains:
 
-The default report includes the configured levels of theory and thermochemistry, per-state provenance, four equilibrium energies and Gibbs components, four cross energies, reorganization components, reaction free energy and barriers. Theory settings are taken from the input file; they are not verified against the Gaussian logs. Both symmetric and asymmetric barriers are reported automatically.
+The default report includes the configured levels of theory and thermochemistry, per-state provenance, four equilibrium energies and Gibbs components, four cross energies, reorganization components, reaction free energy and barriers. Theory settings are taken from the input file; they are not verified against the Gaussian logs. The reaction energy, reorganization energies, and both barriers are reported in kJ/mol, kcal/mol, atomic units (Hartree), and eV.
 
 Use `-v` / `--verbose` or set `report_level = verbose` for the detailed thermal breakdown, electronic energy sources and paths, numerical audit, and full configured settings. `-v` enables verbose output even when `report_level = default`; `prt_level` controls the thermo module independently. For Marcus, use `--version` to show the program version.
 

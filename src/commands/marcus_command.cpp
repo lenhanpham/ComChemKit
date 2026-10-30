@@ -405,10 +405,10 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "# PROJECT IDENTIFICATION\n";
     file << "# ----------------------------------------------------------------------------\n";
     file << "# project = my_marcus_project        # Optional; defaults to input filename without extension\n";
-    file << "calc_type = " << template_calc_type << "          # oset | ent\n";
-    file << "step = 1,2                           # 1 = gen opt inputs, 2 = gen sp inputs, 3 = calc barriers\n";
-    file << "                                     # (default 1,2: generate both input sets up front;\n";
-    file << "                                     #  submit step-1 jobs first, then step-2 jobs)\n";
+    file << "calc_type = " << template_calc_type << "                   # oset | ent\n";
+    file << "step = 1,2                     # 1 = gen opt inputs, 2 = gen sp inputs, 3 = calc barriers\n";
+    file << "                               # (default 1,2: generate both input sets up front;\n";
+    file << "                               #  submit step-1 jobs first, then step-2 jobs)\n";
     file << "\n";
 
     // Donor / Acceptor definitions
@@ -449,7 +449,7 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "# ----------------------------------------------------------------------------\n";
     file << "step1_functional      = uwb97xd\n";
     file << "step1_basis           = def2svpp\n";
-    file << "step1_basis_path      = /path/to/basis/ma-def2svpp.gbs\n";
+    file << "#step1_basis_path      = /path/to/basis/ma-def2svpp.gbs\n";
     file << "step1_solvent_model   = smd\n";
     file << "step1_solvent         = water\n";
     file << "step1_scf_maxcycle    = 300\n";
