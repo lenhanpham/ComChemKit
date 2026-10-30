@@ -202,8 +202,8 @@ std::string build_step2_route(const MarcusProject& project, bool is_equilibrium)
 // Step 1: generate geometry optimization inputs
 // ---------------------------------------------------------------------------
 bool generate_step1_inputs(const MarcusProject& project) {
-    std::string dir_step1, dir_step2, dir_barrier;
-    if (!create_project_directories(project.name, dir_step1, dir_step2, dir_barrier)) {
+    std::string dir_step1, dir_step2;
+    if (!create_project_directories(project.name, dir_step1, dir_step2)) {
         return false;
     }
 
@@ -294,8 +294,8 @@ bool generate_step1_inputs(const MarcusProject& project) {
 // Step 2: generate single point inputs reading step-1 checkpoints
 // ---------------------------------------------------------------------------
 bool generate_step2_inputs(const MarcusProject& project) {
-    std::string dir_step1, dir_step2, dir_barrier;
-    if (!create_project_directories(project.name, dir_step1, dir_step2, dir_barrier)) {
+    std::string dir_step1, dir_step2;
+    if (!create_project_directories(project.name, dir_step1, dir_step2)) {
         return false;
     }
 

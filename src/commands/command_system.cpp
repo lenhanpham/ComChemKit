@@ -17,11 +17,22 @@
 
 CommandContext CommandParser::parse(int argc, char* argv[])
 {
-    // Early check for version before any other processing
+    // Marcus uses -v for verbose reports; retain the global short version flag
+    // for other commands and --version for all commands.
+    bool marcus_command = false;
+    for (int i = 1; i < argc; ++i)
+    {
+        CommandType candidate = parse_command(argv[i]);
+        if (candidate != CommandType::EXTRACT || std::string(argv[i]) == "extract")
+        {
+            marcus_command = candidate == CommandType::MARCUS;
+            break;
+        }
+    }
     for (int i = 1; i < argc; ++i)
     {
         std::string arg = argv[i];
-        if (arg == "--version" || arg == "-v")
+        if (arg == "--version" || (arg == "-v" && !marcus_command))
         {
             std::cout << ComChemKit::get_version_info() << std::endl;
             std::exit(0);

@@ -1114,34 +1114,41 @@ Golden-value verification: ``./test_rmsd.sh`` (fixtures in ``tests/rmsd/``).
    project/
    ├── PC.xyz                    # Donor coordinates
    ├── D1.xyz                    # Acceptor coordinates
-   ├── marcus.params             # Parameter file
-   ├── marcus_project_step_1_opt/    # Step 1: optimization inputs
-   ├── marcus_project_step_2_sp/     # Step 2: single point inputs
-   └── marcus_project_barrier/       # Step 3: barrier report
+   ├── marcus_project.inp        # Marcus input file
+   ├── marcus_project_step_1/    # Step 1: optimization inputs
+   ├── marcus_project_step_2/     # Step 2: single point inputs
+   └── marcus_project.log  # Step 3: barrier report
+
+Steps 1 and 2 overwrite matching generated ``.gau`` files and manifests. Existing
+Gaussian ``.log`` and ``.chk`` files are not overwritten by input generation.
+
+Existing projects using ``<project>_step_1_opt/`` and ``<project>_step_2_sp/``
+need to rename them to ``<project>_step_1/`` and ``<project>_step_2/``.
+Regenerate step-2 inputs if needed: their ``%OldChk`` paths refer to the
+original step-1 directory.
 
 **Basic Usage:**
 
 .. code-block:: bash
 
-   # Generate a parameter template (OSET)
-   cck marcus --genoset-params -o marcus.params
+   # Generate an input template (OSET)
+   cck marcus --genoset-input -o marcus_project.inp
 
-   # Generate a parameter template (EnT)
-   cck marcus --genent-params -o marcus.params
+   # Generate an input template (EnT)
+   cck marcus --genent-input -o marcus_project.inp
 
-   # Edit marcus.params with your molecule names, XYZ paths, charges, multiplicities, etc.
+   # Edit marcus_project.inp with your molecule names, XYZ paths, charges, multiplicities, etc.
 
    # Step 1: Generate optimization inputs
-   cck marcus -p marcus.params -step 1
+   cck marcus marcus_project.inp -step 1
    # Submit the .gau files to Gaussian, wait for completion
 
    # Step 2: Generate single point inputs (reads step-1 checkpoints)
-   cck marcus -p marcus.params -step 2
+   cck marcus marcus_project.inp -step 2
    # Submit the .gau files to Gaussian, wait for completion
 
    # Step 3: Calculate barriers
-   cck marcus -p marcus.params -step 3 -mode symmetric
-   cck marcus -p marcus.params -step 3 -mode asymmetric
+   cck marcus marcus_project.inp -step 3   # reports both barriers
 
 **Command-Line Options:**
 
@@ -1150,15 +1157,13 @@ Golden-value verification: ``./test_rmsd.sh`` (fixtures in ``tests/rmsd/``).
    +------------------+--------------------------------------------------+------------------+-----------+
    | Option           | Description                                      | Values           | Default   |
    +==================+==================================================+==================+===========+
-   | ``-p, --param, --param-file``  | Parameter file (required)                        | file path        | -         |
+   | ``<input_file>`` | Input file (positional)                          | file path        | required  |
    +------------------+--------------------------------------------------+------------------+-----------+
-   | ``-step``        | Workflow step                                    | 1, 2, 3          | 1         |
-   +------------------+--------------------------------------------------+------------------+-----------+
-   | ``-mode``        | Barrier mode                                     | symmetric, asymmetric | symmetric |
+   | ``-step``        | Workflow step                                    | 1, 2, 3          | 1,2       |
    +------------------+--------------------------------------------------+------------------+-----------+
    | ``-O, --out``    | Output report file                               | file path        | -         |
    +------------------+--------------------------------------------------+------------------+-----------+
-   | ``-v, --verbose``| Verbose output                                   | (flag)           | false     |
+   | ``-v, --verbose``| Verbose report and console diagnostics           | (flag)           | false     |
    +------------------+--------------------------------------------------+------------------+-----------+
    | ``-t, --temp``   | Temperature (K)                                  | decimal          | 298.15    |
    +------------------+--------------------------------------------------+------------------+-----------+
@@ -1170,18 +1175,22 @@ Golden-value verification: ``./test_rmsd.sh`` (fixtures in ``tests/rmsd/``).
    +------------------+--------------------------------------------------+------------------+-----------+
    | ``--ravib``      | Truhlar threshold (cm^-1)                        | decimal          | 100.0     |
    +------------------+--------------------------------------------------+------------------+-----------+
-   | ``--genoset-params``| Generate OSET parameter template                 | (flag)           | -         |
+   | ``--genoset-input``| Generate OSET input template                 | (flag)           | -         |
    +------------------+--------------------------------------------------+------------------+-----------+
-   | ``--genent-params`` | Generate EnT parameter template                  | (flag)           | -         |
+   | ``--genent-input`` | Generate EnT input template                  | (flag)           | -         |
    +------------------+--------------------------------------------------+------------------+-----------+
    | ``-o, --output-template`` | Template output path                      | file path        | -         |
    +------------------+--------------------------------------------------+------------------+-----------+
    | ``-h, --help``   | Show help                                        | (flag)           | -         |
    +------------------+--------------------------------------------------+------------------+-----------+
 
-**Parameter File (`marcus.params`) Keys:**
+**Input File (`marcus_project.inp`) Keys:**
 
-The parameter file uses ``key = value`` format (``#`` = comment). All step 3 thermo options are supported:
+The input file uses ``key = value`` format (``#`` = comment) and can have any
+extension. Unless ``project`` is set, the filename without its last extension
+determines the project name; for example, ``reaction.inp`` gives ``reaction``.
+Relative paths are resolved from the current working directory. All step 3
+thermo options are supported:
 
 **Project Identification:**
 
@@ -1190,11 +1199,9 @@ The parameter file uses ``key = value`` format (``#`` = comment). All step 3 the
    +------------------+--------------------------------------------------+-----------+
    | Key              | Description                                      | Default   |
    +==================+==================================================+===========+
-   | ``project``      | Project name (used for directory names)          | marcus_project |
+   | ``project``      | Project name (used for directory names)          | filename stem |
    +------------------+--------------------------------------------------+-----------+
    | ``calc_type``    | Calculation type (oset \| ent)                   | oset      |
-   +------------------+--------------------------------------------------+-----------+
-   | ``skip_existing``| Skip existing input files                        | true      |
    +------------------+--------------------------------------------------+-----------+
 
 **Donor / Acceptor Definitions:**
@@ -1314,13 +1321,11 @@ The parameter file uses ``key = value`` format (``#`` = comment). All step 3 the
    +---------------------------+--------------------------------------------------+-----------+
    | Key                       | Description                                      | Default   |
    +===========================+==================================================+===========+
-   | ``marcus_mode``           | Barrier mode                                     | symmetric |
-   +---------------------------+--------------------------------------------------+-----------+
    | ``temperature``           | Temperature (K)                                  | 298.15    |
    +---------------------------+--------------------------------------------------+-----------+
    | ``concentration``         | Concentration (mol/L)                            | 1.0       |
    +---------------------------+--------------------------------------------------+-----------+
-   | ``pressure``              | Pressure (atm)                                   | 1.0       |
+   | ``pressure``              | Thermo-recalculation pressure (atm)              | 1.0       |
    +---------------------------+--------------------------------------------------+-----------+
    | ``low_vib_method``        | Low-frequency treatment                          | grimme    |
    +---------------------------+--------------------------------------------------+-----------+
@@ -1342,7 +1347,7 @@ The parameter file uses ``key = value`` format (``#`` = comment). All step 3 the
    +---------------------------+--------------------------------------------------+-----------+
    | ``mass_mode``             | Mass assignment mode                             | 3         |
    +---------------------------+--------------------------------------------------+-----------+
-   | ``prt_level``             | Output verbosity (0-3)                           | 1         |
+   | ``prt_level``             | Thermo-module output verbosity (0-3)              | 1         |
    +---------------------------+--------------------------------------------------+-----------+
    | ``print_vib``             | Print vibration contributions                    | 0         |
    +---------------------------+--------------------------------------------------+-----------+
@@ -1362,6 +1367,8 @@ The parameter file uses ``key = value`` format (``#`` = comment). All step 3 the
    +---------------------------+--------------------------------------------------+-----------+
    | ``use_input_pressure``    | Activate pressure pathway                        | false     |
    +---------------------------+--------------------------------------------------+-----------+
+   | ``report_level``          | Marcus report: default or verbose                | default   |
+   +---------------------------+--------------------------------------------------+-----------+
    | ``out_file``              | Output report path                               | (empty)   |
    +---------------------------+--------------------------------------------------+-----------+
 
@@ -1370,34 +1377,51 @@ The parameter file uses ``key = value`` format (``#`` = comment). All step 3 the
 .. code-block:: bash
 
    # 1. Generate template
-   cck marcus --genoset-params -o my_marcus.params
+   cck marcus --genoset-input -o my_marcus.inp
 
-   # 2. Edit my_marcus.params — set donor_name, donor_xyz, acceptor_name,
+   # 2. Edit my_marcus.inp — set donor_name, donor_xyz, acceptor_name,
    #    acceptor_xyz, charges, multiplicities, and any thermo options
 
    # 3. Step 1: Generate inputs
-   cck marcus -p my_marcus.params -step 1
+   cck marcus my_marcus.inp -step 1
    # Submit .gau files to Gaussian
 
    # 4. Step 2: Generate single point inputs
-   cck marcus -p my_marcus.params -step 2
+   cck marcus my_marcus.inp -step 2
    # Submit .gau files to Gaussian
 
    # 5. Step 3: Calculate barriers with thermo options
-   cck marcus -p my_marcus.params -step 3 -mode asymmetric
+   cck marcus my_marcus.inp -step 3
 
 **Output:**
 
-Step 3 writes a barrier report to ``<project>_barrier/<project>_barrier_report.txt``
-(or ``-O`` path) containing:
+Step 3 writes ``<project>.log`` in the current directory (or to the explicit
+``-O`` / ``out_file`` path). The report cannot overwrite the input file; if
+they would have the same name, use a different ``-O`` path. It contains:
 
-- Gibbs free energy per state (Hartree)
-- Reaction free energy ΔG°r (Hartree and kcal/mol)
-- Phase correction (Hartree)
-- Reorganization energies λ_R and λ_P (kcal/mol)
-- Average reorganization energy λ (kcal/mol)
-- Symmetric barrier ΔG‡ (kcal/mol)
-- Asymmetric barrier ΔG‡ (kcal/mol) (if ``-mode asymmetric``)
+The default report includes configured levels of theory and thermochemistry,
+per-state provenance, equilibrium and cross electronic energies, Gibbs
+components, reorganization components, reaction energy and barriers. Theory
+settings come from the input file and are not verified against Gaussian logs.
+Both symmetric and asymmetric barriers are reported automatically.
+
+Use ``-v`` / ``--verbose`` or ``report_level = verbose`` for thermal breakdowns,
+electronic-energy sources and paths, numerical audits and complete configured
+settings. The CLI flag enables verbose reporting even if the input requests
+``default``; ``prt_level`` controls the thermo module independently. For Marcus,
+use ``--version`` to show the program version.
+
+Thermo recalculation is activated by ``-t``, ``-c``, ``--pressure`` or the
+corresponding ``use_input_*`` setting. Otherwise thermal corrections are read
+from step-1 logs; low-frequency and scaling settings do not recalculate them.
+The report records per-state fallback and temperatures. The phase correction
+uses a fixed 1 atm standard pressure.
+
+Missing Gibbs corrections or an invalid symmetric barrier are shown as ``N/A``;
+the report is written and step 3 returns a nonzero status. If the asymmetric
+expression is undefined but the symmetric result is valid, the asymmetric value
+is ``N/A`` with a warning and step 3 succeeds. Missing electronic energies stop
+the calculation before a report can be written.
 
 Configuration and Customization
 ===============================

@@ -18,7 +18,7 @@ namespace Marcus {
 /**
  * @brief Generate step-1 geometry optimization Gaussian inputs.
  * 
- * Creates 4 .gau files in <project>_step_1_opt/:
+ * Creates 4 .gau files in <project>_step_1/:
  *   <donor>-<init>.gau, <donor>-<final>.gau,
  *   <acceptor>-<init>.gau, <acceptor>-<final>.gau
  * 
@@ -33,7 +33,7 @@ bool generate_step1_inputs(const MarcusProject& project);
 /**
  * @brief Generate step-2 single point Gaussian inputs.
  *
- * Creates 8 .gau files in <project>_step_2_sp/ (4 per molecule):
+ * Creates 8 .gau files in <project>_step_2/ (4 per molecule):
  *   2 non-cross (equilibrium): <mol>-<state>.gau
  *     %OldChk=<abs_step1_dir>/<own>.chk (absolute path into step-1 dir)
  *     route: #P ... scrf=(...,NonEq=write) Geom(Check) Guess(read) nosymm

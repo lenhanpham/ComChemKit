@@ -77,7 +77,6 @@ step2_scf_maxcycle    = 500
 # STEP 3 — Barrier calculation
 # ----------------------------------------------------------------------------
 marcus_mode = symmetric       # symmetric | asymmetric
-skip_existing = true
 temperature = 298.15          # K (for thermal corrections & phase correction)
 concentration = 1.0           # mol/L (for phase correction)
 pressure = 1.0                # atm (for phase correction)
