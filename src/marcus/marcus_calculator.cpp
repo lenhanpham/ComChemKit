@@ -11,6 +11,8 @@
 #include <sstream>
 #include <string>
 #include <cmath>
+#include <cctype>
+#include <algorithm>
 #include <regex>
 #include <filesystem>
 
@@ -92,23 +94,30 @@ static double extract_field_after_pattern(const std::string& content,
 // ---------------------------------------------------------------------------
 // extract_electronic_energy (+ source variant)
 // ---------------------------------------------------------------------------
+static bool content_has_scrf(const std::string& content);
+
 bool extract_electronic_energy_src(const std::string& log_path,
-                                   double& energy, std::string& source_out) {
+                                   double& energy, std::string& source_out,
+                                   bool gas_phase, bool* pcm_present, bool* scrf_present) {
     std::string content = read_file_content(log_path);
+    if (pcm_present) *pcm_present = content.find("After PCM corrections, the energy is") != std::string::npos;
+    if (scrf_present) *scrf_present = content_has_scrf(content);
     if (content.empty()) return false;
 
-    // Priority 1: "After PCM corrections, the energy is" -> field 7 (scfEqui)
     bool found = false;
-    double scf_equi = extract_field_after_pattern(content,
-                                                  "After PCM corrections, the energy is",
-                                                  7, -1, &found);
-    if (found) {
-        energy = scf_equi;
-        source_out = "After PCM";
-        return true;
+    if (!gas_phase) {
+        // Solution: prefer the last PCM-corrected energy, falling back to SCF.
+        double scf_equi = extract_field_after_pattern(content,
+                                                      "After PCM corrections, the energy is",
+                                                      7, -1, &found);
+        if (found) {
+            energy = scf_equi;
+            source_out = "After PCM";
+            return true;
+        }
     }
 
-    // Priority 2: "SCF Done:" -> field 5
+    // Gas: use only SCF Done. Solution: use it as the fallback.
     double scf_done = extract_field_after_pattern(content,
                                                   "SCF Done:",
                                                   5, -1, &found);
@@ -121,15 +130,15 @@ bool extract_electronic_energy_src(const std::string& log_path,
     return false;
 }
 
-bool extract_electronic_energy(const std::string& log_path, double& energy) {
+bool extract_electronic_energy(const std::string& log_path, double& energy, bool gas_phase) {
     std::string src;
-    return extract_electronic_energy_src(log_path, energy, src);
+    return extract_electronic_energy_src(log_path, energy, src, gas_phase);
 }
 
 // Detect SCRF (case-insensitive "scrf"), mirroring high-au/high-kJ has_scrf.
 static bool content_has_scrf(const std::string& content) {
     std::string lower = content;
-    for (auto& c : lower) c = static_cast<char>(std::tolower(c));
+    for (auto& c : lower) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return lower.find("scrf") != std::string::npos;
 }
 
@@ -313,15 +322,18 @@ bool compute_g_state(MarcusState& state,
                      const std::string& point_group,
                      bool hg_entropy,
                      const std::string& bav_preset,
-                     bool output_otm) {
+                     bool output_otm,
+                     bool step2_gas,
+                     bool fully_gas) {
     std::string step1_log = step1_path(dir_step1, state.log_file);
     std::string step2_log = step2_path(dir_step2, state.log_file);
 
     // --- High-level electronic energy from step-2 log ---
     double e_high = 0.0;
     std::string e_src;
-    if (!extract_electronic_energy_src(step2_log, e_high, e_src)) {
-        std::cerr << "Error: Could not extract electronic energy from " << step2_log << std::endl;
+    if (!extract_electronic_energy_src(step2_log, e_high, e_src, step2_gas)) {
+        std::cerr << "Error: Could not extract " << (step2_gas ? "SCF Done energy" : "electronic energy")
+                  << " from " << step2_log << std::endl;
         state.has_energy = false;
         return false;
     }
@@ -408,7 +420,9 @@ bool compute_g_state(MarcusState& state,
     state.g_raw = e_high + tc_g;
     state.phase_temperature_used = T_used > 0.0 ? T_used : 298.15;
     state.phase_concentration_used = concentration_m > 0.0 ? concentration_m : 1.0;
-    state.phase_corr = per_state_phase_correction(state.has_scrf, T_used, concentration_m);
+    // A configured fully gas-phase calculation has no solution standard-state
+    // correction. Any conflicting SCRF text is reported separately.
+    state.phase_corr = fully_gas ? 0.0 : per_state_phase_correction(state.has_scrf, T_used, concentration_m);
     state.g_corr = state.g_raw + state.phase_corr;
     state.g_state = state.g_corr;  // final solution-phase Gibbs (matches high-kJ)
     return true;
@@ -423,42 +437,21 @@ bool compute_reaction_free_energy(MarcusProject& project,
     bool use_thermo = project.use_input_temp || project.use_input_concentration ||
                        project.use_input_pressure;
 
-    // Ensure all 4 states have G values
-    if (!compute_g_state(project.donor.init_state,
-                         project.dir_step1_opt, project.dir_step2_sp,
-                         use_thermo, project.temperature, project.pressure,
-                         project.concentration, project.low_vib_method, project.ravib,
-                         project.scale_zpe, project.scale_heat, project.scale_entropy, project.scale_cv,
-                         project.interp_vib, project.imag_real, project.external_energy,
-                         project.mass_mode, project.prt_level, project.print_vib, project.ip_mode,
-                         project.point_group, project.hg_entropy, project.bav_preset, project.output_otm))
-        return false;
-    if (!compute_g_state(project.donor.final_state,
-                         project.dir_step1_opt, project.dir_step2_sp,
-                         use_thermo, project.temperature, project.pressure,
-                         project.concentration, project.low_vib_method, project.ravib,
-                         project.scale_zpe, project.scale_heat, project.scale_entropy, project.scale_cv,
-                         project.interp_vib, project.imag_real, project.external_energy,
-                         project.mass_mode, project.prt_level, project.print_vib, project.ip_mode,
-                         project.point_group, project.hg_entropy, project.bav_preset, project.output_otm))
-        return false;
-    if (!compute_g_state(project.acceptor.init_state,
-                         project.dir_step1_opt, project.dir_step2_sp,
-                         use_thermo, project.temperature, project.pressure,
-                         project.concentration, project.low_vib_method, project.ravib,
-                         project.scale_zpe, project.scale_heat, project.scale_entropy, project.scale_cv,
-                         project.interp_vib, project.imag_real, project.external_energy,
-                         project.mass_mode, project.prt_level, project.print_vib, project.ip_mode,
-                         project.point_group, project.hg_entropy, project.bav_preset, project.output_otm))
-        return false;
-    if (!compute_g_state(project.acceptor.final_state,
-                         project.dir_step1_opt, project.dir_step2_sp,
-                         use_thermo, project.temperature, project.pressure,
-                         project.concentration, project.low_vib_method, project.ravib,
-                         project.scale_zpe, project.scale_heat, project.scale_entropy, project.scale_cv,
-                         project.interp_vib, project.imag_real, project.external_energy,
-                         project.mass_mode, project.prt_level, project.print_vib, project.ip_mode,
-                         project.point_group, project.hg_entropy, project.bav_preset, project.output_otm))
+    // Use the same electronic-energy policy and phase convention for every state.
+    bool step2_gas = project.step2_solvent.empty();
+    bool fully_gas = project.step1_solvent.empty() && step2_gas;
+    auto compute_state = [&](MarcusState& state) {
+        return compute_g_state(state, project.dir_step1_opt, project.dir_step2_sp,
+                               use_thermo, project.temperature, project.pressure,
+                               project.concentration, project.low_vib_method, project.ravib,
+                               project.scale_zpe, project.scale_heat, project.scale_entropy, project.scale_cv,
+                               project.interp_vib, project.imag_real, project.external_energy,
+                               project.mass_mode, project.prt_level, project.print_vib, project.ip_mode,
+                               project.point_group, project.hg_entropy, project.bav_preset, project.output_otm,
+                               step2_gas, fully_gas);
+    };
+    if (!compute_state(project.donor.init_state) || !compute_state(project.donor.final_state) ||
+        !compute_state(project.acceptor.init_state) || !compute_state(project.acceptor.final_state))
         return false;
 
     // Delta G°r from phase-corrected G (= g_state/g_corr, matches high-kJ).
@@ -489,21 +482,21 @@ bool compute_reorganization_energies(const MarcusProject& project,
     double E_R_A_qR_A, E_P_A_qR_A, E_R_A_qP_A, E_P_A_qP_A;
 
     // Donor equilibrium energies
-    if (!extract_electronic_energy(step2_path(dir_step2, project.donor.init_state.log_file), E_R_D_qR_D)) {
+    if (!extract_electronic_energy(step2_path(dir_step2, project.donor.init_state.log_file), E_R_D_qR_D, project.step2_solvent.empty())) {
         std::cerr << "Error: Missing electronic energy for D-init equilibrium" << std::endl;
         return false;
     }
-    if (!extract_electronic_energy(step2_path(dir_step2, project.donor.final_state.log_file), E_P_D_qP_D)) {
+    if (!extract_electronic_energy(step2_path(dir_step2, project.donor.final_state.log_file), E_P_D_qP_D, project.step2_solvent.empty())) {
         std::cerr << "Error: Missing electronic energy for D-final equilibrium" << std::endl;
         return false;
     }
 
     // Acceptor equilibrium energies
-    if (!extract_electronic_energy(step2_path(dir_step2, project.acceptor.init_state.log_file), E_R_A_qR_A)) {
+    if (!extract_electronic_energy(step2_path(dir_step2, project.acceptor.init_state.log_file), E_R_A_qR_A, project.step2_solvent.empty())) {
         std::cerr << "Error: Missing electronic energy for A-init equilibrium" << std::endl;
         return false;
     }
-    if (!extract_electronic_energy(step2_path(dir_step2, project.acceptor.final_state.log_file), E_P_A_qP_A)) {
+    if (!extract_electronic_energy(step2_path(dir_step2, project.acceptor.final_state.log_file), E_P_A_qP_A, project.step2_solvent.empty())) {
         std::cerr << "Error: Missing electronic energy for A-final equilibrium" << std::endl;
         return false;
     }
@@ -511,14 +504,14 @@ bool compute_reorganization_energies(const MarcusProject& project,
     // Donor cross energies
     std::string cross_D_fi = project.donor.name + state_suffix(project.donor.final_state) + "_final-from-"
                            + project.donor.init_state.name + state_suffix(project.donor.init_state) + "_init.log";
-    if (!extract_electronic_energy(step2_path(dir_step2, cross_D_fi), E_P_D_qR_D)) {
+    if (!extract_electronic_energy(step2_path(dir_step2, cross_D_fi), E_P_D_qR_D, project.step2_solvent.empty())) {
         std::cerr << "Error: Missing electronic energy for " << cross_D_fi << std::endl;
         return false;
     }
 
     std::string cross_D_if = project.donor.name + state_suffix(project.donor.init_state) + "_init-from-"
                            + project.donor.final_state.name + state_suffix(project.donor.final_state) + "_final.log";
-    if (!extract_electronic_energy(step2_path(dir_step2, cross_D_if), E_R_D_qP_D)) {
+    if (!extract_electronic_energy(step2_path(dir_step2, cross_D_if), E_R_D_qP_D, project.step2_solvent.empty())) {
         std::cerr << "Error: Missing electronic energy for " << cross_D_if << std::endl;
         return false;
     }
@@ -526,14 +519,14 @@ bool compute_reorganization_energies(const MarcusProject& project,
     // Acceptor cross energies
     std::string cross_A_fi = project.acceptor.name + state_suffix(project.acceptor.final_state) + "_final-from-"
                            + project.acceptor.init_state.name + state_suffix(project.acceptor.init_state) + "_init.log";
-    if (!extract_electronic_energy(step2_path(dir_step2, cross_A_fi), E_P_A_qR_A)) {
+    if (!extract_electronic_energy(step2_path(dir_step2, cross_A_fi), E_P_A_qR_A, project.step2_solvent.empty())) {
         std::cerr << "Error: Missing electronic energy for " << cross_A_fi << std::endl;
         return false;
     }
 
     std::string cross_A_if = project.acceptor.name + state_suffix(project.acceptor.init_state) + "_init-from-"
                            + project.acceptor.final_state.name + state_suffix(project.acceptor.final_state) + "_final.log";
-    if (!extract_electronic_energy(step2_path(dir_step2, cross_A_if), E_R_A_qP_A)) {
+    if (!extract_electronic_energy(step2_path(dir_step2, cross_A_if), E_R_A_qP_A, project.step2_solvent.empty())) {
         std::cerr << "Error: Missing electronic energy for " << cross_A_if << std::endl;
         return false;
     }
@@ -574,15 +567,29 @@ static bool collect_electronic_set(const MarcusProject& project,
     out.f_R_A_qP_A = step2_path(dir_step2, project.acceptor.name +
         state_suffix(project.acceptor.init_state) + "_init-from-" +
         project.acceptor.final_state.name + state_suffix(project.acceptor.final_state) + "_final.log");
+    bool gas_phase = project.step2_solvent.empty();
+    out.pcm_lines_in_gas_logs.clear();
+    out.scrf_text_in_gas_logs.clear();
+    auto collect = [&](const std::string& path, double& value, std::string& source) {
+        bool pcm_present = false, scrf_present = false;
+        bool found = extract_electronic_energy_src(path, value, source, gas_phase, &pcm_present,
+                                                   gas_phase ? &scrf_present : nullptr);
+        if (gas_phase && pcm_present) out.pcm_lines_in_gas_logs.push_back(path);
+        if (gas_phase && scrf_present) out.scrf_text_in_gas_logs.push_back(path);
+        if (!found)
+            std::cerr << "Error: Could not extract " << (gas_phase ? "SCF Done energy" : "electronic energy")
+                      << " from " << path << std::endl;
+        return found;
+    };
     bool ok = true;
-    ok &= extract_electronic_energy_src(out.f_R_D_qR_D, out.E_R_D_qR_D, out.s_R_D_qR_D);
-    ok &= extract_electronic_energy_src(out.f_P_D_qP_D, out.E_P_D_qP_D, out.s_P_D_qP_D);
-    ok &= extract_electronic_energy_src(out.f_R_A_qR_A, out.E_R_A_qR_A, out.s_R_A_qR_A);
-    ok &= extract_electronic_energy_src(out.f_P_A_qP_A, out.E_P_A_qP_A, out.s_P_A_qP_A);
-    ok &= extract_electronic_energy_src(out.f_P_D_qR_D, out.E_P_D_qR_D, out.s_P_D_qR_D);
-    ok &= extract_electronic_energy_src(out.f_R_D_qP_D, out.E_R_D_qP_D, out.s_R_D_qP_D);
-    ok &= extract_electronic_energy_src(out.f_P_A_qR_A, out.E_P_A_qR_A, out.s_P_A_qR_A);
-    ok &= extract_electronic_energy_src(out.f_R_A_qP_A, out.E_R_A_qP_A, out.s_R_A_qP_A);
+    ok &= collect(out.f_R_D_qR_D, out.E_R_D_qR_D, out.s_R_D_qR_D);
+    ok &= collect(out.f_P_D_qP_D, out.E_P_D_qP_D, out.s_P_D_qP_D);
+    ok &= collect(out.f_R_A_qR_A, out.E_R_A_qR_A, out.s_R_A_qR_A);
+    ok &= collect(out.f_P_A_qP_A, out.E_P_A_qP_A, out.s_P_A_qP_A);
+    ok &= collect(out.f_P_D_qR_D, out.E_P_D_qR_D, out.s_P_D_qR_D);
+    ok &= collect(out.f_R_D_qP_D, out.E_R_D_qP_D, out.s_R_D_qP_D);
+    ok &= collect(out.f_P_A_qR_A, out.E_P_A_qR_A, out.s_P_A_qR_A);
+    ok &= collect(out.f_R_A_qP_A, out.E_R_A_qP_A, out.s_R_A_qP_A);
     out.success = ok;
     return ok;
 }

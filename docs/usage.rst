@@ -1150,6 +1150,7 @@ original step-1 directory.
    # Step 3: Calculate barriers
    cck marcus marcus_project.inp -step 3   # reports both barriers
 
+
 **Command-Line Options:**
 
 .. table:: Marcus Options
@@ -1251,7 +1252,7 @@ thermo options are supported:
    +---------------------------+--------------------------------------------------+-----------+
    | ``step1_solvent_model``   | Solvent model                                    | smd       |
    +---------------------------+--------------------------------------------------+-----------+
-   | ``step1_solvent``         | Solvent name                                     | (empty)   |
+   | ``step1_solvent``         | Solvent name; blank for gas phase                | (empty)   |
    +---------------------------+--------------------------------------------------+-----------+
    | ``step1_solvent_extra``   | Extra SCRF keywords                              | (empty)   |
    +---------------------------+--------------------------------------------------+-----------+
@@ -1293,9 +1294,9 @@ thermo options are supported:
    +---------------------------+--------------------------------------------------+-----------+
    | ``step2_solvent_model``   | Solvent model                                    | smd       |
    +---------------------------+--------------------------------------------------+-----------+
-   | ``step2_solvent``         | Solvent name                                     | (empty)   |
+   | ``step2_solvent``         | Solvent name; blank for gas phase                | (empty)   |
    +---------------------------+--------------------------------------------------+-----------+
-   | ``step2_solvent_extra``   | Extra SCRF keywords                              | ExternalIteration,NonEq=read |
+   | ``step2_solvent_extra``   | Extra SCRF keywords; ignored in gas phase        | ExternalIteration,NonEq=read |
    +---------------------------+--------------------------------------------------+-----------+
    | ``step2_scf_maxcycle``    | SCF max cycles                                   | 500       |
    +---------------------------+--------------------------------------------------+-----------+
@@ -1415,8 +1416,9 @@ use ``--version`` to show the program version.
 Thermo recalculation is activated by ``-t``, ``-c``, ``--pressure`` or the
 corresponding ``use_input_*`` setting. Otherwise thermal corrections are read
 from step-1 logs; low-frequency and scaling settings do not recalculate them.
-The report records per-state fallback and temperatures. The phase correction
-uses a fixed 1 atm standard pressure.
+The report records per-state fallback and temperatures. Solution-phase
+corrections use a fixed 1 atm standard pressure; fully gas-phase calculations
+do not apply the solution-phase correction.
 
 Missing Gibbs corrections or an invalid symmetric barrier are shown as ``N/A``;
 the report is written and step 3 returns a nonzero status. If the asymmetric

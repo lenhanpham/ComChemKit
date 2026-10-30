@@ -3,8 +3,8 @@
  * @brief Energy extraction and Marcus barrier calculation.
  * 
  * Implements the high-kj/high-au two-level approach:
- *   G_state = E_step2_electronic (scfEqui, field 7 of "After PCM corrections") 
- *           + TC_G_step1 (field 7 of "Thermal correction to Gibbs Free Energy")
+ *   G_state = E_step2_electronic + TC_G_step1 + optional solution phase correction
+ *   E_step2: SCF Done in gas phase; After PCM preferred in solution.
  *   lambda from step-2 electronic energy differences (four-point method)
  *   Barriers: symmetric (lambda average) and asymmetric expressions.
  */
@@ -20,24 +20,30 @@ namespace Marcus {
 /**
  * @brief Extract electronic energy from a step-2 Gaussian log file.
  * 
- * Priority: "After PCM corrections, the energy is" -> field 7 (scfEqui),
- *           fallback: "SCF Done" -> field 5.
+ * Solution mode: "After PCM corrections, the energy is" -> field 7,
+ * falling back to "SCF Done" -> field 5. Gas mode uses SCF Done only.
  * 
  * @param log_path Path to the .log file.
  * @param energy Output energy in Hartree.
+ * @param gas_phase Use SCF Done only for gas-phase single points.
  * @return true on success.
  */
-bool extract_electronic_energy(const std::string& log_path, double& energy);
+bool extract_electronic_energy(const std::string& log_path, double& energy, bool gas_phase = false);
 
 /**
  * @brief Extract electronic energy plus which key produced it.
  * @param log_path Path to the .log file.
  * @param energy Output energy in Hartree.
  * @param source_out "After PCM" when scfEqui won, else "SCF Done".
+ * @param gas_phase Use SCF Done only for gas-phase single points.
+ * @param pcm_present Optional flag indicating a PCM correction line in the log.
+ * @param scrf_present Optional flag indicating SCRF text in the log.
  * @return true on success.
  */
 bool extract_electronic_energy_src(const std::string& log_path,
-                                   double& energy, std::string& source_out);
+                                   double& energy, std::string& source_out,
+                                   bool gas_phase = false, bool* pcm_present = nullptr,
+                                   bool* scrf_present = nullptr);
 
 /**
  * @brief Extract thermal correction to Gibbs free energy from a step-1 log file.
@@ -94,6 +100,8 @@ bool extract_full_thermal_step1(const std::string& log_path,
  * @param hg_entropy Enable entropy interpolation for Head-Gordon.
  * @param bav_preset Bav preset (qchem|grimme).
  * @param output_otm Output .otm file flag.
+ * @param step2_gas Use SCF Done for step-2 electronic energies.
+ * @param fully_gas Suppress the solution-phase correction.
  * @return true on success.
  */
 bool compute_g_state(MarcusState& state,
@@ -119,11 +127,14 @@ bool compute_g_state(MarcusState& state,
                      const std::string& point_group = "",
                      bool hg_entropy = false,
                      const std::string& bav_preset = "",
-                     bool output_otm = false);
+                     bool output_otm = false,
+                     bool step2_gas = false,
+                     bool fully_gas = false);
 
 /**
  * @brief Per-state phase correction (Hartree), high-au rule.
- * Returns 0 when no SCRF found in either log.
+ * Returns 0 when no SCRF found in either log; fully gas-phase calculations
+ * suppress the correction separately.
  */
 double per_state_phase_correction(bool has_scrf, double temp_k, double concentration_m);
 
