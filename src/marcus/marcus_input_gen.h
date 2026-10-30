@@ -36,13 +36,13 @@ bool generate_step1_inputs(const MarcusProject& project);
  * Creates 8 .gau files in <project>_step_2/ (4 per molecule):
  *   2 non-cross (equilibrium): <mol>-<state>.gau
  *     %OldChk=<abs_step1_dir>/<own>.chk (absolute path into step-1 dir)
- *     route: #P ... scrf=(...,NonEq=write) Geom(Check) Guess(read) nosymm
+ *     route: #P ... [scrf=(...,NonEq=write)] Geom(Check) Guess(read) nosymm
  *   2 cross (non-equilibrium): <final>-from-<init>.gau / <init>-from-<final>.gau
  *     %Oldchk=<local equilibrium .chk> (current directory: run the two
  *     non-cross jobs first, then the cross jobs read their .chk files)
- *     route: # ... scrf=(...,ExternalIteration,NonEq=read) Geom=Check Guess(read) nosymm
+ *     route: # ... [scrf=(...,ExternalIteration,NonEq=read)] Geom=Check Guess(read) nosymm
  *
- * Each uses sp procedures with step2_* theory parameters.
+ * SCRF is omitted when step2_solvent is empty. Each uses step2_* theory parameters.
  *
  * Reads step-1 manifest to locate checkpoint files.
  * Writes a manifest recording all single-point input paths.
@@ -95,7 +95,7 @@ std::string build_step1_scrf(const MarcusProject& project);
 
 /**
  * @brief Generate the SCRF keyword for a step-2 non-cross (equilibrium) job.
- * Always uses NonEq=write so the solvent reaction field is written.
+ * Uses NonEq=write so the solvent reaction field is written when solvent is specified.
  * @param project Project configuration.
  * @return SCRF route fragment.
  */
@@ -103,7 +103,7 @@ std::string build_step2_scrf_equilibrium(const MarcusProject& project);
 
 /**
  * @brief Generate the SCRF keyword for a step-2 cross (non-equilibrium) job.
- * Uses step2_solvent_extra (default ExternalIteration,NonEq=read).
+ * Uses step2_solvent_extra (default ExternalIteration,NonEq=read) when solvent is specified.
  * @param project Project configuration.
  * @return SCRF route fragment.
  */

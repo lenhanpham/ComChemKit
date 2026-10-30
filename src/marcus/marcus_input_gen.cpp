@@ -186,12 +186,13 @@ std::string build_step2_route(const MarcusProject& project, bool is_equilibrium)
     // cross jobs use "# ... Geom=Check".
     oss << (is_equilibrium ? "#P " : "# ");
     oss << "scf(maxcycle=" << scf_mc << ",xqc) " << project.step2_functional << "/"
-        << project.step2_basis << " ";
-    if (is_equilibrium) {
-        oss << build_step2_scrf_equilibrium(project) << " Geom(Check) Guess(read) nosymm";
-    } else {
-        oss << build_step2_scrf(project) << " Geom=Check Guess(read) nosymm";
+        << project.step2_basis;
+    // An empty solvent selects gas-phase SPs; solvent extras are ignored.
+    if (!project.step2_solvent.empty()) {
+        oss << " " << (is_equilibrium ? build_step2_scrf_equilibrium(project)
+                                      : build_step2_scrf(project));
     }
+    oss << (is_equilibrium ? " Geom(Check)" : " Geom=Check") << " Guess(read) nosymm";
     if (!project.step2_route_extra_keywords.empty()) {
         oss << " " << project.step2_route_extra_keywords;
     }

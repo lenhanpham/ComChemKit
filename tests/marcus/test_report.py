@@ -74,6 +74,49 @@ class MarcusReportTests(unittest.TestCase):
                     self.assertLessEqual(gap, max_gap, line)
         self.assertTrue(all(columns == unit_columns[0] for columns in unit_columns))
 
+    def configure_phases(self, step1="", step2=""):
+        params = self.work / "oset.inp"
+        params.write_text(params.read_text(encoding="utf-8") +
+                          f"\nstep1_solvent = {step1}\nstep2_solvent = {step2}\n", encoding="utf-8")
+
+    def write_gas_logs(self):
+        """Four equilibrium + four cross SP logs with independently known energies."""
+        step1 = self.work / "oset_step_1"
+        step2 = self.work / "oset_step_2"
+        step1.mkdir()
+        step2.mkdir()
+        states = {
+            "TEA-singlet-neutral_init": (-100.0, 0.10),
+            "TEA-doublet-plus_final": (-99.9, 0.11),
+            "p-terphenyl-singlet-neutral_init": (-200.0, 0.20),
+            "p-terphenyl-doublet-minus_final": (-200.15, 0.195),
+        }
+        for name, (energy, thermal) in states.items():
+            (step1 / (name + ".log")).write_text(
+                "Gaussian\n #P hf/sto-3g opt freq\n\n"
+                f" SCF Done: E(RHF) = {energy:.9f} A.U.\n"
+                " Temperature   298.150 Kelvin.  Pressure   1.00000 Atm.\n"
+                " Frequencies -- 100.0 200.0 300.0\n"
+                " Zero-point correction= 0.050000\n"
+                " Thermal correction to Energy= 0.060000\n"
+                " Thermal correction to Enthalpy= 0.061000\n"
+                f" Thermal correction to Gibbs Free Energy= {thermal:.9f}\n",
+                encoding="utf-8")
+            (step2 / (name + ".log")).write_text(
+                f" SCF Done: E(RHF) = {energy - 1:.9f} A.U.\n"
+                f" SCF Done: E(RHF) = {energy:.9f} A.U.\n", encoding="utf-8")
+        crosses = {
+            "TEA-doublet-plus_final-from-TEA-singlet-neutral_init": -99.88,
+            "TEA-singlet-neutral_init-from-TEA-doublet-plus_final": -99.99,
+            "p-terphenyl-doublet-minus_final-from-p-terphenyl-singlet-neutral_init": -200.12,
+            "p-terphenyl-singlet-neutral_init-from-p-terphenyl-doublet-minus_final": -199.98,
+        }
+        for name, energy in crosses.items():
+            (step2 / (name + ".log")).write_text(
+                f" SCF Done: E(RHF) = {energy - 1:.9f} A.U.\n"
+                f" SCF Done: E(RHF) = {energy:.9f} A.U.\n", encoding="utf-8")
+        return states, crosses
+
     def assert_report_header(self, report):
         version_header = (FIXTURES.parent.parent / "src/utilities/version.h").read_text(encoding="utf-8")
         def macro(name):
@@ -93,6 +136,232 @@ class MarcusReportTests(unittest.TestCase):
             "Marcus Theory Barrier Calculation (Four-Point Method)",
         ])
         self.assertTrue(report.read_text(encoding="utf-8").startswith(expected))
+
+    def test_gas_phase_step2_routes_and_checkpoints(self):
+        for xyz in FIXTURES.glob("*.xyz"):
+            shutil.copy(xyz, self.work / xyz.name)
+        params = self.work / "oset.inp"
+        original = params.read_text(encoding="utf-8")
+        for setting in ("blank", "omitted"):
+            with self.subTest(setting=setting):
+                if setting == "blank":
+                    params.write_text(original + "\nstep1_solvent =\nstep2_solvent =\n", encoding="utf-8")
+                else:
+                    params.write_text(re.sub(r"(?m)^\s*step[12]_solvent\s*=.*$", "", original), encoding="utf-8")
+                result = self.run_cck("-step", "1,2")
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                inputs = list((self.work / "oset_step_2").glob("*.gau"))
+                self.assertEqual(len(inputs), 8)
+                for path in inputs:
+                    text = path.read_text(encoding="utf-8")
+                    self.assertNotRegex(text.lower(), r"\b(scrf|noneq|externaliteration)\b")
+                    self.assertIn("Guess(read)", text)
+                    self.assertIn("nosymm", text)
+                    if "-from-" in path.name:
+                        self.assertIn("Geom=Check", text)
+                        self.assertRegex(text, r"%Oldchk=[^/\\\\\n]+\.chk")
+                    else:
+                        self.assertIn("Geom(Check)", text)
+                        self.assertIn(str(self.work / "oset_step_1"), text)
+                for path in (self.work / "oset_step_1").glob("*.gau"):
+                    self.assertNotRegex(path.read_text(encoding="utf-8").lower(), r"\bscrf\b")
+
+    def test_solution_phase_step2_routes_are_unchanged(self):
+        for xyz in FIXTURES.glob("*.xyz"):
+            shutil.copy(xyz, self.work / xyz.name)
+        result = self.run_cck("-step", "1,2")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        inputs = list((self.work / "oset_step_2").glob("*.gau"))
+        self.assertEqual(len(inputs), 8)
+        for path in inputs:
+            text = path.read_text(encoding="utf-8").lower()
+            self.assertIn("scrf=(smd,solvent=n,n-dimethylformamide", text)
+            if "-from-" in path.name:
+                self.assertIn("externaliteration,noneq=read", text)
+            else:
+                self.assertIn("noneq=write", text)
+
+    def test_conflicting_gas_route_extras_are_rejected(self):
+        params = self.work / "oset.inp"
+        original = params.read_text(encoding="utf-8")
+        for key, extra in (("step1_route_extra_keywords", "SCRF=(smd,solvent=water)"),
+                           ("step2_route_extra_keywords", "ScRf=(smd,solvent=water)"),
+                           ("step2_route_extra_keywords", "NonEq=read"),
+                           ("step2_route_extra_keywords", "ExternalIteration")):
+            with self.subTest(key=key, extra=extra):
+                params.write_text(original + f"\nstep1_solvent =\nstep2_solvent =\n{key} = {extra}\n", encoding="utf-8")
+                result = self.run_cck("-step", "1,2")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(key + " contains a solvent keyword", result.stderr)
+                self.assertFalse((self.work / "oset_step_1").exists())
+
+    def test_gas_phase_energies_gibbs_and_barriers(self):
+        self.configure_phases()
+        states, crosses = self.write_gas_logs()
+        result = self.run_cck("-step", "3", "-v")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        content = (self.work / "oset.log").read_text(encoding="utf-8")
+        self.assertIn("Configured phase : gas phase", content)
+        self.assertIn("Energy source : SCF Done (gas phase)", content)
+        self.assertIn("Gas phase: no solution-phase standard-state correction", content)
+        self.assertIn("Phase T / C     : N/A (gas phase", content)
+        for energy, _ in states.values():
+            self.assertIn(f"{energy:.9f}", content)
+        for energy in crosses.values():
+            self.assertIn(f"{energy:.9f}", content)
+        for state in ("D-R", "D-P", "A-R", "A-P"):
+            match = re.search(r"^" + state + r"\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)$",
+                              content, re.MULTILINE)
+            self.assertIsNotNone(match, state)
+            electronic, thermal, phase, gibbs = map(float, match.groups())
+            self.assertEqual(phase, 0.0)
+            self.assertAlmostEqual(gibbs, electronic + thermal, places=8)
+        factor = 627.509
+        dg, lr, lp = -0.045 * factor, 0.03 * factor, 0.05 * factor
+        avg = (lr + lp) / 2
+        symmetric = (avg + dg) ** 2 / (4 * avg)
+        asymmetric = lr * ((-lp + math.sqrt(lr * lp + (lr - lp) * dg)) / (lr - lp)) ** 2
+        self.assertGreater(asymmetric, 0.01)
+        expected = {"Reaction free energy, Delta G°": dg,
+                    "Reorganization energy, lambda R": lr,
+                    "Reorganization energy, lambda P": lp,
+                    "Delta G‡ (symmetric)": symmetric,
+                    "Delta G‡ (asymmetric)": asymmetric}
+        for label, kcal in expected.items():
+            self.assertAlmostEqual(self.result_values(content, label)[1], kcal, delta=0.00006)
+        for label in ("E(D-R at D-R)", "E(D-P at D-P)", "E(A-R at A-R)", "E(A-P at A-P)",
+                      "E(D-P at D-R)", "E(D-R at D-P)", "E(A-P at A-R)", "E(A-R at A-P)"):
+            self.assertRegex(content, re.escape(label) + r" = [-\d.]+ \(SCF Done\)")
+        self.assertNotIn("PCM correction lines detected", content)
+        params = self.work / "oset.inp"
+        params.write_text(params.read_text(encoding="utf-8").replace("calc_type = oset", "calc_type = ent"), encoding="utf-8")
+        result = self.run_cck("-step", "3")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        content = (self.work / "oset.log").read_text(encoding="utf-8")
+        self.assertIn("Calculation type : EnT", content)
+        self.assertAlmostEqual(self.result_values(content, "Reaction free energy, Delta G°")[1], dg, delta=0.00006)
+
+    def test_gas_phase_thermo_recalculation_uses_temperature_and_pressure(self):
+        self.configure_phases()
+        self.copy_logs()
+        # Reuse real frequency blocks, removing solvent markers and replacing
+        # step-2 energies with the gas-phase test values above.
+        for path in (self.work / "oset_step_1").glob("*.log"):
+            text = re.sub("scrf", "nosolvent", path.read_text(encoding="utf-8"), flags=re.IGNORECASE)
+            path.write_text(text, encoding="utf-8")
+        energies = {
+            "TEA-singlet-neutral_init.log": -100.0,
+            "TEA-doublet-plus_final.log": -99.9,
+            "p-terphenyl-singlet-neutral_init.log": -200.0,
+            "p-terphenyl-doublet-minus_final.log": -200.15,
+            "TEA-doublet-plus_final-from-TEA-singlet-neutral_init.log": -99.88,
+            "TEA-singlet-neutral_init-from-TEA-doublet-plus_final.log": -99.99,
+            "p-terphenyl-doublet-minus_final-from-p-terphenyl-singlet-neutral_init.log": -200.12,
+            "p-terphenyl-singlet-neutral_init-from-p-terphenyl-doublet-minus_final.log": -199.98,
+        }
+        for name, energy in energies.items():
+            path = self.work / "oset_step_2" / name
+            text = re.sub("scrf", "nosolvent", path.read_text(encoding="utf-8"), flags=re.IGNORECASE)
+            text = text.replace("After PCM corrections, the energy is", "Removed PCM energy")
+            path.write_text(text + f"\n SCF Done: E(RHF) = {energy:.9f} A.U.\n", encoding="utf-8")
+        energies_by_concentration = []
+        for concentration in ("1.0", "2.0"):
+            result = self.run_cck("-step", "3", "-t", "310", "--pressure", "2", "-c", concentration, "-v")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            content = (self.work / "oset.log").read_text(encoding="utf-8")
+            self.assertIn("Actual source : thermo module", content)
+            self.assertIn("T=310.00 K (input)", content)
+            self.assertIn("Input pressure: 2.000 atm", content)
+            self.assertIn("Gas phase: no solution-phase standard-state correction", content)
+            self.assertNotIn("SCRF text detected in equilibrium logs", content)
+            energies_by_concentration.append(self.result_values(content, "Reaction free energy, Delta G°"))
+        self.assertEqual(energies_by_concentration[0], energies_by_concentration[1])
+
+    def test_gas_phase_rejects_missing_scf_even_if_pcm_is_present(self):
+        self.configure_phases()
+        self.write_gas_logs()
+        for name in ("TEA-singlet-neutral_init.log", "TEA-doublet-plus_final-from-TEA-singlet-neutral_init.log"):
+            with self.subTest(log=name):
+                path = self.work / "oset_step_2" / name
+                original = path.read_text(encoding="utf-8")
+                path.write_text(" After PCM corrections, the energy is -99.88 a.u.\n", encoding="utf-8")
+                result = self.run_cck("-step", "3")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("Could not extract SCF Done energy", result.stderr)
+                self.assertIn(name, result.stderr)
+                self.assertFalse((self.work / "oset.log").exists())
+                path.write_text(original, encoding="utf-8")
+
+    def test_gas_phase_warns_about_conflicting_pcm_and_scrf_logs(self):
+        self.configure_phases()
+        self.write_gas_logs()
+        first = self.work / "oset_step_1/TEA-singlet-neutral_init.log"
+        first.write_text(first.read_text(encoding="utf-8") + "\n #P SCRF=(smd,solvent=water)\n", encoding="utf-8")
+        for name in ("TEA-singlet-neutral_init.log", "TEA-doublet-plus_final-from-TEA-singlet-neutral_init.log"):
+            path = self.work / "oset_step_2" / name
+            path.write_text(path.read_text(encoding="utf-8") +
+                            " After PCM corrections, the energy is -999.0 a.u.\n", encoding="utf-8")
+        other_cross = self.work / "oset_step_2/p-terphenyl-singlet-neutral_init-from-p-terphenyl-doublet-minus_final.log"
+        other_cross.write_text(other_cross.read_text(encoding="utf-8") +
+                               " #P SCRF=(smd,solvent=water)\n", encoding="utf-8")
+        result = self.run_cck("-step", "3", "-v")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        content = (self.work / "oset.log").read_text(encoding="utf-8")
+        self.assertIn("SCRF text detected in equilibrium logs", content)
+        self.assertIn("Solvent-related text detected in logs", result.stderr)
+        self.assertIn("PCM correction lines detected in configured gas-phase step-2 logs", content)
+        self.assertIn("SCRF text detected in configured gas-phase step-2 logs", content)
+        self.assertIn(other_cross.name, content)
+        self.assertIn("TEA-doublet-plus_final-from-TEA-singlet-neutral_init.log", content)
+        self.assertIn("E(D-R at D-R) = -100.000000000 (SCF Done)", content)
+        self.assertIn("E(D-P at D-R) = -99.880000000 (SCF Done)", content)
+        self.assertEqual(self.result_values(content, "Reaction free energy, Delta G°")[2], -0.045)
+
+    def test_solution_phase_still_prefers_pcm_in_all_energy_paths(self):
+        self.configure_phases(step1="water", step2="water")
+        self.write_gas_logs()
+        for name, energy in (("TEA-singlet-neutral_init.log", -100.001),
+                             ("TEA-doublet-plus_final-from-TEA-singlet-neutral_init.log", -99.87)):
+            path = self.work / "oset_step_2" / name
+            path.write_text(path.read_text(encoding="utf-8") +
+                            f" After PCM corrections, the energy is {energy:.9f} a.u.\n", encoding="utf-8")
+        result = self.run_cck("-step", "3", "-v")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        content = (self.work / "oset.log").read_text(encoding="utf-8")
+        self.assertIn("Configured phase : solution phase", content)
+        self.assertIn("E(D-R at D-R) = -100.001000000 (After PCM)", content)
+        self.assertIn("E(D-P at D-R) = -99.870000000 (After PCM)", content)
+        self.assertAlmostEqual(self.result_values(content, "Reorganization energy, lambda R")[1], 0.031 * 627.509, delta=0.00006)
+        self.assertAlmostEqual(self.result_values(content, "Reorganization energy, lambda P")[1], 0.06 * 627.509, delta=0.00006)
+
+    def test_mixed_phase_preserves_existing_phase_correction(self):
+        self.configure_phases(step1="water")
+        self.write_gas_logs()
+        first = self.work / "oset_step_1/TEA-singlet-neutral_init.log"
+        first.write_text(first.read_text(encoding="utf-8") + "\n #P SCRF=(smd,solvent=water)\n", encoding="utf-8")
+        result = self.run_cck("-step", "3", "-v")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        content = (self.work / "oset.log").read_text(encoding="utf-8")
+        self.assertIn("Configured phase : mixed gas/solution", content)
+        self.assertIn("Step 1 and step 2 use mixed gas/solution settings", content)
+        self.assertIn("Mixed gas/solution settings", result.stderr)
+        self.assertIn("Energy source : SCF Done (gas phase)", content)
+        line = next(line for line in content.splitlines() if line.startswith("D-R  "))
+        self.assertIn("0.003018804", line)
+
+    def test_mixed_phase_with_solution_single_points(self):
+        self.configure_phases(step2="water")
+        self.write_gas_logs()
+        first = self.work / "oset_step_2/TEA-singlet-neutral_init.log"
+        first.write_text(first.read_text(encoding="utf-8") + "\n #P SCRF=(smd,solvent=water)\n", encoding="utf-8")
+        result = self.run_cck("-step", "3", "-v")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        content = (self.work / "oset.log").read_text(encoding="utf-8")
+        self.assertIn("Configured phase : mixed gas/solution", content)
+        self.assertIn("Energy source : After PCM, falling back to SCF Done", content)
+        self.assertIn("Mixed gas/solution settings", result.stderr)
+        line = next(line for line in content.splitlines() if line.startswith("D-R  "))
+        self.assertIn("0.003018804", line)
 
     def test_default_report_is_log_in_current_directory(self):
         self.copy_logs()

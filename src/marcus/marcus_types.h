@@ -205,6 +205,8 @@ struct MarcusElectronicSet {
     std::string f_P_D_qR_D, f_R_D_qP_D, f_P_A_qR_A, f_R_A_qP_A;
     std::string s_R_D_qR_D, s_P_D_qP_D, s_R_A_qR_A, s_P_A_qP_A;
     std::string s_P_D_qR_D, s_R_D_qP_D, s_P_A_qR_A, s_R_A_qP_A;
+    std::vector<std::string> pcm_lines_in_gas_logs; ///< Step-2 logs with PCM energy lines in gas mode
+    std::vector<std::string> scrf_text_in_gas_logs; ///< Step-2 logs with SCRF text in gas mode
     bool success = false;
 };
 

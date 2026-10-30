@@ -160,6 +160,10 @@ bool write_barrier_report(const MarcusProject& project,
         return p.filename().string();
     };
     bool thermo_requested = project.use_input_temp || project.use_input_concentration || project.use_input_pressure;
+    bool step1_gas = project.step1_solvent.empty();
+    bool step2_gas = project.step2_solvent.empty();
+    bool fully_gas = step1_gas && step2_gas;
+    bool mixed_phase = step1_gas != step2_gas;
     bool any_thermo = false, any_log = false, any_fallback = false;
     for (const auto& row : states) {
         any_thermo |= row.state->thermo_recalculated;
@@ -172,6 +176,7 @@ bool write_barrier_report(const MarcusProject& project,
          << "==========================================================================\n"
          << "Project          : " << project.name << "\n"
          << "Calculation type : " << (project.calc_type == CalcType::OSET ? "OSET" : "EnT") << "\n"
+         << "Configured phase : " << (fully_gas ? "gas phase" : mixed_phase ? "mixed gas/solution" : "solution phase") << "\n"
          << "Barrier models   : symmetric and asymmetric\n"
          << "Report level     : " << (project.verbose_report ? "verbose" : "default") << "\n"
          << "Step 1 directory: " << project.dir_step1_opt << "\n"
@@ -188,15 +193,16 @@ bool write_barrier_report(const MarcusProject& project,
              << "  Basis set     : " << text_or_none(basis) << "\n";
         if (!tail.empty()) file << "  Basis source  : configured tail (use -v for details)\n";
         else if (!path.empty()) file << "  Basis file    : " << basis_name(path) << "\n";
-        file << "  Solvent model : " << text_or_none(model) << "\n"
-             << "  Solvent       : " << text_or_none(solvent) << "\n";
+        file << "  Solvent model : " << (solvent.empty() ? "none (gas phase)" : text_or_none(model)) << "\n"
+             << "  Solvent       : " << (solvent.empty() ? "none (gas phase)" : solvent) << "\n";
     };
     theory("Step 1 — optimization and frequencies", project.step1_functional, project.step1_basis,
            project.step1_basis_path, project.step1_tail, project.step1_solvent_model, project.step1_solvent);
     file << "\n";
     theory("Step 2 — single-point electronic energies", project.step2_functional, project.step2_basis,
            project.step2_basis_path, project.step2_tail, project.step2_solvent_model, project.step2_solvent);
-    file << "  Job types     : equilibrium and cross (configured routes)\n\n";
+    file << "  Job types     : equilibrium and cross (configured routes)\n"
+         << "  Energy source : " << (step2_gas ? "SCF Done (gas phase)" : "After PCM, falling back to SCF Done") << "\n\n";
     file << "Thermochemistry\n"
          << "  Requested     : " << (thermo_requested ? "thermo module" : "step-1 log values") << "\n"
          << "  Actual source : " << (any_thermo && any_log ? "mixed; see state provenance below" :
@@ -204,9 +210,10 @@ bool write_barrier_report(const MarcusProject& project,
          << std::fixed << std::setprecision(2)
          << "  Input T       : " << project.temperature << " K\n"
          << std::setprecision(3)
-         << "  Concentration : " << project.concentration << " mol/L (phase correction)\n"
+         << "  Concentration : " << project.concentration
+         << (fully_gas ? " mol/L (no solution-phase correction)\n" : " mol/L (phase correction)\n")
          << "  Input pressure: " << project.pressure << " atm (thermo recalculation only)\n"
-         << "  Phase standard: 1 atm (fixed)\n"
+         << "  Phase standard: " << (fully_gas ? "gas phase; no solution-phase correction" : "1 atm (fixed)") << "\n"
          << "  Low-vib method: " << project.low_vib_method << "; ravib=" << project.ravib << " cm^-1\n"
          << "  Scale factors : ZPE=" << project.scale_zpe << ", heat=" << project.scale_heat
          << ", entropy=" << project.scale_entropy << ", Cv=" << project.scale_cv << "\n"
@@ -220,7 +227,8 @@ bool write_barrier_report(const MarcusProject& project,
          << "  Low-vib, scaling and other thermo settings apply only to recalculated states.\n";
 
     section("RESULTS");
-    file << "All reaction and activation energies use phase-corrected Gibbs energies.\n"
+    file << (fully_gas ? "All reaction and activation energies use gas-phase Gibbs energies.\n"
+                       : "All reaction and activation energies use phase-corrected Gibbs energies.\n")
          << "Atomic units (au) are Hartree.\n";
     struct ResultRow {
         const char* label;
@@ -272,6 +280,8 @@ bool write_barrier_report(const MarcusProject& project,
         if (st.thermo_recalculated || st.temperature_from_log)
             file << "; T=" << std::fixed << std::setprecision(2) << st.temperature_used << " K ("
                  << (st.thermo_recalculated ? "input" : "log") << ")\n";
+        else if (fully_gas)
+            file << "; log T unavailable (input T used as fallback)\n";
         else
             file << "; log T unavailable; phase T=" << std::fixed << std::setprecision(2)
                  << st.phase_temperature_used << " K (fallback if SCRF)\n";
@@ -333,10 +343,12 @@ bool write_barrier_report(const MarcusProject& project,
     bool any_scrf = false;
     for (const auto& row : states) any_scrf |= row.state->has_scrf;
     bool warning = !result.gibbs_valid || !result.barrier_sym_valid || !result.barrier_asym_valid ||
-                   any_fallback || (any_scrf && project.concentration <= 0.0);
+                   any_fallback || mixed_phase || !e.pcm_lines_in_gas_logs.empty() ||
+                   !e.scrf_text_in_gas_logs.empty() || (fully_gas && any_scrf) ||
+                   (!fully_gas && any_scrf && project.concentration <= 0.0);
     for (const auto& row : states)
         warning |= !row.state->has_full_thermal || (!row.state->thermo_recalculated && !row.state->temperature_from_log) ||
-                   (row.state->has_scrf && row.state->temperature_used <= 0.0);
+                   (!fully_gas && row.state->has_scrf && row.state->temperature_used <= 0.0);
     for (const auto& row : states)
         warning |= std::fabs(row.state->temperature_used - states[0].state->temperature_used) > 1e-6;
     if (warning) {
@@ -346,14 +358,33 @@ bool write_barrier_report(const MarcusProject& project,
             file << "  Symmetric barrier unavailable: non-positive or invalid reorganization energies.\n";
         if (result.gibbs_valid && !result.barrier_asym_valid)
             file << "  Asymmetric barrier unavailable: invalid reorganization energies or negative discriminant.\n";
-        if (any_scrf && project.concentration <= 0.0)
+        if (mixed_phase)
+            file << "  Step 1 and step 2 use mixed gas/solution settings; review thermochemistry and phase corrections.\n";
+        if (fully_gas && any_scrf) {
+            file << "  SCRF text detected in equilibrium logs despite configured gas phase; verify input logs:\n";
+            for (const auto& row : states) {
+                if (row.state->has_scrf)
+                    file << "    " << row.id << ": " << step1_path(project.dir_step1_opt, row.state->log_file)
+                         << " and " << step2_path(project.dir_step2_sp, row.state->log_file) << "\n";
+            }
+        }
+        if (!e.pcm_lines_in_gas_logs.empty()) {
+            file << "  PCM correction lines detected in configured gas-phase step-2 logs; SCF Done was used.\n"
+                 << "  Verify these logs belong to the intended gas-phase calculations:\n";
+            for (const auto& path : e.pcm_lines_in_gas_logs) file << "    " << path << "\n";
+        }
+        if (!e.scrf_text_in_gas_logs.empty()) {
+            file << "  SCRF text detected in configured gas-phase step-2 logs; verify these logs:\n";
+            for (const auto& path : e.scrf_text_in_gas_logs) file << "    " << path << "\n";
+        }
+        if (!fully_gas && any_scrf && project.concentration <= 0.0)
             file << "  Non-positive concentration: phase correction uses the 1 mol/L fallback.\n";
         for (const auto& row : states) {
             if (row.state->thermo_fallback) file << "  " << row.id << ": thermo recalculation failed; using log values if available.\n";
             if (!row.state->has_full_thermal) file << "  " << row.id << ": incomplete thermal data.\n";
             if (!row.state->thermo_recalculated && !row.state->temperature_from_log)
                 file << "  " << row.id << ": log temperature unavailable; input temperature used as fallback.\n";
-            if (row.state->has_scrf && row.state->temperature_used <= 0.0)
+            if (!fully_gas && row.state->has_scrf && row.state->temperature_used <= 0.0)
                 file << "  " << row.id << ": non-positive temperature; phase correction uses 298.15 K.\n";
         }
         bool different_t = false;
@@ -384,7 +415,8 @@ bool write_barrier_report(const MarcusProject& project,
                  << "    Lowest frequency: " << number(st.lowest_freq, st.has_lowest_freq, 2) << "\n"
                  << "    SCRF detected   : " << (st.has_scrf ? "yes" : "no") << "\n"
                  << "    Phase T / C     : ";
-            if (st.has_scrf)
+            if (fully_gas) file << "N/A (gas phase; no solution-phase correction)\n";
+            else if (st.has_scrf)
                 file << number(st.phase_temperature_used, true, 2) << " K / "
                      << number(st.phase_concentration_used, true, 3) << " mol/L\n";
             else file << "N/A (no SCRF detected)\n";
@@ -440,21 +472,24 @@ bool write_barrier_report(const MarcusProject& project,
         };
         barrier_units("Symmetric barrier", result.barrier_sym_kcal, result.barrier_sym_valid);
         barrier_units("Asymmetric barrier", result.barrier_asym_kcal, result.barrier_asym_valid);
-        file << "  Phase per SCRF state: RT ln(C RT/P°); P° = 1 atm, C in mol/m^3.\n"
+        file << (fully_gas ? "  Gas phase: no solution-phase standard-state correction.\n"
+                           : "  Phase per SCRF state: RT ln(C RT/P°); P° = 1 atm, C in mol/m^3.\n")
              << "  Conversion factors: " << HARTREE_TO_KCAL_MOL << " kcal/mol per Hartree; "
              << HARTREE_TO_KJ_MOL << " kJ/mol per Hartree; " << HARTREE_TO_EV << " eV per Hartree.\n";
 
         section("VERBOSE: CONFIGURED THEORY AND THERMO OPTIONS");
         file << "  Step 1 basis path    : " << text_or_none(project.step1_basis_path) << "\n"
              << "  Step 1 basis tail    : " << text_or_none(project.step1_tail) << "\n"
-             << "  Step 1 solvent extra : " << text_or_none(project.step1_solvent_extra) << "\n"
+             << "  Step 1 solvent extra : " << text_or_none(project.step1_solvent_extra)
+             << (step1_gas ? " (ignored in gas phase)" : "") << "\n"
              << "  Step 1 route extra   : " << text_or_none(project.step1_route_extra_keywords) << "\n"
              << "  Step 1 opt options   : " << text_or_none(project.step1_opt_options) << "\n"
              << "  Step 1 SCF options   : " << text_or_none(project.step1_scf_options) << "\n"
              << "  Step 1 cycles        : SCF " << project.step1_scf_maxcycle << ", opt " << project.step1_opt_maxcycles << "\n"
              << "  Step 2 basis path    : " << text_or_none(project.step2_basis_path) << "\n"
              << "  Step 2 basis tail    : " << text_or_none(project.step2_tail) << "\n"
-             << "  Step 2 solvent extra : " << text_or_none(project.step2_solvent_extra) << "\n"
+             << "  Step 2 solvent extra : " << text_or_none(project.step2_solvent_extra)
+             << (step2_gas ? " (ignored in gas phase)" : "") << "\n"
              << "  Step 2 route extra   : " << text_or_none(project.step2_route_extra_keywords) << "\n"
              << "  Step 2 SCF cycles    : " << project.step2_scf_maxcycle << "\n"
              << "  Thermo overrides     : T=" << (project.use_input_temp ? "yes" : "no")

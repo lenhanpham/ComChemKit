@@ -803,7 +803,7 @@ The input file uses `key = value` format (`#` = comment) and can have any extens
 | `step1_basis` | Basis set | `def2svpp` |
 | `step1_basis_path` | Custom basis path | (empty) |
 | `step1_solvent_model` | Solvent model | `smd` |
-| `step1_solvent` | Solvent name | (empty) |
+| `step1_solvent` | Solvent name; blank for gas phase | (empty) |
 | `step1_solvent_extra` | Extra SCRF keywords | (empty) |
 | `step1_scf_maxcycle` | SCF max cycles | 300 |
 | `step1_opt_maxcycles` | Opt max cycles | 300 |
@@ -825,8 +825,8 @@ The input file uses `key = value` format (`#` = comment) and can have any extens
 | `step2_basis` | Basis set | `def2tzvp` |
 | `step2_basis_path` | Custom basis path | (empty) |
 | `step2_solvent_model` | Solvent model | `smd` |
-| `step2_solvent` | Solvent name | (empty) |
-| `step2_solvent_extra` | Extra SCRF keywords | `ExternalIteration,NonEq=read` |
+| `step2_solvent` | Solvent name; blank for gas-phase single points | (empty) |
+| `step2_solvent_extra` | Extra SCRF keywords; ignored in gas phase | `ExternalIteration,NonEq=read` |
 | `step2_scf_maxcycle` | SCF max cycles | 500 |
 | `step2_mem` | Memory | (empty) |
 | `step2_nprocshared` | NProcShared | (empty) |
@@ -895,7 +895,7 @@ The default report includes the configured levels of theory and thermochemistry,
 
 Use `-v` / `--verbose` or set `report_level = verbose` for the detailed thermal breakdown, electronic energy sources and paths, numerical audit, and full configured settings. `-v` enables verbose output even when `report_level = default`; `prt_level` controls the thermo module independently. For Marcus, use `--version` to show the program version.
 
-Thermo recalculation is activated by `-t`, `-c`, `--pressure`, or the corresponding `use_input_*` setting. Otherwise thermal corrections are read from step-1 logs, and low-frequency and scaling settings do not recalculate those values. The report distinguishes per-state fallback and temperatures; the phase correction uses a fixed 1 atm standard pressure.
+Thermo recalculation is activated by `-t`, `-c`, `--pressure`, or the corresponding `use_input_*` setting. Otherwise thermal corrections are read from step-1 logs, and low-frequency and scaling settings do not recalculate those values. The report distinguishes per-state fallback and temperatures; for solution-phase corrections it uses a fixed 1 atm standard pressure. Fully gas-phase calculations do not apply the solution-phase correction.
 
 Missing Gibbs corrections or invalid symmetric barriers are reported as `N/A`; the report is written and step 3 returns a nonzero status. If the asymmetric expression is undefined but the symmetric result is valid, the asymmetric barrier is `N/A` with a warning and step 3 succeeds. Missing electronic energies stop the calculation before a report can be written.
 
@@ -1616,7 +1616,7 @@ The thermo module implements advanced parallel processing specifically designed 
    - Non-blocking error collection
 
 ## Current version
-- **v0.1.5** Release version
+- **v0.1.6** Release version
 
 ## Contributing and Issues
 

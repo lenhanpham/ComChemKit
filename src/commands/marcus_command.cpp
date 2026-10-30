@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#include <regex>
 
 MarcusCommand::MarcusCommand() {}
 
@@ -50,7 +51,8 @@ void MarcusCommand::print_help(const std::string& program_name) const {
     std::cout << "  Step 2: Generate single point inputs in <project>_step_2/\n";
     std::cout << "          (reads step-1 checkpoints via %OldChk + Geom=Check)\n";
     std::cout << "          User submits to Gaussian, waits for completion.\n";
-    std::cout << "  Step 3: Calculate symmetric and asymmetric barriers in <project>.log\n\n";
+    std::cout << "  Step 3: Calculate symmetric and asymmetric barriers in <project>.log\n";
+    std::cout << "  Leave step1_solvent and step2_solvent blank for gas-phase calculations.\n\n";
     std::cout << "Options:\n";
     std::cout << "  <input_file>   Input file in ComChemKit key=value format (any extension)\n";
     std::cout << "                 Project defaults to the input filename without its last extension\n";
@@ -330,6 +332,22 @@ bool MarcusCommand::load_input(const std::string& filename,
     project.step2_tail            = parser.getString("step2_tail", "");
     project.step2_route_extra_keywords = parser.getString("step2_route_extra_keywords", "");
 
+    // Solvent route keywords cannot be reconciled with a blank solvent. Do not
+    // silently remove user-supplied route extras; solvent_extra is simply unused.
+    const std::regex solvent_keyword(R"(\b(scrf|noneq|externaliteration)\b)", std::regex::icase);
+    if (project.step1_solvent.empty() &&
+        std::regex_search(project.step1_route_extra_keywords, solvent_keyword)) {
+        std::cerr << "Error: step1_route_extra_keywords contains a solvent keyword but step1_solvent is blank."
+                  << std::endl;
+        return false;
+    }
+    if (project.step2_solvent.empty() &&
+        std::regex_search(project.step2_route_extra_keywords, solvent_keyword)) {
+        std::cerr << "Error: step2_route_extra_keywords contains a solvent keyword but step2_solvent is blank."
+                  << std::endl;
+        return false;
+    }
+
     // Step 3 parameters
     // CLI options take precedence over parameter file values
     project.temperature = use_input_temp ? project_temperature : parser.getDouble("temperature", 298.15);
@@ -451,7 +469,7 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "step1_basis           = def2svpp\n";
     file << "#step1_basis_path      = /path/to/basis/ma-def2svpp.gbs\n";
     file << "step1_solvent_model   = smd\n";
-    file << "step1_solvent         = water\n";
+    file << "step1_solvent         = water          # leave blank for gas phase\n";
     file << "step1_scf_maxcycle    = 300\n";
     file << "step1_opt_maxcycles   = 300\n";
     file << "step1_opt_options     =\n";
@@ -476,8 +494,8 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "step2_basis           = def2tzvp        # typically higher level than step1\n";
     file << "step2_basis_path      = /path/to/basis/ma-def2tzvp.gbs\n";
     file << "step2_solvent_model   = smd\n";
-    file << "step2_solvent         = water\n";
-    file << "step2_solvent_extra   = ExternalIteration,NonEq=read\n";
+    file << "step2_solvent         = water          # leave blank for gas phase\n";
+    file << "step2_solvent_extra   = ExternalIteration,NonEq=read  # ignored in gas phase\n";
     file << "step2_scf_maxcycle    = 500\n";
     file << "# step2_mem             = 20GB\n";
     file << "# step2_nprocshared     = 16\n";
@@ -540,6 +558,7 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "# Step 3: Calculate barriers:\n";
     file << "#   cck marcus \"" << filename << "\" -step 3\n";
     file << "#   -> Calculates both symmetric and asymmetric barriers\n";
+    file << "#   Gas phase: leave both step1_solvent and step2_solvent blank.\n";
     file << "#   -> Writes <project>.log in the current directory\n";
     file << "\n";
 
@@ -611,6 +630,16 @@ int MarcusCommand::run_step3(const Marcus::MarcusProject& project) {
         std::cerr << "Error: Barrier calculation failed: " << result.error_message << std::endl;
         return 1;
     }
+    bool step1_gas = proj.step1_solvent.empty();
+    bool step2_gas = proj.step2_solvent.empty();
+    if (step1_gas != step2_gas)
+        std::cerr << "Warning: Mixed gas/solution settings; review thermochemistry and phase corrections in the report."
+                  << std::endl;
+    if (!result.elec.pcm_lines_in_gas_logs.empty() || !result.elec.scrf_text_in_gas_logs.empty() ||
+        (step1_gas && step2_gas && (proj.donor.init_state.has_scrf || proj.donor.final_state.has_scrf ||
+                                    proj.acceptor.init_state.has_scrf || proj.acceptor.final_state.has_scrf)))
+        std::cerr << "Warning: Solvent-related text detected in logs for a gas-phase configuration; "
+                     "verify the logs listed in the report." << std::endl;
 
     // Print results to console
     std::cout << "\n";
