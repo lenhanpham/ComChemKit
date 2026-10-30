@@ -10,6 +10,7 @@
 #include <sstream>
 #include <iomanip>
 #include <cmath>
+#include <ctime>
 #include <algorithm>
 #include <array>
 #include <vector>
@@ -122,9 +123,32 @@ bool step1_log_exists(const std::string& dir_step1,
     return std::filesystem::exists(dir_step1 + "/" + log_file);
 }
 
+// Use a local tm rather than ctime's shared buffer; preserve ctime-style spacing.
+static std::string format_completion_footer() {
+    const std::time_t now = std::time(nullptr);
+    std::tm local_time{};
+#ifdef _WIN32
+    bool have_time = localtime_s(&local_time, &now) == 0;
+#else
+    bool have_time = localtime_r(&now, &local_time) != nullptr;
+#endif
+    std::ostringstream out;
+    out << "\nCalculation completed at: ";
+    if (have_time) {
+        out << std::put_time(&local_time, "%a %b ") << std::setw(2) << local_time.tm_mday
+            << std::put_time(&local_time, " %H:%M:%S %Y");
+    } else {
+        out << "time unavailable";
+    }
+    out << "\n\n                    ---------- Happy calculation ----------\n"
+        << "                    ---- ComChemKit normally terminated ---\n";
+    return out.str();
+}
+
 bool write_barrier_report(const MarcusProject& project,
                           const MarcusResult& result,
-                          const std::string& out_file) {
+                          const std::string& out_file,
+                          std::string* completion_footer) {
     const std::string report_path = out_file.empty()
         ? std::filesystem::path(project.name).filename().string() + ".log"
         : out_file;
@@ -499,11 +523,17 @@ bool write_barrier_report(const MarcusProject& project,
              << "; output OTM=" << (project.output_otm ? "yes" : "no") << "\n";
     }
 
+    std::string footer;
+    if (result.success && result.gibbs_valid && result.barrier_sym_valid) {
+        footer = format_completion_footer();
+        file << footer;
+    }
     file.close();
     if (!file) {
         std::cerr << "Error: Cannot finish writing barrier report: " << report_path << std::endl;
         return false;
     }
+    if (completion_footer) *completion_footer = footer;
     std::cout << "Barrier report written to: " << report_path << std::endl;
     return true;
 }

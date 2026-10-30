@@ -627,7 +627,14 @@ int MarcusCommand::run_step3(const Marcus::MarcusProject& project) {
 
     Marcus::MarcusResult result;
     if (!calculate_barrier_step3(proj, result)) {
-        std::cerr << "Error: Barrier calculation failed: " << result.error_message << std::endl;
+        if (!result.elec.success) {
+            // The collector already printed the complete step-2 diagnostic.
+            std::cerr << "  Once the jobs are complete, re-run from the same project directory,\n"
+                      << "  retaining any other options. For example:\n"
+                      << "    cck marcus \"" << input_file << "\" -step 3" << std::endl;
+        } else {
+            std::cerr << "Error: Barrier calculation failed: " << result.error_message << std::endl;
+        }
         return 1;
     }
     bool step1_gas = proj.step1_solvent.empty();
@@ -671,8 +678,9 @@ int MarcusCommand::run_step3(const Marcus::MarcusProject& project) {
     else
         std::cout << "Delta G‡  = N/A (asymmetric barrier unavailable; see report)" << std::endl;
 
-    // Write report
-    if (!Marcus::write_barrier_report(proj, result, proj.out_file)) {
+    // Write report; use the same completion timestamp in the console.
+    std::string completion_footer;
+    if (!Marcus::write_barrier_report(proj, result, proj.out_file, &completion_footer)) {
         std::cerr << "Error: Failed to write barrier report." << std::endl;
         return 1;
     }
@@ -681,7 +689,7 @@ int MarcusCommand::run_step3(const Marcus::MarcusProject& project) {
         std::cerr << "Error: Barrier calculation is incomplete; see report for details." << std::endl;
         return 1;
     }
-    std::cout << "\nStep 3 complete." << std::endl;
+    std::cout << "\nStep 3 complete.\n" << completion_footer;
     return 0;
 }
 

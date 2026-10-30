@@ -1,0 +1,10 @@
+%Oldchk=TEA-doublet-plus_final.chk
+%chk=TEA-singlet-neutral_init-from-TEA-doublet-plus_final.chk
+# scf(maxcycle=500,xqc) uwb97xd/Gen Geom=Check Guess(read) nosymm 5D 7F
+
+Second step
+
+0 1
+
+@/home/595/np9048/sources/BasisSetGaussian/ma-def2-TZVP.gbs/N
+

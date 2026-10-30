@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Integration tests for Marcus report output; set CCK_BINARY to the cck executable."""
 
+import datetime
 import math
 import os
 from pathlib import Path
@@ -8,6 +9,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
 
 FIXTURES = Path(__file__).resolve().parent
@@ -18,8 +20,11 @@ class MarcusReportTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.work = Path(self.temp.name)
-        fixture = (FIXTURES / "oset.params").read_text(encoding="utf-8")
-        fixture = re.sub(r"(?m)^marcus_mode\s*=.*\n", "", fixture)
+        fixture = (FIXTURES / "oset.inp").read_text(encoding="utf-8")
+        # Most tests use the singlet fixture and generate steps 1 and 2; the
+        # triplet reference test copies the original input separately.
+        fixture = re.sub(r"(?m)^(acceptor_init_mult\s*=\s*)\d+", r"\g<1>1", fixture)
+        fixture = re.sub(r"(?m)^(step\s*=\s*)[^#\r\n]+", r"\g<1>1,2 ", fixture)
         (self.work / "oset.inp").write_text(fixture, encoding="utf-8")
 
     def tearDown(self):
@@ -117,6 +122,19 @@ class MarcusReportTests(unittest.TestCase):
                 f" SCF Done: E(RHF) = {energy:.9f} A.U.\n", encoding="utf-8")
         return states, crosses
 
+    def assert_completion_footer(self, report, stdout, started=None, finished=None):
+        pattern = (r"\nCalculation completed at: ([A-Za-z]{3} [A-Za-z]{3} {1,2}\d{1,2} "
+                   r"\d{2}:\d{2}:\d{2} \d{4})\n\n"
+                   r"                    ---------- Happy calculation ----------\n"
+                   r"                    ---- ComChemKit normally terminated ---\n\Z")
+        match = re.search(pattern, report)
+        self.assertIsNotNone(match, "Report is missing the completion footer")
+        self.assertTrue(stdout.endswith(match.group(0)), "Console and report footers differ")
+        if started is not None and finished is not None:
+            timestamp = datetime.datetime.strptime(match.group(1), "%a %b %d %H:%M:%S %Y").timestamp()
+            self.assertGreaterEqual(timestamp, started - 1.0)
+            self.assertLessEqual(timestamp, finished + 1.0)
+
     def assert_report_header(self, report):
         version_header = (FIXTURES.parent.parent / "src/utilities/version.h").read_text(encoding="utf-8")
         def macro(name):
@@ -205,6 +223,7 @@ class MarcusReportTests(unittest.TestCase):
         self.assertIn("Energy source : SCF Done (gas phase)", content)
         self.assertIn("Gas phase: no solution-phase standard-state correction", content)
         self.assertIn("Phase T / C     : N/A (gas phase", content)
+        self.assert_completion_footer(content, result.stdout)
         for energy, _ in states.values():
             self.assertIn(f"{energy:.9f}", content)
         for energy in crosses.values():
@@ -287,7 +306,7 @@ class MarcusReportTests(unittest.TestCase):
                 path.write_text(" After PCM corrections, the energy is -99.88 a.u.\n", encoding="utf-8")
                 result = self.run_cck("-step", "3")
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn("Could not extract SCF Done energy", result.stderr)
+                self.assertIn("no usable SCF Done energy", result.stderr)
                 self.assertIn(name, result.stderr)
                 self.assertFalse((self.work / "oset.log").exists())
                 path.write_text(original, encoding="utf-8")
@@ -365,7 +384,9 @@ class MarcusReportTests(unittest.TestCase):
 
     def test_default_report_is_log_in_current_directory(self):
         self.copy_logs()
+        started = time.time()
         result = self.run_cck("-step", "3")
+        finished = time.time()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         report = self.work / "oset.log"
         self.assertTrue(report.is_file())
@@ -381,6 +402,7 @@ class MarcusReportTests(unittest.TestCase):
         self.assertIn("Low-vib, scaling and other thermo settings apply only to recalculated states", content)
         self.assertIn("lambda R: initial state; lambda P: final state. Total = donor + acceptor.", content)
         self.assertNotIn("Each component is a cross energy minus", content)
+        self.assert_completion_footer(content, result.stdout, started, finished)
         for value in ("-292.440837438", "-292.260583167", "-694.375776644", "-694.438506073",
                       "-292.194765457", "-292.386773813", "-694.397845878", "-694.335905255"):
             self.assertIn(value, content)
@@ -514,6 +536,7 @@ class MarcusReportTests(unittest.TestCase):
                       "Step 1 log", "Step 2 log", "lambda R acceptor", "Net phase on Delta G°"):
             self.assertIn(label, content)
         self.assertIn("70.2968 kcal/mol", content)
+        self.assert_completion_footer(content, result.stdout)
         for label in ("Reaction free energy, Delta G°", "Reorganization energy, lambda R",
                       "Reorganization energy, lambda P", "Average reorganization, lambda",
                       "Delta G‡ (symmetric)", "Delta G‡ (asymmetric)"):
@@ -559,6 +582,7 @@ class MarcusReportTests(unittest.TestCase):
         self.assertIn("negative discriminant", content)
         self.assertIn("Asymmetric barrier: N/A", content)
         self.assertIn("asymmetric barrier unavailable", result.stdout)
+        self.assert_completion_footer(content, result.stdout)
 
     def test_equal_reorganization_energies_use_symmetric_limit(self):
         self.copy_logs()
@@ -591,6 +615,8 @@ class MarcusReportTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         content = (self.work / "oset.log").read_text(encoding="utf-8")
         self.assertIn("Missing thermal Gibbs corrections", content)
+        self.assertNotIn("ComChemKit normally terminated", content)
+        self.assertNotIn("Calculation completed at:", result.stdout)
         self.assertEqual(self.result_values(content, "Reaction free energy, Delta G°"), (None, None, None, None))
         self.assertEqual(self.result_values(content, "Delta G‡ (symmetric)"), (None, None, None, None))
         self.assertRegex(content, r"TC\(G\)\s+: N/A")
@@ -654,6 +680,8 @@ class MarcusReportTests(unittest.TestCase):
         content = (self.work / "oset.log").read_text(encoding="utf-8")
         self.assertRegex(content, r"Delta G‡ \(symmetric\)\s+N/A")
         self.assertIn("non-positive or invalid reorganization energies", content)
+        self.assertNotIn("ComChemKit normally terminated", content)
+        self.assertNotIn("Calculation completed at:", result.stdout)
 
     def test_long_state_and_file_names_remain_separate_from_numbers(self):
         self.copy_logs()
@@ -714,6 +742,7 @@ class MarcusReportTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertTrue((self.work / "custom.log").is_file())
         self.assert_report_header(self.work / "custom.log")
+        self.assert_completion_footer((self.work / "custom.log").read_text(encoding="utf-8"), result.stdout)
         self.assertFalse((self.work / "oset.log").exists())
         self.assertFalse((self.work / "oset_barrier").exists())
 
@@ -790,9 +819,63 @@ class MarcusReportTests(unittest.TestCase):
     def test_missing_inputs_do_not_create_directories(self):
         result = self.run_cck("-step", "3")
         self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Step 3 requires all 8 step-2 single-point output logs", result.stderr)
+        self.assertIn("paths found: 0/8; usable energies: 0/8", result.stderr)
+        self.assertEqual(result.stderr.count("[missing]"), 8)
+        self.assertIn("Step-2 directory: oset_step_2", result.stderr)
+        self.assertIn("equilibrium jobs first, then the cross jobs", result.stderr)
+        self.assertIn("No new report was written", result.stderr)
         self.assertFalse((self.work / "oset_step_1").exists())
         self.assertFalse((self.work / "oset_step_2").exists())
         self.assertFalse((self.work / "oset_barrier").exists())
+
+    def test_step2_diagnostics_list_missing_empty_and_unusable_logs(self):
+        self.configure_phases()
+        self.write_gas_logs()
+        step2 = self.work / "oset_step_2"
+        missing_equilibrium = step2 / "TEA-singlet-neutral_init.log"
+        missing_cross = step2 / "p-terphenyl-doublet-minus_final-from-p-terphenyl-singlet-neutral_init.log"
+        empty_log = step2 / "TEA-doublet-plus_final.log"
+        no_scf = step2 / "TEA-singlet-neutral_init-from-TEA-doublet-plus_final.log"
+        missing_equilibrium.unlink()
+        missing_cross.unlink()
+        empty_log.write_text("", encoding="utf-8")
+        no_scf.write_text(" After PCM corrections, the energy is -99.0 a.u.\n", encoding="utf-8")
+        existing_report = self.work / "oset.log"
+        existing_report.write_text("previous report\n", encoding="utf-8")
+        result = self.run_cck("-step", "3")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("paths found: 6/8; usable energies: 4/8", result.stderr)
+        self.assertIn("Required energy: SCF Done (gas phase)", result.stderr)
+        self.assertEqual(result.stderr.count("[missing]"), 2)
+        self.assertIn("[empty file] Donor final (equilibrium)", result.stderr)
+        self.assertIn("[no usable SCF Done energy] Donor initial at final geometry (cross)", result.stderr)
+        self.assertEqual(result.stderr.count("[energy found: SCF Done]"), 4)
+        for path in (missing_equilibrium, missing_cross, empty_log, no_scf):
+            self.assertIn(str(path.relative_to(self.work)), result.stderr)
+        self.assertIn("does not confirm normal Gaussian termination", result.stderr)
+        self.assertIn("check Gaussian termination and SCF convergence", result.stderr)
+        self.assertIn('cck marcus "oset.inp" -step 3', result.stderr)
+        self.assertIn("existing report may be stale", result.stderr)
+        self.assertEqual(existing_report.read_text(encoding="utf-8"), "previous report\n")
+        self.assertNotIn("ComChemKit normally terminated", result.stdout)
+
+    def test_step2_diagnostics_distinguish_nonfiles_and_solution_energy(self):
+        self.configure_phases(step1="water", step2="water")
+        self.write_gas_logs()
+        step2 = self.work / "oset_step_2"
+        not_a_file = step2 / "TEA-singlet-neutral_init.log"
+        no_energy = step2 / "TEA-doublet-plus_final.log"
+        not_a_file.unlink()
+        not_a_file.mkdir()
+        no_energy.write_text(" SCF Done: E(RHF) = invalid A.U.\n", encoding="utf-8")
+        result = self.run_cck("-step", "3")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("paths found: 8/8; usable energies: 6/8", result.stderr)
+        self.assertIn("[not a regular file] Donor initial (equilibrium)", result.stderr)
+        self.assertIn("[no usable After PCM or SCF Done energy] Donor final (equilibrium)", result.stderr)
+        self.assertIn("Required energy: After PCM or SCF Done (solution phase)", result.stderr)
+        self.assertFalse((self.work / "oset.log").exists())
 
     def test_report_write_failure_is_reported(self):
         self.copy_logs()
@@ -800,6 +883,7 @@ class MarcusReportTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Failed to write barrier report", result.stderr)
         self.assertNotIn("Step 3 complete", result.stdout)
+        self.assertNotIn("ComChemKit normally terminated", result.stdout)
 
     def test_help_and_template_describe_new_names(self):
         help_result = subprocess.run([str(BINARY), "marcus", "--help"], cwd=self.work, text=True, capture_output=True)

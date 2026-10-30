@@ -1,0 +1,10 @@
+%Oldchk=p-terphenyl-triplet-neutral_init.chk
+%chk=p-terphenyl-doublet-minus_final-from-p-terphenyl-triplet-neutral_init.chk
+# scf(maxcycle=500,xqc) uwb97xd/Gen Geom=Check Guess(read) nosymm 5D 7F
+
+Second step
+
+-1 2
+
+@/home/595/np9048/sources/BasisSetGaussian/ma-def2-TZVP.gbs/N
+

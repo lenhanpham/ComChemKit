@@ -1420,11 +1420,18 @@ The report records per-state fallback and temperatures. Solution-phase
 corrections use a fixed 1 atm standard pressure; fully gas-phase calculations
 do not apply the solution-phase correction.
 
+Successful step 3 reports and console output end with the local completion time
+and normal-termination message. Incomplete calculations do not show that message.
+
 Missing Gibbs corrections or an invalid symmetric barrier are shown as ``N/A``;
 the report is written and step 3 returns a nonzero status. If the asymmetric
 expression is undefined but the symmetric result is valid, the asymmetric value
-is ``N/A`` with a warning and step 3 succeeds. Missing electronic energies stop
-the calculation before a report can be written.
+is ``N/A`` with a warning and step 3 succeeds.
+
+If step-2 electronic outputs are missing or unusable, step 3 lists the status
+and path of all eight expected logs, states the required energy type, and stops
+without writing a report. An energy being present does not confirm normal
+Gaussian termination; check the jobs before rerunning.
 
 Configuration and Customization
 ===============================

@@ -8,6 +8,7 @@ Marcus Theory Barrier Calculation (Four-Point Method)
 ==========================================================================
 Project          : oset
 Calculation type : OSET
+Configured phase : solution phase
 Barrier models   : symmetric and asymmetric
 Report level     : default
 Step 1 directory: oset_step_1
@@ -30,6 +31,7 @@ Step 2 — single-point electronic energies
   Solvent model : smd
   Solvent       : n,n-DiMethylFormamide
   Job types     : equilibrium and cross (configured routes)
+  Energy source : After PCM, falling back to SCF Done
 
 Thermochemistry
   Requested     : step-1 log values
@@ -49,13 +51,13 @@ RESULTS
 --------------------------------------------------------------------------
 All reaction and activation energies use phase-corrected Gibbs energies.
 Atomic units (au) are Hartree.
-  Reaction free energy, Delta G°           32.0636 kJ/mol        7.6634 kcal/mol   0.012212371 au        0.3323 eV
-  Reorganization energy, lambda R         234.9132 kJ/mol       56.1455 kcal/mol   0.089473678 au        2.4347 eV
-  Reorganization energy, lambda P         262.2653 kJ/mol       62.6829 kcal/mol   0.099891558 au        2.7182 eV
-  Average reorganization, lambda          248.5892 kJ/mol       59.4142 kcal/mol   0.094682618 au        2.5764 eV
+  Reaction free energy, Delta G°     32.0636 kJ/mol    7.6634 kcal/mol   0.012212371 au   0.3323 eV
+  Reorganization energy, lambda R   234.9132 kJ/mol   56.1455 kcal/mol   0.089473678 au   2.4347 eV
+  Reorganization energy, lambda P   262.2653 kJ/mol   62.6829 kcal/mol   0.099891558 au   2.7182 eV
+  Average reorganization, lambda    248.5892 kJ/mol   59.4142 kcal/mol   0.094682618 au   2.5764 eV
 
-  Delta G‡ (symmetric)                     79.2130 kJ/mol       18.9323 kcal/mol   0.030170635 au        0.8210 eV
-  Delta G‡ (asymmetric)                    78.6395 kJ/mol       18.7953 kcal/mol   0.029952213 au        0.8150 eV
+  Delta G‡ (symmetric)               79.2130 kJ/mol   18.9323 kcal/mol   0.030170635 au   0.8210 eV
+  Delta G‡ (asymmetric)              78.6395 kJ/mol   18.7953 kcal/mol   0.029952213 au   0.8150 eV
 
 STATE ASSIGNMENTS AND THERMAL PROVENANCE
 --------------------------------------------------------------------------
@@ -106,3 +108,8 @@ DEFINITIONS
   Delta G‡ (asymmetric) = lambda R * [(-lambda P +
     sqrt(lambda R * lambda P + (lambda R - lambda P) * Delta G°))
     / (lambda R - lambda P)]^2; equal lambdas use the symmetric limit.
+
+Calculation completed at: Fri Oct 30 22:59:26 2026
+
+                    ---------- Happy calculation ----------
+                    ---- ComChemKit normally terminated ---

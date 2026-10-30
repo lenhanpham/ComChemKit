@@ -90,11 +90,13 @@ bool step1_log_exists(const std::string& dir_step1,
  * @param project Project configuration.
  * @param result Calculation results.
  * @param out_file Optional explicit output file path.
+ * @param completion_footer Optional output: the footer written for a successful calculation.
  * @return true on success.
  */
 bool write_barrier_report(const MarcusProject& project,
                           const MarcusResult& result,
-                          const std::string& out_file = "");
+                          const std::string& out_file = "",
+                          std::string* completion_footer = nullptr);
 
 /**
  * @brief Construct the full path to a step-1 file.
