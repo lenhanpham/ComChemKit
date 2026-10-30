@@ -1119,8 +1119,9 @@ Golden-value verification: ``./test_rmsd.sh`` (fixtures in ``tests/rmsd/``).
    ├── marcus_project_step_2/     # Step 2: single point inputs
    └── marcus_project.log  # Step 3: barrier report
 
-Steps 1 and 2 overwrite matching generated ``.gau`` files and manifests. Existing
-Gaussian ``.log`` and ``.chk`` files are not overwritten by input generation.
+In manual mode, steps 1 and 2 overwrite matching generated ``.gau`` files and
+manifests. Existing Gaussian ``.log`` and ``.chk`` files are not overwritten by
+input generation. Automatic mode refuses existing reports or nonempty step directories.
 
 Existing projects using ``<project>_step_1_opt/`` and ``<project>_step_2_sp/``
 need to rename them to ``<project>_step_1/`` and ``<project>_step_2/``.
@@ -1145,11 +1146,58 @@ original step-1 directory.
 
    # Step 2: Generate single point inputs (reads step-1 checkpoints)
    cck marcus marcus_project.inp -step 2
-   # Submit the .gau files to Gaussian, wait for completion
+   # Submit equilibrium jobs first, then cross jobs; wait for completion
 
    # Step 3: Calculate barriers
    cck marcus marcus_project.inp -step 3   # reports both barriers
 
+**Automatic workflow:** Set ``workflow = auto`` and ``qc_engine = g16`` (or an
+executable path), then run ``cck marcus marcus_project.inp`` inside a queue
+allocation. The executable is launched directly without a shell. Four
+optimization/frequency jobs, four equilibrium SP jobs, and four cross SP jobs
+run sequentially before the barrier calculation. ComChemKit does not submit
+scheduler jobs or use additional nodes. Input ``step`` is ignored and CLI
+``-step`` is rejected in automatic mode.
+
+Example input settings:
+
+.. code-block:: ini
+
+   workflow = auto
+   qc_engine = g16
+   step1_nprocshared = 16
+   step2_nprocshared = 16
+   step1_mem = 24GB
+   step2_mem = 24GB
+   out_file = marcus_project.out
+
+The project output (``<project>.log`` by default, or ``out_file`` / ``-O``)
+receives live progress and the final report; Gaussian jobs retain separate
+``.log`` files. Scheduler output must use a separate filename. Configure
+Gaussian licensing, environment and scratch according to the cluster's rules.
+Explicit ``nprocshared`` and recognizable KB/MB/GB requests are checked when
+scheduler limits are available; not all resources can be validated.
+
+Automatic mode requires project and molecule names without path separators,
+and distinct donor and acceptor names. It stops at the first failure or
+interruption and preserves files; it does not resume or overwrite existing files. Use a new project/output or
+move old artifacts deliberately. Lock directories prevent concurrent automatic
+runs; remove a stale lock only after confirming the old job is no longer active.
+
+Example SLURM script (adjust module and resources for your cluster):
+
+.. code-block:: bash
+
+   #!/bin/bash
+   #SBATCH --nodes=1
+   #SBATCH --ntasks=1
+   #SBATCH --cpus-per-task=16
+   #SBATCH --mem=32G
+   #SBATCH --time=24:00:00
+   #SBATCH --output=marcus-%j.scheduler.log
+   module load gaussian
+   cd "$SLURM_SUBMIT_DIR"
+   cck marcus marcus_project.inp
 
 **Command-Line Options:**
 
@@ -1203,6 +1251,10 @@ thermo options are supported:
    | ``project``      | Project name (used for directory names)          | filename stem |
    +------------------+--------------------------------------------------+-----------+
    | ``calc_type``    | Calculation type (oset \| ent)                   | oset      |
+   +------------------+--------------------------------------------------+-----------+
+   | ``workflow``     | manual or sequential auto                        | manual    |
+   +------------------+--------------------------------------------------+-----------+
+   | ``qc_engine``    | Gaussian executable name/path (required in auto)  | (empty)   |
    +------------------+--------------------------------------------------+-----------+
 
 **Donor / Acceptor Definitions:**

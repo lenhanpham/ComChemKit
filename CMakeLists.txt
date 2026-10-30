@@ -101,6 +101,7 @@ set(SOURCES
     src/commands/rmsd_command.cpp
     src/commands/marcus_command.cpp
     src/marcus/marcus_input_gen.cpp
+    src/marcus/marcus_auto.cpp
     src/marcus/marcus_calculator.cpp
     src/marcus/marcus_io.cpp
 )
@@ -156,6 +157,7 @@ set(HEADERS
     src/commands/marcus_command.h
     src/marcus/marcus_types.h
     src/marcus/marcus_input_gen.h
+    src/marcus/marcus_auto.h
     src/marcus/marcus_calculator.h
     src/marcus/marcus_io.h
     src/rmsd/rmsd_types.h
@@ -309,6 +311,9 @@ if(Python3_Interpreter_FOUND)
     add_test(NAME marcus_report
         COMMAND ${CMAKE_COMMAND} -E env "CCK_BINARY=$<TARGET_FILE:cck>"
                 ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/marcus/test_report.py)
+    add_test(NAME marcus_auto
+        COMMAND ${CMAKE_COMMAND} -E env "CCK_BINARY=$<TARGET_FILE:cck>"
+                ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/marcus/test_auto.py)
 endif()
 
 # Print configuration summary

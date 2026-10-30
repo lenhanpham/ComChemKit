@@ -48,6 +48,7 @@
  * operations should periodically check this flag and terminate cleanly.
  */
 std::atomic<bool> g_shutdown_requested{false};
+volatile std::sig_atomic_t g_shutdown_signal = 0;
 
 /**
  * @brief Signal handler for graceful shutdown
@@ -63,7 +64,7 @@ std::atomic<bool> g_shutdown_requested{false};
  */
 void signalHandler(int signal)
 {
-    std::cerr << "\nReceived signal " << signal << ". Initiating graceful shutdown..." << std::endl;
+    g_shutdown_signal = signal;
     g_shutdown_requested.store(true);
 }
 

@@ -725,7 +725,7 @@ project/
 └── marcus_project.log  # Step 3: barrier report
 ```
 
-Steps 1 and 2 overwrite matching generated `.gau` files and manifests. Existing Gaussian `.log` and `.chk` files are not overwritten by input generation.
+In manual mode, steps 1 and 2 overwrite matching generated `.gau` files and manifests. Existing Gaussian `.log` and `.chk` files are not overwritten by input generation. Automatic mode refuses to overwrite an existing report or nonempty step directory.
 
 **Basic Usage:**
 
@@ -743,10 +743,40 @@ cck marcus marcus_project.inp -step 1
 
 # Step 2: Generate single point inputs (reads step-1 checkpoints)
 cck marcus marcus_project.inp -step 2
-# Submit the .gau files to Gaussian, wait for completion
+# Submit equilibrium jobs first, then cross jobs; wait for completion
 
 # Step 3: Calculate barriers
 cck marcus marcus_project.inp -step 3   # reports both barriers
+```
+
+**Automatic workflow:** Set `workflow = auto` and `qc_engine = g16` (or an executable path) in the input, then submit job script and call the marcus module `cck marcus marcus_project.inp`. 
+
+For example, the input can contain:
+
+```ini
+workflow = auto
+qc_engine = g16
+step1_nprocshared = 16
+step2_nprocshared = 16
+step1_mem = 24GB
+step2_mem = 24GB
+out_file = marcus_project.out
+```
+
+Example SLURM script (adjust module and resource settings to your cluster):
+
+```bash
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=32G
+#SBATCH --time=24:00:00
+#SBATCH --output=marcus-%j.scheduler.log
+
+module load gaussian
+cd "$SLURM_SUBMIT_DIR"
+cck marcus marcus_project.inp
 ```
 
 **Command-Line Options:**
@@ -777,6 +807,8 @@ The input file uses `key = value` format (`#` = comment) and can have any extens
 |-----|-------------|---------|
 | `project` | Project name (used for directory names) | input filename stem |
 | `calc_type` | Calculation type | `oset` \| `ent` |
+| `workflow` | `manual` or sequential `auto` | `manual` |
+| `qc_engine` | Gaussian executable name or path; required in auto mode | (empty) |
 
 **Donor / Acceptor Definitions:**
 

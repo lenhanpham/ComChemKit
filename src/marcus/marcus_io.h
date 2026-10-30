@@ -9,11 +9,15 @@
 
 #include "marcus/marcus_types.h"
 #include <string>
+#include <ostream>
 #include <vector>
 #include <map>
 #include <filesystem>
 
 namespace Marcus {
+
+/** Write generated content, optionally refusing to overwrite an existing file. */
+bool write_generated_file(const std::string& path, const std::string& content, bool exclusive);
 
 /**
  * @brief Create the step-1 and step-2 project directories if they don't exist.
@@ -33,7 +37,8 @@ bool create_project_directories(const std::string& project_name,
  * @return true on success.
  */
 bool write_step1_manifest(const std::string& dir_step1,
-                          const std::map<std::string, std::string>& states);
+                          const std::map<std::string, std::string>& states,
+                          bool exclusive = false);
 
 /**
  * @brief Read the step-1 manifest file.
@@ -49,7 +54,8 @@ std::map<std::string, std::string> read_step1_manifest(const std::string& dir_st
  * @return true on success.
  */
 bool write_step2_manifest(const std::string& dir_step2,
-                          const std::map<std::string, std::string>& inputs);
+                          const std::map<std::string, std::string>& inputs,
+                          bool exclusive = false);
 
 /**
  * @brief Read the step-2 manifest file.
@@ -97,6 +103,11 @@ bool write_barrier_report(const MarcusProject& project,
                           const MarcusResult& result,
                           const std::string& out_file = "",
                           std::string* completion_footer = nullptr);
+
+/** Write the report to an existing stream; automatic mode keeps progress intact. */
+bool write_barrier_report_to_stream(std::ostream& out, const MarcusProject& project,
+                                    const MarcusResult& result, bool include_header,
+                                    std::string* completion_footer = nullptr);
 
 /**
  * @brief Construct the full path to a step-1 file.

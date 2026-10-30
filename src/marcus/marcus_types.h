@@ -106,6 +106,8 @@ struct MarcusProject {
     Step current_step = Step::STEP_1_OPT;       ///< Current workflow step
     std::vector<int> requested_steps = {1, 2}; ///< Requested steps from `step` key/CLI (default: 1,2)
     bool verbose_report = false;                 ///< Include detailed audit sections
+    bool automatic_workflow = false;             ///< Run Gaussian jobs sequentially
+    std::string qc_engine;                       ///< Gaussian executable for automatic mode
 
     // Directories
     std::string dir_step1_opt;                  ///< <project>_step_1/

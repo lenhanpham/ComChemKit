@@ -12,6 +12,7 @@
 
 // External global variable for shutdown handling
 extern std::atomic<bool> g_shutdown_requested;
+extern volatile std::sig_atomic_t g_shutdown_signal;
 
 /**
  * @brief Internal callback function for OS signals
@@ -19,7 +20,7 @@ extern std::atomic<bool> g_shutdown_requested;
  */
 void signal_handler_func(int signal)
 {
-    std::cerr << "\nReceived signal " << signal << ". Initiating graceful shutdown..." << std::endl;
+    g_shutdown_signal = signal;
     g_shutdown_requested.store(true);
 }
 
