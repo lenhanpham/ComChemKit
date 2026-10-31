@@ -1181,8 +1181,11 @@ scheduler limits are available; not all resources can be validated.
 Automatic mode requires project and molecule names without path separators,
 and distinct donor and acceptor names. It stops at the first failure or
 interruption and preserves files; it does not resume or overwrite existing files. Use a new project/output or
-move old artifacts deliberately. Lock directories prevent concurrent automatic
-runs; remove a stale lock only after confirming the old job is no longer active.
+move old artifacts deliberately. While running, automatic mode creates hidden
+lock directories (``.<project>.marcus.lock`` and ``.<output>.marcus.lock``) to
+prevent concurrent runs; they are empty and are removed automatically when the
+run ends. Remove a stale lock only after confirming the old job is no longer
+active.
 
 Example SLURM script (adjust module and resources for your cluster):
 
