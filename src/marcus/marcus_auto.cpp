@@ -178,6 +178,15 @@ bool directory_empty_or_absent(const fs::path& path, std::string& error) {
     return true;
 }
 
+// Keep lock directories hidden so users do not mistake them for inputs or
+// outputs. The lock stays next to its target file, with a dot-prefixed name.
+fs::path hidden_lock_path(const fs::path& target) {
+    fs::path directory = target.has_parent_path() ? target.parent_path() : fs::path(".");
+    std::string filename = target.filename().string();
+    if (filename.empty()) filename = target.string();
+    return directory / ("." + filename + ".marcus.lock");
+}
+
 bool inside_directory(const fs::path& path, const fs::path& directory) {
     auto normalize = [](const fs::path& value) {
         std::error_code ec;
@@ -566,8 +575,8 @@ int run_automatic(MarcusProject project, const std::string& input_file, const Jo
     if (fs::exists(fs::symlink_status(report, ec)) || (ec && ec != std::errc::no_such_file_or_directory)) {
         std::cerr << "Error: Automatic workflow will not overwrite output: " << report << std::endl; return 1;
     }
-    fs::path project_lock = project.name + ".marcus.lock";
-    fs::path output_lock = report.string() + ".marcus.lock";
+    fs::path project_lock = hidden_lock_path(project.name);
+    fs::path output_lock = hidden_lock_path(report);
     DirectoryLock lock_project, lock_output;
     if (!lock_project.acquire(project_lock, error)) { std::cerr << "Error: " << error << std::endl; return 1; }
     if (fs::absolute(project_lock).lexically_normal() != fs::absolute(output_lock).lexically_normal() &&

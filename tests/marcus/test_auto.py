@@ -148,8 +148,8 @@ class MarcusAutomaticTests(unittest.TestCase):
         self.assertTrue(result.stdout.endswith(footer))
         self.assertFalse((self.work / "oset.log").exists())
         self.assertFalse((self.work / "ignored-by-cli.out").exists())
-        self.assertFalse((self.work / "oset.marcus.lock").exists())
-        self.assertFalse((self.work / "progress report.out.marcus.lock").exists())
+        self.assertFalse((self.work / ".oset.marcus.lock").exists())
+        self.assertFalse((self.work / ".progress report.out.marcus.lock").exists())
 
     def test_gas_phase_uses_scf(self):
         with self.input.open("a", encoding="utf-8") as f:
@@ -210,11 +210,11 @@ class MarcusAutomaticTests(unittest.TestCase):
         self.assertEqual(existing.read_text(encoding="utf-8"), "checkpoint")
         self.assertFalse(output.exists())
         existing.unlink(); (self.work / "oset_step_1").rmdir()
-        (self.work / "oset.marcus.lock").mkdir()
+        (self.work / ".oset.marcus.lock").mkdir()
         result = self.run_cck()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Cannot acquire lock", result.stderr)
-        self.assertTrue((self.work / "oset.marcus.lock").is_dir())
+        self.assertTrue((self.work / ".oset.marcus.lock").is_dir())
         self.assertEqual(self.read_events(), [])
 
     def test_invalid_engine_and_step_option(self):
@@ -281,7 +281,7 @@ class MarcusAutomaticTests(unittest.TestCase):
                 self.assertNotIn("ComChemKit normally terminated", report)
                 events = (work / "events.txt").read_text(encoding="utf-8").splitlines()
                 self.assertEqual(len(events), int(index))
-                self.assertFalse((work / "oset.marcus.lock").exists())
+                self.assertFalse((work / ".oset.marcus.lock").exists())
 
     def test_generated_inputs_never_overwrite_racing_files(self):
         target = self.work / "oset_step_2/TEA-singlet-neutral_init.gau"
@@ -335,6 +335,11 @@ class MarcusAutomaticTests(unittest.TestCase):
             child_pid = int(self.read_events()[0][3])
             grandchild_pid = int(child_file.read_text(encoding="utf-8"))
             self.assertIsNone(process.poll())
+            # Locks are visible only while the run is active and are hidden.
+            self.assertTrue((self.work / ".oset.marcus.lock").is_dir())
+            self.assertTrue((self.work / ".oset.log.marcus.lock").is_dir())
+            self.assertFalse((self.work / "oset.marcus.lock").exists())
+            self.assertFalse((self.work / "oset.log.marcus.lock").exists())
             concurrent = self.run_cck()
             self.assertNotEqual(concurrent.returncode, 0)
             self.assertIn("will not overwrite output", concurrent.stderr)
@@ -346,7 +351,7 @@ class MarcusAutomaticTests(unittest.TestCase):
             self.assertIn("Interrupted", text)
             self.assertNotIn("ComChemKit normally terminated", text)
             self.assertEqual(len(self.read_events()), 1)
-            self.assertFalse((self.work / "oset.marcus.lock").exists())
+            self.assertFalse((self.work / ".oset.marcus.lock").exists())
             with self.assertRaises(ProcessLookupError): os.kill(child_pid, 0)
             # Orphaned grandchildren may briefly remain zombies in containers;
             # they must no longer be running after the process group is killed.
