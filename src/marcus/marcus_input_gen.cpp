@@ -147,9 +147,55 @@ std::string read_xyz_coordinates(const std::string& xyz_path) {
 }
 
 // ---------------------------------------------------------------------------
+// TD-DFT option resolution and route fragment
+// ---------------------------------------------------------------------------
+static std::string lowercase_copy(const std::string& s) {
+    std::string r = s;
+    std::transform(r.begin(), r.end(), r.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return r;
+}
+
+static TddftOptions merge_tddft_options(const TddftOptions& base, const TddftOptions& over) {
+    TddftOptions result = base;
+    if (over.method_set)  { result.method = over.method; result.method_set = true; }
+    if (over.states_set)  { result.states = over.states; result.states_set = true; }
+    if (over.nstates_set) { result.nstates = over.nstates; result.nstates_set = true; }
+    if (over.extra_set)   { result.extra = over.extra; result.extra_set = true; }
+    if (over.root > 0)    { result.root = over.root; }
+    return result;
+}
+
+TddftOptions resolve_tddft_options(const MarcusProject& project,
+                                   const MarcusState& state, int step) {
+    // Precedence: per-state > per-step > global > built-in defaults.
+    TddftOptions result;
+    result = merge_tddft_options(result, project.tddft);
+    result = merge_tddft_options(result,
+                                 step == 1 ? project.step1_tddft : project.step2_tddft);
+    result = merge_tddft_options(result, state.tddft);
+    return result;
+}
+
+std::string build_tddft_keyword(const TddftOptions& opts) {
+    std::string states = opts.states.empty() ? "singlets" : opts.states;
+    std::string extra = opts.extra;
+    // A dedicated Root=N is appended unless the user already wrote a root in extra.
+    if (opts.root > 0 && lowercase_copy(extra).find("root") == std::string::npos) {
+        if (!extra.empty()) extra += ",";
+        extra += "Root=" + std::to_string(opts.root);
+    }
+    std::ostringstream oss;
+    oss << opts.method << "(" << states << ",nstates=" << opts.nstates;
+    if (!extra.empty()) oss << "," << extra;
+    oss << ")";
+    return oss.str();
+}
+
+// ---------------------------------------------------------------------------
 // Step 1 route builder
 // ---------------------------------------------------------------------------
-std::string build_step1_route(const MarcusProject& project, const MarcusState& /*state*/) {
+std::string build_step1_route(const MarcusProject& project, const MarcusState& state) {
     std::ostringstream oss;
     int scf_mc = (project.step1_scf_maxcycle != -1) ? project.step1_scf_maxcycle : 300;
     int opt_mc = (project.step1_opt_maxcycles != -1) ? project.step1_opt_maxcycles : 300;
@@ -158,7 +204,12 @@ std::string build_step1_route(const MarcusProject& project, const MarcusState& /
     if (!project.step1_opt_options.empty()) {
         oss << "," << project.step1_opt_options;
     }
-    oss << ") freq scf(maxcycle=" << scf_mc << ",xqc";
+    oss << ")";
+    // TD-DFT keyword goes between opt(...) and freq (matches reference inputs).
+    if (state.method == CalcMethod::TDDFT) {
+        oss << " " << build_tddft_keyword(resolve_tddft_options(project, state, 1));
+    }
+    oss << " freq scf(maxcycle=" << scf_mc << ",xqc";
     if (!project.step1_scf_options.empty()) {
         oss << "," << project.step1_scf_options;
     }
@@ -178,13 +229,18 @@ std::string build_step1_route(const MarcusProject& project, const MarcusState& /
 // ---------------------------------------------------------------------------
 // Step 2 route builder
 // ---------------------------------------------------------------------------
-std::string build_step2_route(const MarcusProject& project, bool is_equilibrium) {
+std::string build_step2_route(const MarcusProject& project, const MarcusState& state,
+                              bool is_equilibrium) {
     std::ostringstream oss;
     int scf_mc = (project.step2_scf_maxcycle != -1) ? project.step2_scf_maxcycle : 500;
 
     // Match the reference inputs: equilibrium jobs use "#P ... Geom(Check)",
     // cross jobs use "# ... Geom=Check".
     oss << (is_equilibrium ? "#P " : "# ");
+    // TD-DFT keyword goes before scf(...) (matches reference inputs).
+    if (state.method == CalcMethod::TDDFT) {
+        oss << build_tddft_keyword(resolve_tddft_options(project, state, 2)) << " ";
+    }
     oss << "scf(maxcycle=" << scf_mc << ",xqc) " << project.step2_functional << "/"
         << project.step2_basis;
     // An empty solvent selects gas-phase SPs; solvent extras are ignored.
@@ -344,7 +400,7 @@ bool generate_step2_inputs(const MarcusProject& project) {
     auto write_sp_input = [&](const std::string& filename,
                               const std::string& oldchk_ref,
                               const std::string& chk_name,
-                              int charge, int mult,
+                              const MarcusState& state,
                               bool is_equilibrium) -> bool {
         std::ostringstream content;
 
@@ -356,15 +412,15 @@ bool generate_step2_inputs(const MarcusProject& project) {
         content << "%chk=" << chk_name << "\n";
 
         // Route
-        content << build_step2_route(project, is_equilibrium) << "\n";
+        content << build_step2_route(project, state, is_equilibrium) << "\n";
         content << "\n";
 
         // Title
         content << "Second step\n";
         content << "\n";
 
-        // Charge/multiplicity
-        content << charge << " " << mult << "\n";
+        // Charge/multiplicity (TD-DFT states use the SCF reference charge/mult)
+        content << state.charge << " " << state.mult << "\n";
 
         // No coordinates - geometry is read from checkpoint
         content << "\n";
@@ -392,7 +448,7 @@ bool generate_step2_inputs(const MarcusProject& project) {
     // D-init equilibrium (non-cross: reads step-1 chk via absolute path)
     if (!write_sp_input(project.donor.name + state_suffix(project.donor.init_state) + "_init.gau",
                         abs_dir_step1 + "/" + chk_D_init, chk_D_init,
-                        project.donor.init_state.charge, project.donor.init_state.mult,
+                        project.donor.init_state,
                         true)) return false;
     manifest2[project.donor.name + "-" + project.donor.init_state.state_label + "-eq"] =
         project.donor.name + state_suffix(project.donor.init_state) + "_init.gau";
@@ -400,7 +456,7 @@ bool generate_step2_inputs(const MarcusProject& project) {
     // D-final equilibrium (non-cross: reads step-1 chk via absolute path)
     if (!write_sp_input(project.donor.name + state_suffix(project.donor.final_state) + "_final.gau",
                         abs_dir_step1 + "/" + chk_D_final, chk_D_final,
-                        project.donor.final_state.charge, project.donor.final_state.mult,
+                        project.donor.final_state,
                         true)) return false;
     manifest2[project.donor.name + "-" + project.donor.final_state.state_label + "-eq"] =
         project.donor.name + state_suffix(project.donor.final_state) + "_final.gau";
@@ -417,7 +473,7 @@ bool generate_step2_inputs(const MarcusProject& project) {
     std::string cross_D_fi = project.donor.name + state_suffix(project.donor.final_state) + "_final-from-"
                            + project.donor.init_state.name + state_suffix(project.donor.init_state) + "_init.gau";
     if (!write_sp_input(cross_D_fi, chk_D_init, cross_chk(cross_D_fi),
-                        project.donor.final_state.charge, project.donor.final_state.mult,
+                        project.donor.final_state,
                         false)) return false;
     manifest2[project.donor.name + "-" + project.donor.final_state.state_label
               + "-from-" + project.donor.init_state.state_label] = cross_D_fi;
@@ -426,7 +482,7 @@ bool generate_step2_inputs(const MarcusProject& project) {
     std::string cross_D_if = project.donor.name + state_suffix(project.donor.init_state) + "_init-from-"
                            + project.donor.final_state.name + state_suffix(project.donor.final_state) + "_final.gau";
     if (!write_sp_input(cross_D_if, chk_D_final, cross_chk(cross_D_if),
-                        project.donor.init_state.charge, project.donor.init_state.mult,
+                        project.donor.init_state,
                         false)) return false;
     manifest2[project.donor.name + "-" + project.donor.init_state.state_label
               + "-from-" + project.donor.final_state.state_label] = cross_D_if;
@@ -435,7 +491,7 @@ bool generate_step2_inputs(const MarcusProject& project) {
     // A-init equilibrium (non-cross: reads step-1 chk via absolute path)
     if (!write_sp_input(project.acceptor.name + state_suffix(project.acceptor.init_state) + "_init.gau",
                         abs_dir_step1 + "/" + chk_A_init, chk_A_init,
-                        project.acceptor.init_state.charge, project.acceptor.init_state.mult,
+                        project.acceptor.init_state,
                         true)) return false;
     manifest2[project.acceptor.name + "-" + project.acceptor.init_state.state_label + "-eq"] =
         project.acceptor.name + state_suffix(project.acceptor.init_state) + "_init.gau";
@@ -443,7 +499,7 @@ bool generate_step2_inputs(const MarcusProject& project) {
     // A-final equilibrium (non-cross: reads step-1 chk via absolute path)
     if (!write_sp_input(project.acceptor.name + state_suffix(project.acceptor.final_state) + "_final.gau",
                         abs_dir_step1 + "/" + chk_A_final, chk_A_final,
-                        project.acceptor.final_state.charge, project.acceptor.final_state.mult,
+                        project.acceptor.final_state,
                         true)) return false;
     manifest2[project.acceptor.name + "-" + project.acceptor.final_state.state_label + "-eq"] =
         project.acceptor.name + state_suffix(project.acceptor.final_state) + "_final.gau";
@@ -452,7 +508,7 @@ bool generate_step2_inputs(const MarcusProject& project) {
     std::string cross_A_fi = project.acceptor.final_state.name + state_suffix(project.acceptor.final_state) + "_final-from-"
                            + project.acceptor.init_state.name + state_suffix(project.acceptor.init_state) + "_init.gau";
     if (!write_sp_input(cross_A_fi, chk_A_init, cross_chk(cross_A_fi),
-                        project.acceptor.final_state.charge, project.acceptor.final_state.mult,
+                        project.acceptor.final_state,
                         false)) return false;
     manifest2[project.acceptor.name + "-" + project.acceptor.final_state.state_label
               + "-from-" + project.acceptor.init_state.state_label] = cross_A_fi;
@@ -461,7 +517,7 @@ bool generate_step2_inputs(const MarcusProject& project) {
     std::string cross_A_if = project.acceptor.init_state.name + state_suffix(project.acceptor.init_state) + "_init-from-"
                            + project.acceptor.final_state.name + state_suffix(project.acceptor.final_state) + "_final.gau";
     if (!write_sp_input(cross_A_if, chk_A_final, cross_chk(cross_A_if),
-                        project.acceptor.init_state.charge, project.acceptor.init_state.mult,
+                        project.acceptor.init_state,
                         false)) return false;
     manifest2[project.acceptor.name + "-" + project.acceptor.init_state.state_label
               + "-from-" + project.acceptor.final_state.state_label] = cross_A_if;

@@ -98,17 +98,40 @@ static double extract_field_after_pattern(const std::string& content,
 // ---------------------------------------------------------------------------
 static bool content_has_scrf(const std::string& content);
 
+// TD-DFT excited-state total energy lines printed by Gaussian:
+//   TDA : "Total Energy, E(CIS/TDA) = ..."
+//   TD  : "Total Energy, E(TD-HF/TD-DFT) = ..."
+static bool content_has_tddft_energy(const std::string& content) {
+    return content.find("Total Energy, E(CIS/TDA)") != std::string::npos ||
+           content.find("Total Energy, E(TD-HF/TD-DFT)") != std::string::npos;
+}
+
+static double extract_tddft_energy(const std::string& content, bool* found) {
+    bool local_found = false;
+    double value = extract_field_after_pattern(content, "Total Energy, E(CIS/TDA)", 5, -1,
+                                               &local_found);
+    if (!local_found) {
+        value = extract_field_after_pattern(content, "Total Energy, E(TD-HF/TD-DFT)", 5, -1,
+                                            &local_found);
+    }
+    if (found) *found = local_found;
+    return value;
+}
+
 bool extract_electronic_energy_src(const std::string& log_path,
                                    double& energy, std::string& source_out,
-                                   bool gas_phase, bool* pcm_present, bool* scrf_present) {
+                                   bool gas_phase, bool* pcm_present, bool* scrf_present,
+                                   bool* tddft_present) {
     std::string content = read_file_content(log_path);
     if (pcm_present) *pcm_present = content.find("After PCM corrections, the energy is") != std::string::npos;
     if (scrf_present) *scrf_present = content_has_scrf(content);
+    if (tddft_present) *tddft_present = content_has_tddft_energy(content);
     if (content.empty()) return false;
 
     bool found = false;
     if (!gas_phase) {
-        // Solution: prefer the last PCM-corrected energy, falling back to SCF.
+        // Solution: prefer the last PCM-corrected energy. For a TD-DFT job this
+        // is the state-specific corrected excited-state energy.
         double scf_equi = extract_field_after_pattern(content,
                                                       "After PCM corrections, the energy is",
                                                       7, -1, &found);
@@ -117,6 +140,15 @@ bool extract_electronic_energy_src(const std::string& log_path,
             source_out = "After PCM";
             return true;
         }
+    }
+
+    // TD-DFT excited-state energy takes precedence over the reference SCF energy.
+    bool td_found = false;
+    double td_energy = extract_tddft_energy(content, &td_found);
+    if (td_found) {
+        energy = td_energy;
+        source_out = "TD-DFT";
+        return true;
     }
 
     // Gas: use only SCF Done. Solution: use it as the fallback.
@@ -167,10 +199,17 @@ static double extract_lowest_frequency_content(const std::string& content, bool*
 bool extract_full_thermal_step1(const std::string& log_path,
                                  double& e_low, double& zpe, double& tc_e,
                                  double& tc_h, double& tc_g,
-                                 double& lowest_freq, double& temp_k) {
+                                 double& lowest_freq, double& temp_k,
+                                 bool* tddft_present) {
     std::string content = read_file_content(log_path);
     if (content.empty()) return false;
     e_low  = extract_field_after_pattern(content, "SCF Done:", 5, -1);
+    // For a TD-DFT opt+freq, the excited-state energy is the meaningful
+    // low-level energy; keep SCF Done as the audit fallback.
+    bool td_found = false;
+    double e_td = extract_tddft_energy(content, &td_found);
+    if (td_found) e_low = e_td;
+    if (tddft_present) *tddft_present = td_found;
     zpe    = extract_field_after_pattern(content, "Zero-point correction", 3, -1);
     tc_e   = extract_field_after_pattern(content, "Thermal correction to Energy", 5, -1);
     tc_h   = extract_field_after_pattern(content, "Thermal correction to Enthalpy", 5, -1);
@@ -333,7 +372,9 @@ bool compute_g_state(MarcusState& state,
     // --- High-level electronic energy from step-2 log ---
     double e_high = 0.0;
     std::string e_src;
-    if (!extract_electronic_energy_src(step2_log, e_high, e_src, step2_gas)) {
+    bool step2_tddft = false;
+    if (!extract_electronic_energy_src(step2_log, e_high, e_src, step2_gas,
+                                       nullptr, nullptr, &step2_tddft)) {
         std::cerr << "Error: Could not extract " << (step2_gas ? "SCF Done energy" : "electronic energy")
                   << " from " << step2_log << std::endl;
         state.has_energy = false;
@@ -343,6 +384,7 @@ bool compute_g_state(MarcusState& state,
     state.e_high = e_high;
     state.energy_elec = e_high;  // compat alias
     state.e_high_source = e_src;
+    state.tddft_energy_detected = step2_tddft;
 
     std::string c1 = read_file_content(step1_log);
     std::string c2 = read_file_content(step2_log);
@@ -351,7 +393,8 @@ bool compute_g_state(MarcusState& state,
     // --- Low-level thermal block from step-1 log ---
     double e_low = 0.0, zpe = 0.0, tc_e = 0.0, tc_h = 0.0, tc_g = 0.0;
     double lf = 0.0, log_t = 0.0;
-    bool have_string = extract_full_thermal_step1(step1_log, e_low, zpe, tc_e, tc_h, tc_g, lf, log_t);
+    bool have_string = extract_full_thermal_step1(step1_log, e_low, zpe, tc_e, tc_h, tc_g, lf, log_t,
+                                                  nullptr);
     extract_field_after_pattern(c1, "SCF Done:", 5, -1, &state.has_e_low);
     extract_field_after_pattern(c1, "Zero-point correction", 3, -1, &state.has_zpe);
     extract_field_after_pattern(c1, "Thermal correction to Energy", 5, -1, &state.has_tc_energy);
@@ -572,6 +615,7 @@ static bool collect_electronic_set(const MarcusProject& project,
     bool gas_phase = project.step2_solvent.empty();
     out.pcm_lines_in_gas_logs.clear();
     out.scrf_text_in_gas_logs.clear();
+    out.tddft_logs.clear();
     struct LogStatus {
         std::string role;
         std::string path;
@@ -606,11 +650,13 @@ static bool collect_electronic_set(const MarcusProject& project,
         }
         probe.close();
 
-        bool pcm_present = false, scrf_present = false;
+        bool pcm_present = false, scrf_present = false, tddft_present = false;
         bool found = extract_electronic_energy_src(path, value, source, gas_phase, &pcm_present,
-                                                   gas_phase ? &scrf_present : nullptr);
+                                                   gas_phase ? &scrf_present : nullptr,
+                                                   &tddft_present);
         if (gas_phase && pcm_present) out.pcm_lines_in_gas_logs.push_back(path);
         if (gas_phase && scrf_present) out.scrf_text_in_gas_logs.push_back(path);
+        if (tddft_present) out.tddft_logs.push_back(path);
         if (found) {
             ++energies_found;
             logs.push_back({role, path, "energy found: " + source});
@@ -630,12 +676,22 @@ static bool collect_electronic_set(const MarcusProject& project,
     ok &= collect("Acceptor final at initial geometry (cross)", out.f_P_A_qR_A, out.E_P_A_qR_A, out.s_P_A_qR_A);
     ok &= collect("Acceptor initial at final geometry (cross)", out.f_R_A_qP_A, out.E_R_A_qP_A, out.s_R_A_qP_A);
     if (!ok) {
+        bool any_tddft_cfg = project.donor.init_state.method == CalcMethod::TDDFT ||
+                             project.donor.final_state.method == CalcMethod::TDDFT ||
+                             project.acceptor.init_state.method == CalcMethod::TDDFT ||
+                             project.acceptor.final_state.method == CalcMethod::TDDFT;
         std::cerr << "Error: Step 3 requires all 8 step-2 single-point output logs with usable energies.\n"
                   << "  Step-2 directory: " << dir_step2 << "\n"
                   << "  Expected: 4 equilibrium and 4 cross logs; paths found: " << paths_found
                   << "/8; usable energies: " << energies_found << "/8.\n"
-                  << "  Required energy: " << (gas_phase ? "SCF Done (gas phase)"
-                                                    : "After PCM or SCF Done (solution phase)") << ".\n";
+                  << "  Required energy: ";
+        if (gas_phase)
+            std::cerr << (any_tddft_cfg ? "TD-DFT E(CIS/TDA) or SCF Done (gas phase)"
+                                        : "SCF Done (gas phase)");
+        else
+            std::cerr << (any_tddft_cfg ? "After PCM, TD-DFT E(CIS/TDA), or SCF Done (solution phase)"
+                                        : "After PCM or SCF Done (solution phase)");
+        std::cerr << ".\n";
         for (const auto& log : logs)
             std::cerr << "  [" << log.status << "] " << log.role << ":\n    " << log.path << "\n";
         std::cerr << "  An energy found in a log does not confirm normal Gaussian termination.\n"

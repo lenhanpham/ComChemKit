@@ -68,8 +68,14 @@ if os.environ.get("FAKE_GAS") == "1":
         "p-terphenyl-singlet-neutral_init-from-p-terphenyl-doublet-minus_final": -199.98,
     }
     energy = energies[chk.stem]
+    tddft_states = [s for s in os.environ.get("FAKE_TDDFT", "").split(",") if s]
+    tddft = any(chk.stem == s or chk.stem.startswith(s + "-from-") for s in tddft_states)
     print("Gaussian 16")
-    print(f" SCF Done: E(RHF) = {energy:.9f} A.U.")
+    if tddft:
+        print(f" SCF Done: E(RHF) = {energy + 0.5:.9f} A.U.")
+        print(f" Total Energy, E(CIS/TDA) = {energy:.9f}")
+    else:
+        print(f" SCF Done: E(RHF) = {energy:.9f} A.U.")
     if stage == "opt":
         print(" Optimization completed.")
         print(" Temperature   298.150 Kelvin.  Pressure   1.00000 Atm.")
@@ -163,6 +169,21 @@ class MarcusAutomaticTests(unittest.TestCase):
         self.assertEqual(len(self.read_events()), 12)
         for file in (self.work / "oset_step_2").glob("*.gau"):
             self.assertNotRegex(file.read_text(encoding="utf-8").lower(), r"\b(scrf|noneq|externaliteration)\b")
+
+    def test_tddft_state_uses_excited_state_energy(self):
+        with self.input.open("a", encoding="utf-8") as f:
+            f.write("\nstep1_solvent =\nstep2_solvent =\ndonor_init_method = tddft\ntddft_root = 1\n")
+        env = self.env.copy(); env["FAKE_GAS"] = "1"; env["FAKE_TDDFT"] = "TEA-singlet-neutral_init"
+        result = self.run_cck("-v", env=env)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        report = (self.work / "oset.log").read_text(encoding="utf-8")
+        self.assertIn("method TD-DFT", report)
+        self.assertIn("E(D-R at D-R) = -100.000000000 (TD-DFT)", report)
+        self.assertIn("E(D-R at D-P) = -99.990000000 (TD-DFT)", report)
+        self.assertIn("E(A-R at A-R) = -200.000000000 (SCF Done)", report)
+        self.assertNotIn("configured TD-DFT but no E(CIS/TDA)", report)
+        self.assertNotIn("configured DFT but a TD-DFT energy", report)
+        self.assertEqual(len(self.read_events()), 12)
 
     def test_auto_respects_thermochemistry_options(self):
         result = self.run_cck("-t", "310", "--pressure", "2")

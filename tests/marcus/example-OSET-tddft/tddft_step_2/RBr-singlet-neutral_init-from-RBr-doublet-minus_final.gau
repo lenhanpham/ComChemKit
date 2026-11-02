@@ -1,0 +1,10 @@
+%Oldchk=RBr-doublet-minus_final.chk
+%chk=RBr-singlet-neutral_init-from-RBr-doublet-minus_final.chk
+# scf(maxcycle=500,xqc) uwb97xd/GenECP scrf=(smd,solvent=water,ExternalIteration,NonEq=read) Geom=Check Guess(read) nosymm
+
+Second step
+
+0 1
+
+@@/home/595/np9048/sources/BasisSetGaussian/ma-def2-TZVP.gbs/N
+

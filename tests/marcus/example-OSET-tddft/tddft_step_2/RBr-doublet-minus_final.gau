@@ -1,0 +1,10 @@
+%OldChk=/scratch/f81/np9048/CCK-marcus/tddft/tddft_step_1/RBr-doublet-minus_final.chk
+%chk=RBr-doublet-minus_final.chk
+#P scf(maxcycle=500,xqc) uwb97xd/GenECP scrf=(smd,solvent=water,NonEq=write) Geom(Check) Guess(read) nosymm
+
+Second step
+
+-1 2
+
+@@/home/595/np9048/sources/BasisSetGaussian/ma-def2-TZVP.gbs/N
+
