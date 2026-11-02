@@ -1,0 +1,10 @@
+%Oldchk=complex_9a-singlet-plus_init.chk
+%chk=complex_9a-doublet-2plus_final-from-complex_9a-singlet-plus_init.chk
+# scf(maxcycle=500,xqc) uwb97xd/GenECP scrf=(smd,solvent=water,ExternalIteration,NonEq=read) Geom=Check Guess(read) nosymm
+
+Second step
+
+2 2
+
+@@/home/595/np9048/sources/BasisSetGaussian/ma-def2-TZVP.gbs/N
+

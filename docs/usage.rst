@@ -1292,6 +1292,75 @@ thermo options are supported:
    | ``acceptor_final_mult``   | Acceptor final state multiplicity                | 1         |
    +---------------------------+--------------------------------------------------+-----------+
 
+``donor_name`` and ``acceptor_name`` are labels used as the base of every
+generated ``.gau`` / ``.chk`` / ``.log`` filename; the charge/multiplicity tag
+(for example ``-singlet-neutral`` or ``-doublet-plus``) and ``_init`` /
+``_final`` are appended automatically. They do not affect the route,
+coordinates or job title.
+
+**Method Selection (normal DFT or TD-DFT for excited states):**
+
+Set the method per species; per-state keys override the species default. A
+state that cannot be reached by normal DFT (S1, T2, or any Sn/Tn) must use
+``tddft``. A triplet such as T1 that can be reached by normal DFT only needs
+``*_mult = 3`` and stays ``dft``. For a TD-DFT state the ``*_charge`` /
+``*_mult`` values are the SCF reference; the target excited state is selected
+by ``tddft_states`` plus ``tddft_extra`` / ``tddft_root``. See
+:ref:`marcus-tddft` below for the full explanation of the global / per-step /
+per-state TD-DFT options, precedence and worked examples.
+
+.. list-table:: Method Selection Keys
+   :header-rows: 1
+   :widths: 24 52 18
+
+   * - Key
+     - Description
+     - Values / Default
+   * - ``donor_method``
+     - Donor method, applied to both donor states
+     - ``dft`` / ``tddft`` (default ``dft``)
+   * - ``acceptor_method``
+     - Acceptor method, applied to both acceptor states
+     - ``dft`` / ``tddft`` (default ``dft``)
+   * - ``donor_init_method``
+     - Donor initial-state method override
+     - defaults to ``donor_method``
+   * - ``donor_final_method``
+     - Donor final-state method override
+     - defaults to ``donor_method``
+   * - ``acceptor_init_method``
+     - Acceptor initial-state method override
+     - defaults to ``acceptor_method``
+   * - ``acceptor_final_method``
+     - Acceptor final-state method override
+     - defaults to ``acceptor_method``
+
+**TD-DFT route options** are described in :ref:`marcus-tddft`. The names mirror
+the ``calc_type = tddft`` options of the ``create-input`` module:
+
+.. list-table:: TD-DFT Options
+   :header-rows: 1
+   :widths: 22 45 22
+
+   * - Option
+     - Meaning
+     - Values / Default
+   * - ``tddft_method``
+     - Excited-state method
+     - ``tda`` / ``td`` (default ``tda``)
+   * - ``tddft_states``
+     - Excited-state manifold
+     - ``singlets`` / ``triplets`` / ``50-50`` / blank (blank = ``singlets``)
+   * - ``tddft_nstates``
+     - Number of excited states
+     - integer > 0 (default 15)
+   * - ``tddft_extra``
+     - Extra keywords inside ``td(...)`` / ``tda(...)``, e.g. ``Read,Root=1``
+     - text (default empty)
+   * - ``tddft_root``
+     - Convenience for ``Root=N``; ignored when ``tddft_extra`` already has a root
+     - integer > 0 (default unset)
+
 **Step 1 Theory (Geometry Optimization + Freq):**
 
 .. table:: Step 1 Theory Keys
@@ -1427,6 +1496,155 @@ thermo options are supported:
    +---------------------------+--------------------------------------------------+-----------+
    | ``out_file``              | Output report path                               | (empty)   |
    +---------------------------+--------------------------------------------------+-----------+
+
+.. _marcus-tddft:
+
+**TD-DFT (excited-state) barriers**
+
+The four-point workflow is unchanged when a state uses TD-DFT: step 1
+generates ``opt freq`` inputs with the TD-DFT keyword, and step 2 generates
+single-point inputs with the same keyword. Donor and acceptor are independent,
+and so are their states. For example, a donor S1 state (TD-DFT) can be
+combined with a ground-state acceptor (DFT), or both sides can use TD-DFT.
+
+**Rule:** for a given state the same ``tddft_states`` / ``tddft_root`` must be
+used in step 1 and step 2 - step 1 optimizes that excited state and step 2
+evaluates the same state at the optimized geometry. Do not change the root
+between steps.
+
+**Three levels and precedence.** Each of the five options above can be given
+at three levels, and the levels are merged **per option**, so shared defaults
+can be set once and only the differing values overridden.
+
+.. list-table:: TD-DFT Option Levels
+   :header-rows: 1
+   :widths: 16 36 40
+
+   * - Level
+     - Key pattern
+     - Applies to
+   * - Global
+     - ``tddft_<option>``
+     - every TD-DFT state, both steps
+   * - Per-step
+     - ``step1_tddft_<option>`` / ``step2_tddft_<option>``
+     - both states of both species for one step (step 1 = opt+freq, step 2 = single point)
+   * - Per-state
+     - ``<state>_tddft_<option>``
+     - one state and all its jobs (equilibrium + cross, step 1 + step 2)
+
+``<state>`` is one of ``donor_init``, ``donor_final``, ``acceptor_init``,
+``acceptor_final``. ``<option>`` is one of ``method``, ``states``,
+``nstates``, ``extra``, ``root``. In the generated template these groups are
+shown as ``step1_tddft_*``, ``step2_tddft_*`` and ``<state>_tddft_*``; the
+``*`` is only a wildcard for the five option names and is **not** a literal
+key. Precedence, highest first:
+
+.. code-block:: text
+
+   per-state  >  per-step  >  global  >  built-in defaults
+
+Built-in defaults are ``tda``, ``singlets``, ``15``, empty extra and no root.
+Because the merge is per option, this input:
+
+.. code-block:: ini
+
+   tddft_states        = singlets
+   tddft_nstates       = 5
+   tddft_root          = 2
+   step2_tddft_nstates = 10
+
+resolves for the donor initial state in step 2 to ``method = tda`` (default),
+``states = singlets`` (global), ``nstates = 10`` (step 2) and ``root = 2``
+(global), i.e. ``tda(singlets,nstates=10,Root=2)``. Step 1 inherits
+``nstates = 5`` and the same ``root = 2``, i.e.
+``tda(singlets,nstates=5,Root=2)``. The root is never changed between steps:
+step 1 optimizes that excited state and step 2 evaluates the same state.
+
+**Example 1 - donor S1 with TD-DFT, donor product and acceptor with DFT.**
+This is the common mixed case: only the donor initial state needs TD-DFT.
+
+.. code-block:: ini
+
+   donor_init_method  = tddft
+   donor_final_method = dft
+   acceptor_method    = dft
+
+   tddft_method  = tda
+   tddft_states  = singlets
+   tddft_nstates = 3
+   tddft_root    = 1
+
+Generated step-1 route for the TD-DFT state:
+
+.. code-block:: text
+
+   #P opt(maxcycles=300) tda(singlets,nstates=3,Root=1) freq scf(maxcycle=300,xqc) uwb97xd/def2svpp scrf=(smd,solvent=acetonitrile)
+
+Generated step-2 equilibrium and cross routes:
+
+.. code-block:: text
+
+   #P tda(singlets,nstates=3,Root=1) scf(maxcycle=500,xqc) uwb97xd/def2tzvp scrf=(smd,solvent=acetonitrile,NonEq=write) Geom(Check) Guess(read) nosymm
+   #  tda(singlets,nstates=3,Root=1) scf(maxcycle=500,xqc) uwb97xd/def2tzvp scrf=(smd,solvent=acetonitrile,ExternalIteration,NonEq=read) Geom=Check Guess(read) nosymm
+
+**Example 2 - per-step overrides with the same root.** Use per-step overrides
+when the optimization and the single point need different TD settings, but
+keep ``tddft_root`` identical: step 1 optimizes that excited state and step 2
+evaluates the same state at the optimized geometry.
+
+.. code-block:: ini
+
+   donor_method      = tddft
+   acceptor_method   = dft
+
+   tddft_method  = tda
+   tddft_states  = singlets
+   tddft_root    = 2            # S2 is optimized and single-pointed
+
+   step1_tddft_nstates = 5      # smaller state count during optimization
+   step2_tddft_nstates = 10     # larger state count for the single point
+
+Step-1 TD-DFT keyword: ``tda(singlets,nstates=5,Root=2)``. Step-2 TD-DFT
+keyword: ``tda(singlets,nstates=10,Root=2)``. The root must be the same in
+both steps; only settings that do not change the state being computed (such
+as ``nstates`` or extra keywords) should differ between steps.
+
+**Example 3 - both species TD-DFT with different states.** Use per-state
+overrides when both sides are TD-DFT but target different manifolds/roots:
+
+.. code-block:: ini
+
+   donor_method    = tddft
+   acceptor_method = tddft
+
+   tddft_method  = tda
+   tddft_nstates = 5
+
+   # Donor initial state = S1
+   donor_init_tddft_states = singlets
+   donor_init_tddft_root   = 1
+
+   # Acceptor initial state = T2
+   acceptor_init_tddft_states = triplets
+   acceptor_init_tddft_root   = 2
+
+Per-state keys accept every one of the five options (``method``, ``states``,
+``nstates``, ``extra``, ``root``). They are consulted only when that state's
+``*_method`` is ``tddft``; for DFT states they are ignored.
+
+**Energy extraction and thermochemistry.** For a TD-DFT state the step-2
+electronic energy is taken from the excited-state line:
+
+* ``tddft_method = tda`` -> ``Total Energy, E(CIS/TDA)``
+* ``tddft_method = td`` -> ``Total Energy, E(TD-HF/TD-DFT)``
+
+In solution phase ``After PCM corrections, the energy is`` is preferred when
+present (it is the state-specific corrected excited-state energy); otherwise
+the TD-DFT line is used, then ``SCF Done`` as the last fallback. All
+thermochemistry options and settings apply to TD-DFT exactly as for DFT,
+because the thermal corrections are computed from the step-1 excited-state
+``opt freq`` geometry and frequencies.
 
 **Workflow Example:**
 

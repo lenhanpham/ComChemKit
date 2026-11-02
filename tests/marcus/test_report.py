@@ -199,6 +199,141 @@ class MarcusReportTests(unittest.TestCase):
             else:
                 self.assertIn("noneq=write", text)
 
+    def test_tddft_routes_and_per_state_methods(self):
+        for xyz in FIXTURES.glob("*.xyz"):
+            shutil.copy(xyz, self.work / xyz.name)
+        params = self.work / "oset.inp"
+        params.write_text(params.read_text(encoding="utf-8") + (
+            "\ndonor_init_method = tddft\n"
+            "donor_final_method = dft\n"
+            "tddft_method = tda\n"
+            "tddft_states = singlets\n"
+            "tddft_nstates = 3\n"
+            "tddft_root = 1\n"
+        ), encoding="utf-8")
+        result = self.run_cck("-step", "1,2")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+        # TDDFT state: tda between opt(...) and freq in step 1, before scf in step 2.
+        step1_td = (self.work / "oset_step_1/TEA-singlet-neutral_init.gau").read_text(encoding="utf-8")
+        self.assertRegex(step1_td, r"#P opt\([^)]*\) tda\(singlets,nstates=3,Root=1\) freq scf\(")
+        eq = (self.work / "oset_step_2/TEA-singlet-neutral_init.gau").read_text(encoding="utf-8")
+        self.assertRegex(eq, r"#P tda\(singlets,nstates=3,Root=1\) scf\(")
+        cross_td = (self.work / "oset_step_2/TEA-singlet-neutral_init-from-TEA-doublet-plus_final.gau").read_text(encoding="utf-8")
+        self.assertRegex(cross_td, r"# tda\(singlets,nstates=3,Root=1\) scf\(")
+
+        # The DFT states keep the normal routes, including the DFT state's cross job.
+        step1_dft = (self.work / "oset_step_1/TEA-doublet-plus_final.gau").read_text(encoding="utf-8")
+        self.assertNotIn("tda(", step1_dft)
+        self.assertRegex(step1_dft, r"#P opt\([^)]*\) freq scf\(")
+        cross_dft = (self.work / "oset_step_2/TEA-doublet-plus_final-from-TEA-singlet-neutral_init.gau").read_text(encoding="utf-8")
+        self.assertNotIn("tda(", cross_dft)
+
+    def test_tddft_extra_and_root_precedence(self):
+        for xyz in FIXTURES.glob("*.xyz"):
+            shutil.copy(xyz, self.work / xyz.name)
+        params = self.work / "oset.inp"
+        params.write_text(params.read_text(encoding="utf-8") + (
+            "\ndonor_method = tddft\n"
+            "tddft_extra = Read,Root=2\n"
+            "tddft_root = 1\n"
+        ), encoding="utf-8")
+        result = self.run_cck("-step", "1")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        # tddft_extra already carries a root, so tddft_root is not appended twice.
+        text = (self.work / "oset_step_1/TEA-singlet-neutral_init.gau").read_text(encoding="utf-8")
+        self.assertIn("tda(singlets,nstates=15,Read,Root=2)", text)
+        self.assertNotIn("Root=1", text)
+
+    def test_tddft_invalid_options_are_rejected(self):
+        params = self.work / "oset.inp"
+        original = params.read_text(encoding="utf-8")
+        cases = (
+            ("donor_method = tddftt", "donor_method must be dft or tddft"),
+            ("tddft_method = bad", "tddft_method must be tda or td"),
+            ("tddft_states = quintets", "tddft_states must be singlets, triplets, 50-50, or blank"),
+            ("tddft_nstates = 0", "tddft_nstates must be a positive integer"),
+        )
+        for setting, message in cases:
+            with self.subTest(setting=setting):
+                params.write_text(original + "\n" + setting + "\n", encoding="utf-8")
+                result = self.run_cck("-step", "1")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(message, result.stderr)
+
+    def test_tddft_energy_prefers_excited_state(self):
+        self.configure_phases(step1="", step2="")
+        self.write_gas_logs()
+        params = self.work / "oset.inp"
+        params.write_text(params.read_text(encoding="utf-8") + "\ndonor_init_method = tddft\n", encoding="utf-8")
+        step2 = self.work / "oset_step_2"
+        injected = {
+            "TEA-singlet-neutral_init.log": (-100.5, "Total Energy, E(CIS/TDA)"),
+            "TEA-singlet-neutral_init-from-TEA-doublet-plus_final.log": (-100.4, "Total Energy, E(TD-HF/TD-DFT)"),
+        }
+        for name, (energy, pattern) in injected.items():
+            path = step2 / name
+            path.write_text(path.read_text(encoding="utf-8") +
+                            f" {pattern} = {energy:.9f}\n", encoding="utf-8")
+        result = self.run_cck("-step", "3", "-v")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        content = (self.work / "oset.log").read_text(encoding="utf-8")
+        self.assertIn("E(D-R at D-R) = -100.500000000 (TD-DFT)", content)
+        self.assertIn("E(D-R at D-P) = -100.400000000 (TD-DFT)", content)
+        self.assertIn("E(A-R at A-R) = -200.000000000 (SCF Done)", content)
+        self.assertIn("method TD-DFT", content)
+        self.assertNotIn("configured TD-DFT but no E(CIS/TDA)", content)
+
+    @unittest.skipUnless(
+        (FIXTURES / "example-OSET-tddft/tddft_step_2/complex_9a-singlet-plus_init.log").is_file(),
+        "example-OSET-tddft fixtures are not present")
+    def test_real_tddft_logs_use_pcm_excited_state_energy(self):
+        source = FIXTURES / "example-OSET-tddft"
+        step1 = self.work / "example_step_1"
+        step2 = self.work / "example_step_2"
+        step1.mkdir()
+        step2.mkdir()
+        for log in (source / "tddft_step_1").glob("*.log"):
+            shutil.copy(log, step1 / log.name)
+        for log in (source / "tddft_step_2").glob("*.log"):
+            shutil.copy(log, step2 / log.name)
+        for xyz in source.glob("*.xyz"):
+            shutil.copy(xyz, self.work / xyz.name)
+
+        input_file = self.work / "example.inp"
+        input_file.write_text(
+            "project = example\ncalc_type = oset\nstep = 3\n"
+            "donor_name = complex_9a\ndonor_xyz = complex_9a-6-plus-S1.xyz\n"
+            "donor_init_charge = 1\ndonor_init_mult = 1\n"
+            "donor_final_charge = 2\ndonor_final_mult = 2\n"
+            "acceptor_name = RBr\nacceptor_xyz = RBr-neutral-singlet.xyz\n"
+            "acceptor_init_charge = 0\nacceptor_init_mult = 1\n"
+            "acceptor_final_charge = -1\nacceptor_final_mult = 2\n"
+            "step1_solvent = acetonitrile\nstep2_solvent = water\n"
+            "donor_init_method = tddft\ntddft_method = tda\ntddft_states = singlets\n"
+            "tddft_nstates = 3\ntddft_root = 1\n",
+            encoding="utf-8")
+        result = self.run_input(input_file, "-step", "3", "-v")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        content = (self.work / "example.log").read_text(encoding="utf-8")
+        self.assertIn("method TD-DFT", content)
+        # TD-DFT state: the PCM-corrected excited-state energy is selected.
+        self.assertIn("E(D-R at D-R) = -4432.874437020 (After PCM)", content)
+        self.assertIn("E(D-R at D-P) = -4432.835664620 (After PCM)", content)
+        # DFT states fall back to SCF Done when no PCM line is present, or use it when it is.
+        self.assertIn("E(A-R at A-R) = -3033.774390730 (SCF Done)", content)
+        self.assertIn("E(A-P at A-P) = -3033.848815450 (SCF Done)", content)
+        self.assertIn("E(D-P at D-R) = -4432.726625550 (After PCM)", content)
+        self.assertIn("E(A-P at A-R) = -3033.802268000 (After PCM)", content)
+        # Complete four-point result from the real logs.
+        self.assertAlmostEqual(
+            self.result_values(content, "Reaction free energy, Delta G°")[2],
+            0.036536250, delta=1e-9)
+        self.assertAlmostEqual(
+            self.result_values(content, "Delta G‡ (symmetric)")[1], 27.3753, delta=0.0001)
+        self.assertAlmostEqual(
+            self.result_values(content, "Delta G‡ (asymmetric)")[1], 27.4688, delta=0.0001)
+
     def test_conflicting_gas_route_extras_are_rejected(self):
         params = self.work / "oset.inp"
         original = params.read_text(encoding="utf-8")

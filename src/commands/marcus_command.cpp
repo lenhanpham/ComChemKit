@@ -18,6 +18,74 @@
 #include <filesystem>
 #include <regex>
 
+namespace {
+
+// Parse and validate a dft|tddft method keyword.
+bool parse_method(const ParameterParser& parser, const std::string& key,
+                  const std::string& fallback, Marcus::CalcMethod& out) {
+    std::string value = parser.getString(key, fallback);
+    std::string lower = value;
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (lower == "dft") { out = Marcus::CalcMethod::DFT; return true; }
+    if (lower == "tddft" || lower == "td-dft") { out = Marcus::CalcMethod::TDDFT; return true; }
+    std::cerr << "Error: " << key << " must be dft or tddft (got '" << value << "')" << std::endl;
+    return false;
+}
+
+// Read a TD-DFT option block. `prefix` is "" (global), "step1_", "step2_",
+// or a per-state prefix such as "donor_init_".
+Marcus::TddftOptions parse_tddft_block(const ParameterParser& parser, const std::string& prefix) {
+    Marcus::TddftOptions opts;
+    const std::string base = prefix + "tddft_";
+    if (parser.hasParameter(base + "method")) {
+        opts.method = parser.getString(base + "method", "tda");
+        std::transform(opts.method.begin(), opts.method.end(), opts.method.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        opts.method_set = true;
+    }
+    if (parser.hasParameter(base + "states")) {
+        opts.states = parser.getString(base + "states", "");
+        std::transform(opts.states.begin(), opts.states.end(), opts.states.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        opts.states_set = true;
+    }
+    if (parser.hasParameter(base + "nstates")) {
+        opts.nstates = parser.getInt(base + "nstates", 15);
+        opts.nstates_set = true;
+    }
+    if (parser.hasParameter(base + "extra")) {
+        opts.extra = parser.getString(base + "extra", "");
+        opts.extra_set = true;
+    }
+    if (parser.hasParameter(base + "root")) {
+        opts.root = parser.getInt(base + "root", -1);
+    }
+    return opts;
+}
+
+bool validate_tddft_options(const Marcus::TddftOptions& opts, const std::string& label) {
+    if (opts.method != "tda" && opts.method != "td") {
+        std::cerr << "Error: " << label << "tddft_method must be tda or td (got '"
+                  << opts.method << "')" << std::endl;
+        return false;
+    }
+    if (!opts.states.empty() && opts.states != "singlets" && opts.states != "triplets" &&
+        opts.states != "50-50") {
+        std::cerr << "Error: " << label
+                  << "tddft_states must be singlets, triplets, 50-50, or blank (got '"
+                  << opts.states << "')" << std::endl;
+        return false;
+    }
+    if (opts.nstates_set && opts.nstates <= 0) {
+        std::cerr << "Error: " << label << "tddft_nstates must be a positive integer" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+}  // namespace
+
 MarcusCommand::MarcusCommand() {}
 
 std::string MarcusCommand::get_name() const {
@@ -71,6 +139,11 @@ void MarcusCommand::print_help(const std::string& program_name) const {
     std::cout << "  --lowvibmeth <m> Low-freq vibrational treatment (default: grimme)\n";
     std::cout << "                   Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
     std::cout << "  --ravib <cm-1> Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
+    std::cout << "TD-DFT (excited states S1, T2, ...):\n";
+    std::cout << "  donor_method / acceptor_method = dft | tddft\n";
+    std::cout << "  per-state overrides: donor_init_method, donor_final_method, ...\n";
+    std::cout << "  tddft_method, tddft_states, tddft_nstates, tddft_extra (e.g. Root=1)\n";
+    std::cout << "  For a TD-DFT state, charge/mult are the SCF reference.\n\n";
     std::cout << "Input template generation:\n";
     std::cout << "  --genoset-input  Generate OSET input template\n";
     std::cout << "  --genent-input   Generate EnT input template\n";
@@ -308,6 +381,42 @@ bool MarcusCommand::load_input(const std::string& filename,
     project.acceptor.final_state.xyz_path = parser.getString("acceptor_xyz", "");
     project.acceptor.final_state.log_file = project.acceptor.name + state_suffix(project.acceptor.final_state) + "_final.log";
 
+    // Method selection: per-species default with optional per-state override.
+    std::string donor_method = parser.getString("donor_method", "dft");
+    std::string acceptor_method = parser.getString("acceptor_method", "dft");
+    {
+        Marcus::CalcMethod validated_default;
+        if (!parse_method(parser, "donor_method", "dft", validated_default) ||
+            !parse_method(parser, "acceptor_method", "dft", validated_default)) {
+            return false;
+        }
+    }
+    if (!parse_method(parser, "donor_init_method", donor_method, project.donor.init_state.method) ||
+        !parse_method(parser, "donor_final_method", donor_method, project.donor.final_state.method) ||
+        !parse_method(parser, "acceptor_init_method", acceptor_method, project.acceptor.init_state.method) ||
+        !parse_method(parser, "acceptor_final_method", acceptor_method, project.acceptor.final_state.method)) {
+        return false;
+    }
+
+    // TD-DFT route options: global, per-step and per-state blocks.
+    project.tddft = parse_tddft_block(parser, "");
+    project.step1_tddft = parse_tddft_block(parser, "step1_");
+    project.step2_tddft = parse_tddft_block(parser, "step2_");
+    project.donor.init_state.tddft = parse_tddft_block(parser, "donor_init_");
+    project.donor.final_state.tddft = parse_tddft_block(parser, "donor_final_");
+    project.acceptor.init_state.tddft = parse_tddft_block(parser, "acceptor_init_");
+    project.acceptor.final_state.tddft = parse_tddft_block(parser, "acceptor_final_");
+
+    if (!validate_tddft_options(project.tddft, "") ||
+        !validate_tddft_options(project.step1_tddft, "step1_") ||
+        !validate_tddft_options(project.step2_tddft, "step2_") ||
+        !validate_tddft_options(project.donor.init_state.tddft, "donor_init_") ||
+        !validate_tddft_options(project.donor.final_state.tddft, "donor_final_") ||
+        !validate_tddft_options(project.acceptor.init_state.tddft, "acceptor_init_") ||
+        !validate_tddft_options(project.acceptor.final_state.tddft, "acceptor_final_")) {
+        return false;
+    }
+
     // Validate required fields
     std::vector<std::string> missing;
     if (project.donor.name.empty()) missing.push_back("donor_name");
@@ -410,17 +519,24 @@ bool MarcusCommand::load_input(const std::string& filename,
     }
     project.verbose_report = verbose || report_level == "verbose";
 
+    auto method_name = [](Marcus::CalcMethod m) {
+        return m == Marcus::CalcMethod::TDDFT ? std::string("TD-DFT") : std::string("DFT");
+    };
     if (verbose) {
         std::cout << "Loaded input from: " << filename << std::endl;
         std::cout << "  Project: " << project.name << std::endl;
         std::cout << "  Calc type: " << (project.calc_type == Marcus::CalcType::OSET ? "OSET" : "EnT") << std::endl;
         std::cout << "  Donor: " << project.donor.name << " (init: " << project.donor.init_state.charge
-                  << "," << project.donor.init_state.mult << "; final: "
-                  << project.donor.final_state.charge << "," << project.donor.final_state.mult << ")" << std::endl;
+                  << "," << project.donor.init_state.mult << " ["
+                  << method_name(project.donor.init_state.method) << "]; final: "
+                  << project.donor.final_state.charge << "," << project.donor.final_state.mult << " ["
+                  << method_name(project.donor.final_state.method) << "])" << std::endl;
         std::cout << "  Acceptor: " << project.acceptor.name << " (init: "
                   << project.acceptor.init_state.charge << "," << project.acceptor.init_state.mult
-                  << "; final: " << project.acceptor.final_state.charge << ","
-                  << project.acceptor.final_state.mult << ")" << std::endl;
+                  << " [" << method_name(project.acceptor.init_state.method) << "]; final: "
+                  << project.acceptor.final_state.charge << ","
+                  << project.acceptor.final_state.mult << " ["
+                  << method_name(project.acceptor.final_state.method) << "])" << std::endl;
         std::cout << "  Step1: " << project.step1_functional << "/" << project.step1_basis << std::endl;
         std::cout << "  Step2: " << project.step2_functional << "/" << project.step2_basis << std::endl;
     }
@@ -489,6 +605,32 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "acceptor_final_mult   = 2\n";
     file << "\n";
 
+    // Method selection
+    file << "# ----------------------------------------------------------------------------\n";
+    file << "# METHOD SELECTION (normal DFT default; TD-DFT for excited states S1, T2, ...)\n";
+    file << "# ----------------------------------------------------------------------------\n";
+    file << "# Set per species; per-state overrides let one state use TD-DFT and another DFT.\n";
+    file << "# For a TD-DFT state, charge/mult above are the SCF reference (e.g. 0 1);\n";
+    file << "# select the excited state with tddft_states and tddft_root.\n";
+    file << "# Keep tddft_root the same in step 1 and step 2: the optimized state\n";
+    file << "# and the single-pointed state must be the same.\n";
+    file << "# donor_method    = dft          # dft | tddft (default for both donor states)\n";
+    file << "# acceptor_method = dft          # dft | tddft\n";
+    file << "# donor_init_method     = tddft  # optional per-state override\n";
+    file << "# donor_final_method    = dft\n";
+    file << "# acceptor_init_method  = dft\n";
+    file << "# acceptor_final_method = dft\n";
+    file << "\n";
+    file << "# TD-DFT route options (same names as input_gen calc_type = tddft)\n";
+    file << "# tddft_method  = tda            # tda | td\n";
+    file << "# tddft_states  = singlets       # singlets | triplets | 50-50 | blank\n";
+    file << "# tddft_nstates = 3              # number of excited states\n";
+    file << "# tddft_extra   = Root=1,Read    # extra keywords inside td/tda(...)\n";
+    file << "# tddft_root    = 1              # convenience -> Root=1\n";
+    file << "# step1_tddft_* / step2_tddft_*  # optional per-step overrides\n";
+    file << "# <state>_tddft_*                # optional per-state overrides\n";
+    file << "\n";
+
     // Step 1 theory
     file << "# ----------------------------------------------------------------------------\n";
     file << "# STEP 1 THEORY — Geometry optimization + Freq at LOW level (opt_freq)\n";
@@ -512,6 +654,11 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "# step1_print_level     = P\n";
     file << "# step1_tail            =\n";
     file << "# step1_route_extra_keywords =\n";
+    file << "# step1_tddft_method  =         # TD-DFT only; overrides global tddft_method\n";
+    file << "# step1_tddft_states  =\n";
+    file << "# step1_tddft_nstates =\n";
+    file << "# step1_tddft_extra   =\n";
+    file << "# step1_tddft_root    =         # keep equal to step2_tddft_root\n";
     file << "\n";
 
     // Step 2 theory
@@ -533,6 +680,11 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "# step2_print_level     =\n";
     file << "# step2_tail            =\n";
     file << "# step2_route_extra_keywords =\n";
+    file << "# step2_tddft_method  =         # TD-DFT only; overrides global tddft_method\n";
+    file << "# step2_tddft_states  =\n";
+    file << "# step2_tddft_nstates =\n";
+    file << "# step2_tddft_extra   =\n";
+    file << "# step2_tddft_root    =         # keep equal to step1_tddft_root\n";
     file << "\n";
 
     // Step 3

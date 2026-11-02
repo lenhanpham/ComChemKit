@@ -38,12 +38,14 @@ bool extract_electronic_energy(const std::string& log_path, double& energy, bool
  * @param gas_phase Use SCF Done only for gas-phase single points.
  * @param pcm_present Optional flag indicating a PCM correction line in the log.
  * @param scrf_present Optional flag indicating SCRF text in the log.
+ * @param tddft_present Optional flag indicating a TD-DFT excited-state energy line.
  * @return true on success.
  */
 bool extract_electronic_energy_src(const std::string& log_path,
                                    double& energy, std::string& source_out,
                                    bool gas_phase = false, bool* pcm_present = nullptr,
-                                   bool* scrf_present = nullptr);
+                                   bool* scrf_present = nullptr,
+                                   bool* tddft_present = nullptr);
 
 /**
  * @brief Extract thermal correction to Gibbs free energy from a step-1 log file.
@@ -65,7 +67,8 @@ bool extract_thermal_correction_gibbs(const std::string& log_path, double& tc_gi
 bool extract_full_thermal_step1(const std::string& log_path,
                                  double& e_low, double& zpe, double& tc_e,
                                  double& tc_h, double& tc_g,
-                                 double& lowest_freq, double& temp_k);
+                                 double& lowest_freq, double& temp_k,
+                                 bool* tddft_present = nullptr);
 
 /**
  * @brief Compute the Gibbs free energy for a state (high-kj/high-au).

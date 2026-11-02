@@ -4,6 +4,7 @@
  */
 
 #include "marcus/marcus_io.h"
+#include "marcus/marcus_input_gen.h"
 #include "utilities/metadata.h"
 #include <fstream>
 #include <iostream>
@@ -174,6 +175,9 @@ bool write_barrier_report_to_stream(std::ostream& file, const MarcusProject& pro
              << "--------------------------------------------------------------------------\n";
     };
     auto text_or_none = [](const std::string& s) { return s.empty() ? std::string("(not specified)") : s; };
+    auto method_name = [](CalcMethod m) {
+        return m == CalcMethod::TDDFT ? std::string("TD-DFT") : std::string("DFT");
+    };
     auto number = [](double value, bool available, int precision = 9) {
         if (!available) return std::string("N/A");
         std::ostringstream s;
@@ -192,10 +196,12 @@ bool write_barrier_report_to_stream(std::ostream& file, const MarcusProject& pro
     bool fully_gas = step1_gas && step2_gas;
     bool mixed_phase = step1_gas != step2_gas;
     bool any_thermo = false, any_log = false, any_fallback = false;
+    bool any_state_tddft = false;
     for (const auto& row : states) {
         any_thermo |= row.state->thermo_recalculated;
         any_log |= !row.state->thermo_recalculated;
         any_fallback |= row.state->thermo_fallback;
+        any_state_tddft |= row.state->method == CalcMethod::TDDFT;
     }
 
     if (include_header) file << Metadata::header();
@@ -229,7 +235,25 @@ bool write_barrier_report_to_stream(std::ostream& file, const MarcusProject& pro
     theory("Step 2 — single-point electronic energies", project.step2_functional, project.step2_basis,
            project.step2_basis_path, project.step2_tail, project.step2_solvent_model, project.step2_solvent);
     file << "  Job types     : equilibrium and cross (configured routes)\n"
-         << "  Energy source : " << (step2_gas ? "SCF Done (gas phase)" : "After PCM, falling back to SCF Done") << "\n\n";
+         << "  Energy source : ";
+    if (step2_gas)
+        file << (any_state_tddft ? "TD-DFT E(CIS/TDA) or SCF Done (gas phase)"
+                                 : "SCF Done (gas phase)");
+    else
+        file << (any_state_tddft ? "After PCM, TD-DFT E(CIS/TDA), or SCF Done"
+                                 : "After PCM, falling back to SCF Done");
+    file << "\n\n";
+
+    if (any_state_tddft) {
+        file << "TD-DFT states\n";
+        for (const auto& row : states) {
+            if (row.state->method != CalcMethod::TDDFT) continue;
+            file << "  " << row.id << " " << row.role << ":\n"
+                 << "    step 1 route: " << build_tddft_keyword(resolve_tddft_options(project, *row.state, 1)) << "\n"
+                 << "    step 2 route: " << build_tddft_keyword(resolve_tddft_options(project, *row.state, 2)) << "\n";
+        }
+        file << "  charge/mult shown above are the SCF reference for TD-DFT states.\n\n";
+    }
     file << "Thermochemistry\n"
          << "  Requested     : " << (thermo_requested ? "thermo module" : "step-1 log values") << "\n"
          << "  Actual source : " << (any_thermo && any_log ? "mixed; see state provenance below" :
@@ -301,7 +325,7 @@ bool write_barrier_report_to_stream(std::ostream& file, const MarcusProject& pro
         const auto& st = *row.state;
         file << "  " << row.id << "  " << row.role << ": " << st.name
              << " (charge " << std::showpos << st.charge << std::noshowpos
-             << ", multiplicity " << st.mult << ")\n"
+             << ", multiplicity " << st.mult << ", method " << method_name(st.method) << ")\n"
              << "       Thermal: " << (st.thermo_recalculated ? "thermo module" :
                     st.thermo_fallback ? "step-1 log (thermo fallback)" : "step-1 log");
         if (st.thermo_recalculated || st.temperature_from_log)
@@ -369,8 +393,13 @@ bool write_barrier_report_to_stream(std::ostream& file, const MarcusProject& pro
 
     bool any_scrf = false;
     for (const auto& row : states) any_scrf |= row.state->has_scrf;
+    bool tddft_mismatch = false;
+    for (const auto& row : states)
+        tddft_mismatch |= ((row.state->method == CalcMethod::TDDFT) !=
+                           row.state->tddft_energy_detected);
     bool warning = !result.gibbs_valid || !result.barrier_sym_valid || !result.barrier_asym_valid ||
-                   any_fallback || mixed_phase || !e.pcm_lines_in_gas_logs.empty() ||
+                   any_fallback || mixed_phase || tddft_mismatch ||
+                   !e.pcm_lines_in_gas_logs.empty() ||
                    !e.scrf_text_in_gas_logs.empty() || (fully_gas && any_scrf) ||
                    (!fully_gas && any_scrf && project.concentration <= 0.0);
     for (const auto& row : states)
@@ -406,6 +435,17 @@ bool write_barrier_report_to_stream(std::ostream& file, const MarcusProject& pro
         }
         if (!fully_gas && any_scrf && project.concentration <= 0.0)
             file << "  Non-positive concentration: phase correction uses the 1 mol/L fallback.\n";
+        if (tddft_mismatch) {
+            for (const auto& row : states) {
+                const bool cfg_td = row.state->method == CalcMethod::TDDFT;
+                if (cfg_td && !row.state->tddft_energy_detected)
+                    file << "  " << row.id
+                         << ": configured TD-DFT but no E(CIS/TDA) or E(TD-HF/TD-DFT) energy found in the step-2 log.\n";
+                if (!cfg_td && row.state->tddft_energy_detected)
+                    file << "  " << row.id
+                         << ": configured DFT but a TD-DFT energy was found in the step-2 log.\n";
+            }
+        }
         for (const auto& row : states) {
             if (row.state->thermo_fallback) file << "  " << row.id << ": thermo recalculation failed; using log values if available.\n";
             if (!row.state->has_full_thermal) file << "  " << row.id << ": incomplete thermal data.\n";
@@ -467,6 +507,10 @@ bool write_barrier_report_to_stream(std::ostream& file, const MarcusProject& pro
             source("E(A-P at A-R)", e.E_P_A_qR_A, e.s_P_A_qR_A, e.f_P_A_qR_A);
             source("E(A-R at A-P)", e.E_R_A_qP_A, e.s_R_A_qP_A, e.f_R_A_qP_A);
         } else file << "  N/A (electronic energies unavailable)\n";
+        if (!e.tddft_logs.empty()) {
+            file << "  Step-2 logs with a TD-DFT excited-state energy line:\n";
+            for (const auto& path : e.tddft_logs) file << "    " << path << "\n";
+        }
 
         section("VERBOSE: REACTION AND REORGANIZATION AUDIT");
         file << "  Delta G° raw       : " << number(result.dG_r_hartree_raw, result.gibbs_valid) << " Hartree\n"

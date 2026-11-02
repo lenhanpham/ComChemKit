@@ -39,6 +39,35 @@ enum class Step {
 };
 
 /**
+ * @enum CalcMethod
+ * @brief Electronic-structure method used for a state's calculations.
+ */
+enum class CalcMethod {
+    DFT,   ///< Normal (ground-state) DFT calculation
+    TDDFT  ///< TD-DFT excited-state calculation (tda/td)
+};
+
+/**
+ * @struct TddftOptions
+ * @brief TD-DFT route options, mirroring the `input_gen` tddft calculation type.
+ *
+ * Only consulted when a state's CalcMethod is TDDFT. Fields carry `*_set`
+ * flags so that per-state, per-step and global settings can be merged with a
+ * clear precedence (per-state > per-step > global > built-in defaults).
+ */
+struct TddftOptions {
+    std::string method = "tda";  ///< "tda" or "td"
+    std::string states;          ///< "singlets" | "triplets" | "50-50" | "" (default: singlets)
+    int nstates = 15;            ///< Number of excited states
+    std::string extra;           ///< Extra keywords inside td/tda(...) e.g. "Root=1,Read"
+    int root = -1;               ///< Convenience Root=N; -1 = unset
+    bool method_set = false;
+    bool states_set = false;
+    bool nstates_set = false;
+    bool extra_set = false;
+};
+
+/**
  * @struct MarcusState
  * @brief Represents one electronic state (initial or final) of one molecule.
  *
@@ -55,6 +84,9 @@ struct MarcusState {
     std::string xyz_path;      ///< Path to XYZ coordinate file (step 1 only)
     std::string chk_file;      ///< Checkpoint filename (e.g., "PC-doublet.chk")
     std::string log_file;      ///< Gaussian output log filename
+    CalcMethod method = CalcMethod::DFT;  ///< DFT or TD-DFT
+    TddftOptions tddft;        ///< Per-state TD-DFT overrides (only for TDDFT states)
+    bool tddft_energy_detected = false;  ///< Step-2 log contained a TD-DFT energy line
     // --- Two-level components (high-au style) ---
     double energy_elec = 0.0;  ///< Electronic energy from step 2 (Hartree, alias of e_high)
     double e_low = 0.0;        ///< Low-level SCF energy from step-1 log (Hartree)
@@ -138,6 +170,11 @@ struct MarcusProject {
     std::string step1_tail = "";
     std::string step1_route_extra_keywords = "";
 
+    // TD-DFT route options (global, per-step and per-state overrides)
+    TddftOptions tddft;         ///< Global TD-DFT defaults
+    TddftOptions step1_tddft;   ///< Step-1 (opt+freq) overrides
+    TddftOptions step2_tddft;   ///< Step-2 (single point) overrides
+
     // Step 2 theory parameters (sp)
     std::string step2_functional = "uwb97xd";
     std::string step2_basis = "def2tzvp";
@@ -209,6 +246,7 @@ struct MarcusElectronicSet {
     std::string s_P_D_qR_D, s_R_D_qP_D, s_P_A_qR_A, s_R_A_qP_A;
     std::vector<std::string> pcm_lines_in_gas_logs; ///< Step-2 logs with PCM energy lines in gas mode
     std::vector<std::string> scrf_text_in_gas_logs; ///< Step-2 logs with SCRF text in gas mode
+    std::vector<std::string> tddft_logs;            ///< Step-2 logs containing a TD-DFT energy line
     bool success = false;
 };
 

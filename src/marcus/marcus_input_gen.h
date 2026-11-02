@@ -63,13 +63,36 @@ std::string build_step1_route(const MarcusProject& project, const MarcusState& s
 /**
  * @brief Generate the route section for a step-2 (single point) Gaussian input.
  * @param project Project configuration.
+ * @param state The state being computed (selects DFT or TD-DFT and its options).
  * @param is_equilibrium true for non-cross (equilibrium) jobs:
  *        "#P ... NonEq=write Geom(Check) Guess(read) nosymm";
  *        false for cross (non-equilibrium) jobs:
  *        "# ... ExternalIteration,NonEq=read Geom=Check Guess(read) nosymm".
  * @return Route section string (with leading #P / #).
  */
-std::string build_step2_route(const MarcusProject& project, bool is_equilibrium);
+std::string build_step2_route(const MarcusProject& project, const MarcusState& state,
+                              bool is_equilibrium);
+
+/**
+ * @brief Build the TD-DFT route fragment (e.g. "tda(singlets,nstates=3,Root=1)").
+ * @param opts Resolved TD-DFT options.
+ * @return Route fragment, or empty when TD-DFT should not be added.
+ */
+std::string build_tddft_keyword(const TddftOptions& opts);
+
+/**
+ * @brief Resolve a state's TD-DFT options for a workflow step.
+ *
+ * Merges per-state > per-step > global > built-in defaults. Only meaningful
+ * when state.method == CalcMethod::TDDFT.
+ *
+ * @param project Project configuration.
+ * @param state The state (for per-state overrides).
+ * @param step 1 for opt+freq, 2 for single point.
+ * @return Resolved options.
+ */
+TddftOptions resolve_tddft_options(const MarcusProject& project,
+                                   const MarcusState& state, int step);
 
 /**
  * @brief Generate Link0 computing resource directives.
