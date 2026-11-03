@@ -96,11 +96,13 @@ std::string MarcusCommand::get_description() const {
     return "Marcus theory barrier calculations for OSET and EnT (four-point method)";
 }
 
-Marcus::CalcType MarcusCommand::parse_calc_type(const std::string& s) {
+Marcus::CalcType MarcusCommand::parse_calc_type(const std::string& s, bool* valid) {
+    if (valid) *valid = true;
     std::string lower = s;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
     if (lower == "oset") return Marcus::CalcType::OSET;
     if (lower == "ent")  return Marcus::CalcType::ENT;
+    if (valid) *valid = false;
     return Marcus::CalcType::OSET;  // default
 }
 
@@ -288,7 +290,13 @@ bool MarcusCommand::load_input(const std::string& filename,
         std::cerr << "Error: Cannot derive project name from input file: " << filename << std::endl;
         return false;
     }
-    project.calc_type = parse_calc_type(parser.getString("calc_type", "oset"));
+    const std::string calc_type_value = parser.getString("calc_type", "oset");
+    bool calc_type_valid = true;
+    project.calc_type = parse_calc_type(calc_type_value, &calc_type_valid);
+    if (!calc_type_valid) {
+        project.calc_type_warning = "Warning: calc_type '" + calc_type_value +
+                                    "' is not valid (expected oset or ent); using the default OSET.";
+    }
     std::string workflow = parser.getString("workflow", "manual");
     std::transform(workflow.begin(), workflow.end(), workflow.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
@@ -906,6 +914,9 @@ int MarcusCommand::execute(const CommandContext& context) {
 
     if (project.automatic_workflow)
         return Marcus::run_automatic(project, input_file, context.job_resources);
+
+    if (!project.calc_type_warning.empty())
+        std::cerr << project.calc_type_warning << std::endl;
 
     // Run the requested steps in order (default: 1,2 generates both input sets
     // up front; submit step-1 jobs first, then step-2 jobs).
