@@ -208,7 +208,12 @@ bool write_barrier_report_to_stream(std::ostream& file, const MarcusProject& pro
     file << "Marcus Theory Barrier Calculation (Four-Point Method)\n"
          << "==========================================================================\n"
          << "Project          : " << project.name << "\n"
-         << "Calculation type : " << (project.calc_type == CalcType::OSET ? "OSET" : "EnT") << "\n"
+         << "Calculation type : " << (project.calc_type == CalcType::OSET ? "OSET" : "EnT") << "\n";
+    // Standalone (manual) reports carry the warning here; automatic mode already
+    // writes it in its progress header.
+    if (include_header && !project.calc_type_warning.empty())
+        file << project.calc_type_warning << "\n";
+    file
          << "Configured phase : " << (fully_gas ? "gas phase" : mixed_phase ? "mixed gas/solution" : "solution phase") << "\n"
          << "Barrier models   : symmetric and asymmetric\n"
          << "Report level     : " << (project.verbose_report ? "verbose" : "default") << "\n"

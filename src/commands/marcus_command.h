@@ -63,7 +63,7 @@ private:
     int generate_template(const std::string& filename);
 
     // Helpers
-    Marcus::CalcType parse_calc_type(const std::string& s);
+    Marcus::CalcType parse_calc_type(const std::string& s, bool* valid = nullptr);
 };
 
 #endif  // MARCUS_COMMAND_H

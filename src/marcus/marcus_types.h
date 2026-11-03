@@ -135,6 +135,7 @@ struct MarcusMolecule {
 struct MarcusProject {
     std::string name;                           ///< Project name
     CalcType calc_type = CalcType::OSET;        ///< OSET or EnT
+    std::string calc_type_warning;              ///< Set when calc_type was invalid and OSET was assumed
     Step current_step = Step::STEP_1_OPT;       ///< Current workflow step
     std::vector<int> requested_steps = {1, 2}; ///< Requested steps from `step` key/CLI (default: 1,2)
     bool verbose_report = false;                 ///< Include detailed audit sections

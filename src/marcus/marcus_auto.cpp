@@ -605,7 +605,9 @@ int run_automatic(MarcusProject project, const std::string& input_file, const Jo
              << "\nStarted: " << progress_time() << "\n"
              << "Execution: sequential in the current allocation (one Gaussian process at a time)\n"
              << "Input step setting is ignored; automatic mode runs every stage.\n"
-             << "Progress and final report: " << report.string() << "\n" << std::flush;
+             << "Progress and final report: " << report.string() << "\n";
+    if (!project.calc_type_warning.empty()) progress << project.calc_type_warning << "\n";
+    progress << std::flush;
     if (!progress) return fail("Cannot write progress output");
     std::cout << "Automatic Marcus workflow started; progress: " << report.string() << std::endl;
     if (resources.nodes > 1) progress << "Note: automatic mode runs sequentially on one node; other allocated nodes are not used.\n" << std::flush;
