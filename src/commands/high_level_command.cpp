@@ -65,14 +65,15 @@ void HighLevelCommand::print_help(const std::string& program_name) const {
         std::cout << "and thermal corrections from parent directory (../) to compute final\n";
         std::cout << "thermodynamic quantities. Output format focuses on final Gibbs energies.\n\n";
         std::cout << "Additional Options:\n";
-        std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";
-        std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
+        std::cout << "  -T, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";
+        std::cout << "  -conc, -c, -C, --cm <M> Concentration for PCorr (default: 1.0)\n";
+        std::cout << "  -P, --pressure <atm>    Pressure in atm (default: from input or 1.0)\n";
         std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
         std::cout << "  -col, --column <N>      Sort column 1-7 (default: 2)\n";
         std::cout << "                        1=Name, 2=G kJ/mol, 3=G a.u, 4=G eV, 5=LowFQ, 6=Status, 7=PhCorr\n";
         std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
-        std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
-        std::cout << "                          Applied when -t or -c is specified\n";
+        std::cout << "                          Options: 0/Harmonic, 1/Truhlar, 2/Grimme, 3/Minenkov, 4/HeadGordon\n";
+        std::cout << "                          Applied when -T, -P or -conc is specified\n";
         std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
     } else {
         std::cout << "Description: Calculate detailed energy components in atomic units\n";
@@ -81,14 +82,15 @@ void HighLevelCommand::print_help(const std::string& program_name) const {
         std::cout << "and thermal corrections from parent directory (../) to compute detailed\n";
         std::cout << "energy component breakdown including ZPE, TC, TS, H, and G values.\n\n";
         std::cout << "Additional Options:\n";
-        std::cout << "  -t, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";
-        std::cout << "  -c, -C, --cm, --conc <M> Concentration for PCorr (default: 1.0)\n";
+        std::cout << "  -T, --temp <K>          Temperature in Kelvin (default: from input or 298.15)\n";
+        std::cout << "  -conc, -c, -C, --cm <M> Concentration for PCorr (default: 1.0)\n";
+        std::cout << "  -P, --pressure <atm>    Pressure in atm (default: from input or 1.0)\n";
         std::cout << "  -f, --format <fmt>      Output format: text|csv (default: text)\n";
         std::cout << "  -col, --column <N>      Sort column 1-10 (default: 8 = G a.u)\n";
         std::cout << "                          1=Name, 2=E high, 3=E low, 4=ZPE, 5=TC, 6=TS, 7=H, 8=G, 9=LowFQ, 10=PhCorr\n";
         std::cout << "  -lowvibmeth <method>    Low-freq vibrational treatment (default: grimme)\n";
-        std::cout << "                          Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
-        std::cout << "                          Applied when -t or -c is specified\n";
+        std::cout << "                          Options: 0/Harmonic, 1/Truhlar, 2/Grimme, 3/Minenkov, 4/HeadGordon\n";
+        std::cout << "                          Applied when -T, -P or -conc is specified\n";
         std::cout << "  -ravib <cm-1>           Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
     }
     HelpUtils::print_common_options();
@@ -99,16 +101,16 @@ void HighLevelCommand::print_help(const std::string& program_name) const {
         std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
         std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
         std::cout << "  " << program_name << " " << cmd_name << " -col 5       # Sort by frequency\n";
-        std::cout << "  " << program_name << " " << cmd_name << " -t 300 -col 2 -f csv  # Custom temp, sort by G kJ/mol, CSV\n";
-        std::cout << "  " << program_name << " " << cmd_name << " -t 253.15 -c 1 -lowvibmeth harmonic  # Harmonic treatment\n";
-        std::cout << "  " << program_name << " " << cmd_name << " -t 253.15 -lowvibmeth grimme -ravib 150  # Grimme with custom crossover\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -T 300 -col 2 -f csv  # Custom temp, sort by G kJ/mol, CSV\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -T 253.15 -conc 1 -lowvibmeth harmonic  # Harmonic treatment\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -T 253.15 -lowvibmeth grimme -ravib 150  # Grimme with custom crossover\n";
     } else {
         std::cout << "  " << program_name << " " << cmd_name << "              # Basic usage\n";
         std::cout << "  " << program_name << " " << cmd_name << " -q           # Quiet mode\n";
         std::cout << "  " << program_name << " " << cmd_name << " -col 8       # Sort by Gibbs energy\n";
-        std::cout << "  " << program_name << " " << cmd_name << " -t 273 -col 4 -f csv  # Custom temp, sort by ZPE, CSV\n";
-        std::cout << "  " << program_name << " " << cmd_name << " -t 253.15 -c 1 -lowvibmeth harmonic  # Harmonic treatment\n";
-        std::cout << "  " << program_name << " " << cmd_name << " -t 253.15 -lowvibmeth grimme -ravib 150  # Grimme with custom crossover\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -T 273 -col 4 -f csv  # Custom temp, sort by ZPE, CSV\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -T 253.15 -conc 1 -lowvibmeth harmonic  # Harmonic treatment\n";
+        std::cout << "  " << program_name << " " << cmd_name << " -T 253.15 -lowvibmeth grimme -ravib 150  # Grimme with custom crossover\n";
     }
     std::cout << "\n";
 }
@@ -116,7 +118,7 @@ void HighLevelCommand::print_help(const std::string& program_name) const {
 void HighLevelCommand::parse_args(int argc, char* argv[], int& i, CommandContext& context) {
     std::string arg = argv[i];
 
-    if (arg == "-t" || arg == "--temp")
+    if (arg == "-T" || arg == "-t" || arg == "--temp")
     {
         if (++i < argc)
         {
@@ -141,10 +143,10 @@ void HighLevelCommand::parse_args(int argc, char* argv[], int& i, CommandContext
         }
         else
         {
-            context.warnings.push_back("Error: Temperature value required after -t/--temp.");
+            context.warnings.push_back("Error: Temperature value required after -T/--temp.");
         }
     }
-    else if (arg == "-p" || arg == "--pressure")
+    else if (arg == "-P" || arg == "-p" || arg == "--pressure")
     {
         if (++i < argc)
         {
@@ -169,10 +171,10 @@ void HighLevelCommand::parse_args(int argc, char* argv[], int& i, CommandContext
         }
         else
         {
-            context.warnings.push_back("Error: Pressure value required after -p/--pressure.");
+            context.warnings.push_back("Error: Pressure value required after -P/--pressure.");
         }
     }
-    else if (arg == "-c" || arg == "-C" || arg == "--cm" || arg == "--conc")
+    else if (arg == "-conc" || arg == "-c" || arg == "-C" || arg == "--cm" || arg == "--conc")
     {
         if (++i < argc)
         {
@@ -198,7 +200,7 @@ void HighLevelCommand::parse_args(int argc, char* argv[], int& i, CommandContext
         }
         else
         {
-            context.warnings.push_back("Error: Concentration value required after -c/--cm.");
+            context.warnings.push_back("Error: Concentration value required after -conc/-c.");
         }
     }
     else if (arg == "-col" || arg == "--column")
@@ -286,20 +288,29 @@ void HighLevelCommand::parse_args(int argc, char* argv[], int& i, CommandContext
         // Normalise to lowercase for comparison
         std::string meth_lc = meth;
         for (auto& c : meth_lc) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        // Same accepted values as the thermo module: 0/Harmonic, 1/Truhlar,
+        // 2/Grimme, 3/Minenkov, 4/HeadGordon (names are case-insensitive).
         static const std::vector<std::string> valid_methods = {
             "harmonic", "truhlar", "grimme", "minenkov", "headgordon"
         };
-        bool found = false;
-        for (const auto& m : valid_methods)
-            if (meth_lc == m) { found = true; break; }
-        if (found)
+        int selected = -1;
+        for (size_t k = 0; k < valid_methods.size(); ++k)
         {
-            low_vib_method = meth_lc;
+            if (meth_lc == valid_methods[k]) { selected = static_cast<int>(k); break; }
+        }
+        if (selected < 0 && meth_lc.size() == 1 && meth_lc[0] >= '0' && meth_lc[0] <= '4')
+        {
+            selected = meth_lc[0] - '0';
+        }
+        if (selected >= 0)
+        {
+            low_vib_method = valid_methods[static_cast<size_t>(selected)];
         }
         else
         {
             context.warnings.push_back(
-                "Warning: Unknown -lowvibmeth value '" + meth + "'. Valid: harmonic, truhlar, grimme, minenkov, headgordon. Using grimme.");
+                "Warning: Unknown -lowvibmeth value '" + meth +
+                "'. Valid: 0/harmonic, 1/truhlar, 2/grimme, 3/minenkov, 4/headgordon. Using grimme.");
             low_vib_method = "grimme";
         }
     }

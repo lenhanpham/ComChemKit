@@ -322,10 +322,13 @@ Use ``-col`` to sort by another column (see the column lists above).
 .. code-block:: bash
 
    # Custom temperature
-   cck high-kj -t 310.15
+   cck high-kj -T 310.15
 
-   # Custom concentration (accepts -c, -C, --cm, --conc)
-   cck high-kj -c 2
+   # Custom pressure
+   cck high-kj -P 2
+
+   # Custom concentration (accepts -conc, -c, -C, --cm)
+   cck high-kj -conc 2
 
    # Sort by different column
    cck high-kj -col 4
@@ -1217,15 +1220,15 @@ Example SLURM script (adjust module and resources for your cluster):
    +------------------+--------------------------------------------------+------------------+-----------+
    | ``-v, --verbose``| Verbose report and console diagnostics           | (flag)           | false     |
    +------------------+--------------------------------------------------+------------------+-----------+
-   | ``-t, --temp``   | Temperature (K)                                  | decimal          | 298.15    |
+   | ``-T``           | Temperature (K) [alias: -t, --temp]              | decimal          | 298.15    |
    +------------------+--------------------------------------------------+------------------+-----------+
-   | ``-c, --conc``   | Concentration (mol/L)                            | decimal          | 1.0       |
+   | ``-conc``        | Concentration (mol/L) [aliases: -c, -C, --cm]    | decimal          | 1.0       |
    +------------------+--------------------------------------------------+------------------+-----------+
-   | ``--pressure``   | Pressure (atm)                                   | decimal          | 1.0       |
+   | ``-P``           | Pressure (atm) [alias: --pressure]               | decimal          | 1.0       |
    +------------------+--------------------------------------------------+------------------+-----------+
-   | ``--lowvibmeth`` | Low-frequency treatment                          | harmonic|truhlar|grimme|minenkov|headgordon | grimme   |
+   | ``-lowvibmeth``  | Low-frequency treatment (0-4 or name)            | 0-4 | name       | grimme    |
    +------------------+--------------------------------------------------+------------------+-----------+
-   | ``--ravib``      | Truhlar threshold (cm^-1)                        | decimal          | 100.0     |
+   | ``-ravib``       | Truhlar threshold (cm^-1)                        | decimal          | 100.0     |
    +------------------+--------------------------------------------------+------------------+-----------+
    | ``--genoset-input``| Generate OSET input template                 | (flag)           | -         |
    +------------------+--------------------------------------------------+------------------+-----------+
@@ -1686,7 +1689,7 @@ settings. The CLI flag enables verbose reporting even if the input requests
 ``default``; ``prt_level`` controls the thermo module independently. For Marcus,
 use ``--version`` to show the program version.
 
-Thermo recalculation is activated by ``-t``, ``-c``, ``--pressure`` or the
+Thermo recalculation is activated by ``-T``, ``-conc``, ``-P`` or the
 corresponding ``use_input_*`` setting. Otherwise thermal corrections are read
 from step-1 logs; low-frequency and scaling settings do not recalculate them.
 The report records per-state fallback and temperatures. Solution-phase
