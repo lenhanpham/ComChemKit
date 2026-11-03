@@ -134,13 +134,15 @@ void MarcusCommand::print_help(const std::string& program_name) const {
     std::cout << "  -O <file>      Output file for barrier report (step 3)\n";
     std::cout << "  -v, --verbose  Verbose report and console diagnostics\n";
     std::cout << "                 Input key report_level = default|verbose also selects report detail\n\n";
-    std::cout << "Thermo options (mirror high-kj/high-au):\n";
-    std::cout << "  -t <K>         Temperature in Kelvin for thermal corrections\n";
-    std::cout << "  -c <M>         Concentration in mol/L for phase correction\n";
-    std::cout << "  --pressure <atm> Pressure for thermo recalculation (default: 1.0)\n";
-    std::cout << "  --lowvibmeth <m> Low-freq vibrational treatment (default: grimme)\n";
-    std::cout << "                   Options: harmonic|truhlar|grimme|minenkov|headgordon\n";
-    std::cout << "  --ravib <cm-1> Crossover frequency for quasi-RRHO (default: 100.0)\n\n";
+    std::cout << "Thermo options (same flags as cck thermo):\n";
+    std::cout << "  -T <K>          Temperature in Kelvin (default: 298.15)\n";
+    std::cout << "  -conc <M>       Concentration in mol/L for phase correction (default: 1.0)\n";
+    std::cout << "  -P <atm>        Pressure for thermo recalculation (default: 1.0)\n";
+    std::cout << "  -lowvibmeth <m> Low-freq vibrational treatment (default: grimme)\n";
+    std::cout << "                  Options: 0/Harmonic, 1/Truhlar, 2/Grimme, 3/Minenkov, 4/HeadGordon\n";
+    std::cout << "  -ravib <cm-1>   Crossover frequency for quasi-RRHO (default: 100.0)\n";
+    std::cout << "                  -t and -c are also accepted as short aliases; --pressure,\n";
+    std::cout << "                  --lowvibmeth and --ravib as long forms\n\n";
     std::cout << "TD-DFT (excited states S1, T2, ...):\n";
     std::cout << "  donor_method / acceptor_method = dft | tddft\n";
     std::cout << "  per-state overrides: donor_init_method, donor_final_method, ...\n";
@@ -155,6 +157,7 @@ void MarcusCommand::print_help(const std::string& program_name) const {
     std::cout << "  " << program_name << " marcus reaction.inp -step 2\n";
     std::cout << "  " << program_name << " marcus reaction.inp -step 3\n";
     std::cout << "  " << program_name << " marcus reaction.inp -step 3 -v\n";
+    std::cout << "  " << program_name << " marcus reaction.inp -step 3 -T 310 -P 2 -lowvibmeth truhlar\n";
     HelpUtils::print_common_options();
     std::cout << "  -h, --help            Show this help message\n";
     std::cout << "  --version             Show version information\n\n";
@@ -187,48 +190,72 @@ void MarcusCommand::parse_args(int argc, char* argv[], int& i, CommandContext& /
     else if (arg == "-v" || arg == "--verbose") {
         verbose = true;
     }
-    else if (arg == "-t" || arg == "--temp") {
+    else if (arg == "-T" || arg == "-t" || arg == "--temp") {
         if (i + 1 < argc) {
             project_temperature = std::stod(argv[++i]);
             use_input_temp = true;
         } else {
-            std::cerr << "Error: -t requires a temperature argument" << std::endl;
+            std::cerr << "Error: -T requires a temperature argument" << std::endl;
             parse_error = true;
         }
     }
-    else if (arg == "-c" || arg == "-C" || arg == "--cm" || arg == "--conc") {
+    else if (arg == "-conc" || arg == "-c" || arg == "-C" || arg == "--cm" || arg == "--conc") {
         if (i + 1 < argc) {
             project_concentration = std::stod(argv[++i]);
             use_input_concentration = true;
         } else {
-            std::cerr << "Error: -c requires a concentration argument" << std::endl;
+            std::cerr << "Error: -conc requires a concentration argument" << std::endl;
             parse_error = true;
         }
     }
-    else if (arg == "--pressure") {
+    else if (arg == "-P" || arg == "--pressure") {
         if (i + 1 < argc) {
             project_pressure = std::stod(argv[++i]);
             use_input_pressure = true;
         } else {
-            std::cerr << "Error: --pressure requires a pressure argument" << std::endl;
+            std::cerr << "Error: -P requires a pressure argument" << std::endl;
             parse_error = true;
         }
     }
-    else if (arg == "--lowvibmeth") {
+    else if (arg == "-lowvibmeth" || arg == "--lowvibmeth") {
         if (i + 1 < argc) {
-            project_low_vib_method = argv[++i];
+            std::string meth = argv[++i];
+            std::string meth_lc = meth;
+            std::transform(meth_lc.begin(), meth_lc.end(), meth_lc.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            // Same accepted values as the thermo module: 0/Harmonic, 1/Truhlar,
+            // 2/Grimme, 3/Minenkov, 4/HeadGordon (names are case-insensitive).
+            static const std::vector<std::string> valid_methods = {
+                "harmonic", "truhlar", "grimme", "minenkov", "headgordon"
+            };
+            int selected = -1;
+            for (size_t k = 0; k < valid_methods.size(); ++k) {
+                if (meth_lc == valid_methods[k]) { selected = static_cast<int>(k); break; }
+            }
+            if (selected < 0 && meth_lc.size() == 1 && meth_lc[0] >= '0' && meth_lc[0] <= '4') {
+                selected = meth_lc[0] - '0';
+            }
+            if (selected >= 0) {
+                project_low_vib_method = valid_methods[static_cast<size_t>(selected)];
+            } else {
+                std::cerr << "Warning: Unknown -lowvibmeth value '" << meth
+                          << "'. Valid: 0/harmonic, 1/truhlar, 2/grimme, 3/minenkov, 4/headgordon. "
+                             "Using grimme."
+                          << std::endl;
+                project_low_vib_method = "grimme";
+            }
             low_vib_cli_given = true;
         } else {
-            std::cerr << "Error: --lowvibmeth requires a method argument" << std::endl;
+            std::cerr << "Error: -lowvibmeth requires a method argument" << std::endl;
             parse_error = true;
         }
     }
-    else if (arg == "--ravib") {
+    else if (arg == "-ravib" || arg == "--ravib") {
         if (i + 1 < argc) {
             project_ravib = std::stod(argv[++i]);
             ravib_cli_given = true;
         } else {
-            std::cerr << "Error: --ravib requires a frequency argument" << std::endl;
+            std::cerr << "Error: -ravib requires a frequency argument" << std::endl;
             parse_error = true;
         }
     }
@@ -709,7 +736,7 @@ int MarcusCommand::generate_template(const std::string& filename) {
     file << "#temperature = 298.15          # K (for thermal corrections & phase correction)\n";
     file << "#concentration = 1.0           # mol/L (for phase correction)\n";
     file << "#pressure = 1.0                # atm (thermo recalculation; phase standard is fixed at 1 atm)\n";
-    file << "#low_vib_method = grimme       # harmonic|truhlar|grimme|minenkov|headgordon\n";
+    file << "#low_vib_method = grimme       # 0/harmonic, 1/truhlar, 2/grimme, 3/minenkov, 4/headgordon\n";
     file << "#ravib = 100.0                 # cm^-1, crossover for quasi-RRHO\n";
     file << "# scale_zpe = 1.0             # ZPE scaling factor\n";
     file << "# scale_heat = 1.0            # Heat capacity scaling factor\n";

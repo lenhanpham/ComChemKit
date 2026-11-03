@@ -686,10 +686,11 @@ cck high-kj    # Improved Gibbs free energy in kJ/mol
 cck high-au    # Improved Gibbs free energy in hartree
 cck extract-au # Extract energy and breakdown in hartree (E/ZPE/TC/TS/H/G, no Status column)
 
-# Custom temperature and concentration (Both auto-enable phase correction)
-cck high-kj -t 310.15
-cck high-au -c 2          # Can also use -C, --cm, or --conc
-cck high-au -t 300 -c 2   # Can also use -C, --cm, or --conc
+# Custom temperature, pressure and concentration (All auto-enable phase correction)
+cck high-kj -T 310.15
+cck high-au -P 2
+cck high-au -conc 2       # -conc is the thermo spelling; -c, -C, --cm also work
+cck high-au -T 300 -conc 2
 ```
 
 By default both commands sort the table by Gibbs free energy (ascending), so the
@@ -787,11 +788,11 @@ cck marcus marcus_project.inp
 | `-step` | Workflow step | 1, 2, 3 | 1,2 |
 | `-O, --out` | Output report file | file path | `<project>.log` |
 | `-v, --verbose` | Verbose report and console diagnostics | (flag) | false |
-| `-t, --temp` | Temperature (K) | decimal | 298.15 |
-| `-c, -C, --cm, --conc` | Concentration (mol/L) | decimal | 1.0 |
-| `--pressure` | Pressure (atm) | decimal | 1.0 |
-| `--lowvibmeth` | Low-frequency treatment | harmonic|truhlar|grimme|minenkov|headgordon | grimme |
-| `--ravib` | Truhlar threshold (cm⁻¹) | decimal | 100.0 |
+| `-T, --temp` | Temperature (K) | decimal | 298.15 |
+| `-conc, -c, -C, --cm` | Concentration (mol/L) | decimal | 1.0 |
+| `-P, --pressure` | Pressure (atm) | decimal | 1.0 |
+| `-lowvibmeth` | Low-frequency treatment | 0/harmonic, 1/truhlar, 2/grimme, 3/minenkov, 4/headgordon | grimme |
+| `-ravib` | Truhlar threshold (cm⁻¹) | decimal | 100.0 |
 | `--genoset-input` | Generate OSET input template | (flag) | - |
 | `--genent-input` | Generate EnT input template | (flag) | - |
 | `-o, --output-template` | Template output path | file path | `marcus_oset.inp` / `marcus_ent.inp` |
