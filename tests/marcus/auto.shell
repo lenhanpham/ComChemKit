@@ -1,0 +1,53 @@
+#!/bin/bash 
+#PBS -P ft56       
+#PBS -q normal   
+#PBS -l walltime=48:00:00
+#PBS -l mem=96GB 
+#PBS -l ncpus=24      
+#PBS -l jobfs=200GB 
+#PBS -l wd
+#PBS -l storage=scratch/f81+gdata/f81   
+#PBS -j oe
+#PBS -r n
+
+# input file name is the same as script name  
+INPUT=${PBS_JOBNAME%.*}.inp 
+OUTPUT=${PBS_JOBNAME%.*}.log
+ 
+# Load Gaussian module 
+module load gaussian/g16c01 
+
+# Export path to cck binary 
+export PATH=/path/to/ComChemKit/build/bin:$PATH  
+ 
+PROGRAM='g16' 
+ 
+# Configure Gaussian parameters so that it can use correct number of cores and memory specified above
+export GAUSS_PDEF=$PBS_NCPUS 
+NCPUS_MAX=$(lscpu | awk '/Core/{print $4} /Socket/{print $2}' | paste -d"*" - - | bc)
+if [[ $PBS_NCPUS -gt $NCPUS_MAX ]]; then
+   echo "The number of requested cpus is $PBS_NCPUS. This is more than $NCPUS_MAX"
+   echo "what $PROGRAM can handle in this queue. The job is terminated for this reason."
+   exit 1
+fi
+ 
+GAUSS_MEM_OVERHEAD=7500  
+export GAUSS_MDEF="$((PBS_VMEM/1048576-GAUSS_MEM_OVERHEAD))MB"
+ 
+if [ -n "$PBS_NCI_JOBFS_LOCAL" ]; then
+   MAXDISK=${PBS_NCI_JOBFS_LOCAL%%[^0-9]*}
+elif [ -n "$PBS_NCI_JOBFS_GLOBAL" ]; then
+   MAXDISK=${PBS_NCI_JOBFS_GLOBAL%%[^0-9]*}
+fi
+MAXDISK=$((MAXDISK/1048576))
+export GAUSS_RDEF="Maxdisk=${MAXDISK}MB"
+ 
+printf '=%.0s' {1..86}; printf '\n'
+echo " The Gaussian environment is defined as:"
+echo " GAUSS_PDEF=$GAUSS_PDEF"
+echo " GAUSS_MDEF=$GAUSS_MDEF"
+echo " GAUSS_RDEF=$GAUSS_RDEF"
+printf '=%.0s' {1..86}; printf '\n'
+
+#run cck marcus in auto mode 
+cck marcus $INPUT  
