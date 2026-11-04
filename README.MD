@@ -507,7 +507,7 @@ cck ci --calc-type ts_freq
 | `--solvent-model`    | Solvent model                                                 | smd, cpcm, iefpcm           | smd       |
 | `--charge`           | Molecular charge                                              | integer                     | 0         |
 | `--mult`             | Multiplicity                                                  | integer                     | 1         |
-| `--freeze-bond`      | Freeze bond for TS (legacy alias: `--freeze-atoms`, deprecated) | atom1 atom2               | -         |
+| `--freeze-bond`      | Freeze bond for TS | atom1 atom2               | -         |
 | `--print-level`      | Route modifier                                                | N, P, T                     | -         |
 | `--extra-keywords`   | Additional keywords                                           | any Gaussian keywords       | -         |
 | `--extension`        | Output extension                                              | .gau, .com, etc.            | .gau      |
@@ -540,7 +540,7 @@ The parameter file uses `name = value` lines (`#` = comment); keys present in th
 | `opt_maxcycles` / `opt_options` / `opt_restart` | `300` / (empty) / `false` | Param-file-only; inside `opt(...)`; same restart rule |
 | `opt_maxstep` | (unset; `5` in `ts_freq_from_chk` sections) | Adds `,MaxStep=N` |
 | `irc_maxpoints` / `irc_recalc` / `irc_maxcycle` / `irc_stepsize` | `50` / `10` / `350` / `10` | Param-file-only; IRC types ignore `opt_*`/`scf_*` |
-| `freeze_bond` (`freeze_bond_atom1/2` fallback; legacy `freeze_atoms`, `freeze_atom1/2` deprecated) / `modre` | - | One of them required for `oss_ts_freq`/`modre_ts_freq`; `modre` also valid for `modre_opt` |
+| `freeze_bond` (`freeze_bond_atom1/2` fallback) / `modre` | - | One of them required for `oss_ts_freq`/`modre_ts_freq`; `modre` also valid for `modre_opt` |
 | `tschk_path` | parent dir | For `high_sp`, `irc_forward`/`irc_reverse` |
 | `tddft_method` / `tddft_states` / `tddft_nstates` / `tddft_extra` | `tda` / both / `15` / (empty) | `singlets` writes `-singlets.gau`, `triplets` writes `-triplets.gau`, `50-50` writes one file, empty writes both |
 | `fix_pcm` / `temperature` | `false` / (unset) | Two-section Link1 SES job; not valid for high_sp, oss_ts_freq, modre_ts_freq, tddft, irc |

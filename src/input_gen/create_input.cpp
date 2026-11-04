@@ -476,8 +476,7 @@ bool CreateInput::loadParameters(const std::string& param_file)
     tschk_path_ = parser.getString("tschk_path", "");
 
     // Freeze bond for TS calculations
-    // Try freeze_bond first; legacy freeze_atoms is accepted as a deprecated alias
-    std::string freeze_bond_str = parser.getString("freeze_bond", parser.getString("freeze_atoms", ""));
+    std::string freeze_bond_str = parser.getString("freeze_bond", "");
     if (!freeze_bond_str.empty())
     {
         // Parse frozen-bond string to extract the two bond-atom indices
@@ -489,9 +488,9 @@ bool CreateInput::loadParameters(const std::string& param_file)
     }
     else
     {
-        // Fall back to separate endpoint parameters (legacy freeze_atom1/2 accepted)
-        int freeze1 = parser.getInt("freeze_bond_atom1", parser.getInt("freeze_atom1", 0));
-        int freeze2 = parser.getInt("freeze_bond_atom2", parser.getInt("freeze_atom2", 0));
+        // Fall back to separate endpoint parameters
+        int freeze1 = parser.getInt("freeze_bond_atom1", 0);
+        int freeze2 = parser.getInt("freeze_bond_atom2", 0);
         if (freeze1 != 0 && freeze2 != 0)
         {
             freeze_bond_ = {freeze1, freeze2};

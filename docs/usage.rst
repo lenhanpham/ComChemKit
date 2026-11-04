@@ -619,8 +619,6 @@ TS-constraint keys:
 
 - ``freeze_bond = 1,2`` (comma- or space-separated; ``freeze_bond_atom1`` / ``freeze_bond_atom2``
   are the fallback) — required for ``oss_ts_freq`` / ``modre_ts_freq`` unless ``modre`` is given.
-  The former names ``freeze_atoms`` / ``freeze_atom1`` / ``freeze_atom2`` are still accepted
-  but deprecated.
 - ``modre`` (multiline) — ModRedundant section; wrap lines in ``(`` ... ``)`` to preserve
   blank lines.
 
