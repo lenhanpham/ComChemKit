@@ -132,7 +132,6 @@ void CreateInputCommand::print_help(const std::string& program_name) const {
     std::cout << "  --charge <num>           Molecular charge (default: 0)\n";
     std::cout << "  --mult <num>             Multiplicity (default: 1)\n";
     std::cout << "  --freeze-bond  <a1> <a2> Freeze bond between atoms (for TS calculations)\n";
-    std::cout << "                           (legacy alias: --freeze-atoms, deprecated)\n";
     std::cout << "  --print-level <sign>     Route section modifier: N|P|T (Gaussian versions)\n";
     std::cout << "  --extra-keywords <kw>    Additional Gaussian keywords\n";
     std::cout << "  --extension <ext>        Output file extension (default: .gau)\n";
@@ -427,7 +426,7 @@ void CreateInputCommand::parse_args(int argc, char* argv[], int& i, CommandConte
             context.warnings.push_back("Error: tschk-path requires a value");
         }
     }
-    else if (arg == "--freeze-bond" || arg == "--freeze-atoms")  // --freeze-atoms: deprecated alias
+    else if (arg == "--freeze-bond")
     {
         if (++i < argc)
         {
@@ -693,9 +692,9 @@ void CreateInputCommand::parse_args(int argc, char* argv[], int& i, CommandConte
             ci_modre      = parser.getString("modre", ci_modre);
             ci_extension  = parser.getString("extension", ci_extension);
             ci_tschk_path = parser.getString("tschk_path", ci_tschk_path);
-            // Handle freeze bond - try freeze_bond (legacy freeze_atoms) first,
+            // Handle freeze bond - try freeze_bond first,
             // then fall back to separate endpoint parameters
-            std::string freeze_bond_str = parser.getString("freeze_bond", parser.getString("freeze_atoms", ""));
+            std::string freeze_bond_str = parser.getString("freeze_bond", "");
             if (!freeze_bond_str.empty())
             {
                 // Parse freeze bond string (comma or space separated)
@@ -762,11 +761,9 @@ void CreateInputCommand::parse_args(int argc, char* argv[], int& i, CommandConte
             }
             else
             {
-                // Fall back to separate freeze_bond_atom1/2 (legacy freeze_atom1/2) parameters
-                ci_freeze_bond_atom1 =
-                    parser.getInt("freeze_bond_atom1", parser.getInt("freeze_atom1", ci_freeze_bond_atom1));
-                ci_freeze_bond_atom2 =
-                    parser.getInt("freeze_bond_atom2", parser.getInt("freeze_atom2", ci_freeze_bond_atom2));
+                // Fall back to separate freeze_bond_atom1/2 parameters
+                ci_freeze_bond_atom1 = parser.getInt("freeze_bond_atom1", ci_freeze_bond_atom1);
+                ci_freeze_bond_atom2 = parser.getInt("freeze_bond_atom2", ci_freeze_bond_atom2);
             }
 
             // Load custom cycle and optimization parameters (always loaded)

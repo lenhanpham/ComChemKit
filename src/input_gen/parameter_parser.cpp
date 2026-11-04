@@ -465,8 +465,7 @@ std::string ParameterParser::createTemplateContent(const std::string& calc_type)
         content << "# freeze_bond = 1,2\n";
         content << "# Or specify the two endpoints separately:\n";
         content << "# freeze_bond_atom1 = 1\n";
-        content << "# freeze_bond_atom2 = 2\n";
-        content << "# (legacy aliases freeze_atoms / freeze_atom1 / freeze_atom2 are deprecated)\n\n";
+        content << "# freeze_bond_atom2 = 2\n\n";
         content << "# Modredundant section (alternative to freeze_bond)\n";
         content << "# modre =\n";
         content << "# B 1 2 F\n";
@@ -612,6 +611,13 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "mult = 1\n";
     content << "extension = .gau\n\n";
 
+    // Larger basis set for higher-level SP calculation
+    content << "# ==========================================\n";
+    content << "# HIGH-LEVEL SP PARAMETERS\n";
+    content << "# (used by high_sp)\n";
+    content << "# ==========================================\n";
+    content << "# large_basis = def2TZVPP\n";
+
     // Solvent parameters (used by most calculation types)
     content << "# ==========================================\n";
     content << "# SOLVENT PARAMETERS (optional)\n";
@@ -640,11 +646,9 @@ std::string ParameterParser::createGeneralTemplateContent() const
     content << "# TS-SPECIFIC PARAMETERS\n";
     content << "# (used by ts_freq, oss_ts_freq, modre_ts_freq)\n";
     content << "# ==========================================\n";
-    content << "# large_basis = def2TZVPP\n";
     content << "# freeze_bond = 1,2\n";
     content << "# freeze_bond_atom1 = 1\n";
     content << "# freeze_bond_atom2 = 2\n";
-    content << "# (legacy aliases freeze_atoms / freeze_atom1 / freeze_atom2 are deprecated)\n";
     content << "# modre =\n";
     content << "# B 1 2 F\n";
     content << "# A 1 2 3 F\n";
