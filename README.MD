@@ -728,6 +728,19 @@ project/
 
 In manual mode, steps 1 and 2 overwrite matching generated `.gau` files and manifests. Existing Gaussian `.log` and `.chk` files are not overwritten by input generation. Automatic mode refuses to overwrite an existing report or nonempty step directory.
 
+The logic and algorithms implemented in this Marcus module to calculate barriers have been used in multiple publications:
+  
+[1] M. L. Czyz, T. H. Horngren, A. J. Kondopoulos, L. J. Franov, J. A. Forni, L. N. Pham, M. L. Coote, and A. Polyzos, Photocatalytic generation of alkyl carbanions from aryl alkenes, Nat Catal 7, 1316 (2024).
+
+[2] F. Draper, S. DiLuzio, H. J. Sayre, L. N. Pham, M. L. Coote, E. H. Doeven, P. S. Francis, and T. U. Connell, Maximizing Photon-to-Electron Conversion for Atom Efficient Photoredox Catalysis, J. Am. Chem. Soc. 146, 26830 (2024).
+
+[3] L. N. Pham, A. Olding, C. C. Ho, A. C. Bissember, and M. L. Coote, Investigating Competing Inner‐ and Outer‐Sphere Electron‐Transfer Pathways in Copper Photoredox‐Catalyzed Atom‐Transfer Radical Additions: Closing the Cycle, Angew Chem Int Ed 64, e202415792 (2025).
+
+[4] A. Olding et al., Copper(I) Photoredox Catalysts Bearing Tetradentate Phenanthroline-Based Ligands: Understanding the Interplay between Structure and Function, ACS Catal. 15, 3731 (2025).
+
+[5] T.-T. Yuan, J. Chen, L. N. Pham, S. Paul, L. V. White, J. Li, P. Lan, M. L. Coote, M. G. Banwell, and Y.-T. He, Visible light-mediated syntheses of unsymmetrical methylene-bridged bis -heterocycles via an alkoxy radical relay reaction, Org. Chem. Front. 10, 4649 (2023).
+
+
 **Basic Usage:**
 
 ```bash
